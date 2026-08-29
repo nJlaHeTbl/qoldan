@@ -157,3 +157,24 @@ export const uploads = sqliteTable(
   },
   (table) => [index('uploads_owner_id_idx').on(table.ownerId)],
 );
+
+export const reports = sqliteTable(
+  'reports',
+  {
+    id: text('id').primaryKey(),
+    ownerId: text('owner_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    targetType: text('target_type').notNull(),
+    targetId: text('target_id').notNull(),
+    reason: text('reason').notNull(),
+    description: text('description'),
+    status: text('status').notNull().default('new'),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => [
+    index('reports_owner_id_created_at_idx').on(table.ownerId, table.createdAt),
+    index('reports_status_created_at_idx').on(table.status, table.createdAt),
+    index('reports_target_idx').on(table.targetType, table.targetId),
+  ],
+);

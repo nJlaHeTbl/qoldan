@@ -24,6 +24,7 @@ import {
   MessageCircle,
   Navigation,
   Phone,
+  Flag,
 } from 'lucide-react';
 import {
   MarketplaceMap,
@@ -100,6 +101,11 @@ type BookingItem = {
   status: 'pending' | 'accepted' | 'declined';
   incoming: boolean;
 };
+type ReportTarget = {
+  type: 'listing' | 'request';
+  id: string;
+  title: string;
+};
 type SubmitFormEvent = {
   preventDefault: () => void;
   currentTarget: HTMLFormElement;
@@ -119,6 +125,10 @@ const apiError = async (response: Response) => {
 const isDemoListing = (id: Listing['id']) => {
   const numericId = Number(id);
   return Number.isFinite(numericId) && numericId < 1000;
+};
+const isDemoRequest = (id: RequestItem['id']) => {
+  const numericId = Number(id);
+  return Number.isFinite(numericId) && numericId < 10_000;
 };
 const formatActivityDate = (timestamp: number) =>
   new Intl.DateTimeFormat('ru-RU', {
@@ -619,6 +629,7 @@ export default function Home() {
     | 'info'
     | 'booking'
     | 'bookings'
+    | 'report'
     | 'regions'
     | 'recycle'
     | null
@@ -637,6 +648,7 @@ export default function Home() {
   const [companyOnly, setCompanyOnly] = useState(false);
   const [listingImage, setListingImage] = useState('');
   const [listingCoords, setListingCoords] = useState<Coordinates | null>(null);
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
   const [requestKind, setRequestKind] = useState<'all' | RequestItem['kind']>(
     'all',
   );
@@ -889,6 +901,10 @@ export default function Home() {
   const openListing = (item: Listing) => {
     setSelectedListing(item);
     setModal('detail');
+  };
+  const openReport = (target: ReportTarget) => {
+    setReportTarget(target);
+    setModal('report');
   };
   const mapMarkers = useMemo<MarketplaceMapMarker[]>(
     () =>
@@ -1228,6 +1244,34 @@ export default function Home() {
         error instanceof Error
           ? error.message
           : 'Не удалось изменить бронирование',
+      );
+    } finally {
+      setSubmitting(null);
+    }
+  };
+  const submitReport = async (e: SubmitFormEvent) => {
+    e.preventDefault();
+    if (!reportTarget) return;
+    const data = new FormData(e.currentTarget);
+    setSubmitting('report');
+    try {
+      const response = await fetch('/api/reports', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          targetType: reportTarget.type,
+          targetId: reportTarget.id,
+          reason: fieldText(data, 'reason'),
+          description: fieldText(data, 'description'),
+        }),
+      });
+      if (!response.ok) throw new Error(await apiError(response));
+      setModal(null);
+      setReportTarget(null);
+      notify('Спасибо — сообщение отправлено на проверку');
+    } catch (error) {
+      notify(
+        error instanceof Error ? error.message : 'Не удалось отправить жалобу',
       );
     } finally {
       setSubmitting(null);
@@ -2642,6 +2686,22 @@ export default function Home() {
                     </button>
                   </form>
                 )}
+                {!selectedRequest.mine &&
+                  !isDemoRequest(selectedRequest.id) && (
+                    <button
+                      className="report-inline"
+                      type="button"
+                      onClick={() =>
+                        openReport({
+                          type: 'request',
+                          id: String(selectedRequest.id),
+                          title: selectedRequest.title,
+                        })
+                      }
+                    >
+                      <Flag /> Сообщить о проблеме с заявкой
+                    </button>
+                  )}
               </>
             )}
             {modal === 'detail' && selectedListing && (
@@ -2798,6 +2858,21 @@ export default function Home() {
                       >
                         <MessageCircle /> Оставить встречную заявку
                       </button>
+                      {!isDemoListing(selectedListing.id) && (
+                        <button
+                          className="report-action"
+                          type="button"
+                          onClick={() =>
+                            openReport({
+                              type: 'listing',
+                              id: String(selectedListing.id),
+                              title: selectedListing.title,
+                            })
+                          }
+                        >
+                          <Flag /> Пожаловаться на объявление
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -2867,6 +2942,65 @@ export default function Home() {
                     {submitting === 'booking'
                       ? 'Отправляем…'
                       : 'Отправить владельцу'}{' '}
+                    <ArrowRight />
+                  </button>
+                </form>
+              </>
+            )}
+            {modal === 'report' && reportTarget && (
+              <>
+                <div className="modal-title report-title">
+                  <span>
+                    <Flag />
+                  </span>
+                  <div>
+                    <small>БЕЗОПАСНОСТЬ QOLDAN</small>
+                    <h2>Сообщить о проблеме</h2>
+                    <p>
+                      «{reportTarget.title}». Жалоба не публикуется и будет
+                      доступна только команде проверки.
+                    </p>
+                  </div>
+                </div>
+                <form className="product-form" onSubmit={submitReport}>
+                  <label className="wide">
+                    Что произошло
+                    <select name="reason" required defaultValue="fraud">
+                      <option value="fraud">Подозрение на обман</option>
+                      <option value="spam">
+                        Спам или повторная публикация
+                      </option>
+                      <option value="wrong_info">
+                        Неверная цена, фото или описание
+                      </option>
+                      <option value="unsafe">Опасный товар или услуга</option>
+                      <option value="other">Другая причина</option>
+                    </select>
+                  </label>
+                  <label className="wide">
+                    Комментарий
+                    <textarea
+                      name="description"
+                      rows={4}
+                      maxLength={800}
+                      placeholder="Коротко опишите проблему — без паролей и банковских данных"
+                    />
+                  </label>
+                  <div className="report-note wide">
+                    <CheckCircle2 />
+                    <span>
+                      Мы сохраним тип публикации, её номер и выбранную причину.
+                      Автор не увидит, кто отправил жалобу.
+                    </span>
+                  </div>
+                  <button
+                    className="submit-button report-submit"
+                    type="submit"
+                    disabled={submitting === 'report'}
+                  >
+                    {submitting === 'report'
+                      ? 'Отправляем…'
+                      : 'Отправить на проверку'}{' '}
                     <ArrowRight />
                   </button>
                 </form>

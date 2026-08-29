@@ -7,6 +7,13 @@ const requestKinds = ['agro', 'build', 'rent', 'recycle'] as const;
 const listingStatuses = ['active', 'paused'] as const;
 const requestStatuses = ['open', 'closed'] as const;
 const bookingStatuses = ['accepted', 'declined'] as const;
+const reportReasons = [
+  'fraud',
+  'spam',
+  'wrong_info',
+  'unsafe',
+  'other',
+] as const;
 
 export const listingInput = z
   .object({
@@ -80,6 +87,13 @@ export const bookingInput = z
 export const bookingStatusInput = z.object({
   bookingId: z.union([z.string(), z.number()]).transform(String),
   status: z.enum(bookingStatuses),
+});
+
+export const reportInput = z.object({
+  targetType: z.enum(['listing', 'request']),
+  targetId: z.union([z.string(), z.number()]).transform(String),
+  reason: z.enum(reportReasons),
+  description: z.string().trim().max(800).optional().default(''),
 });
 
 export async function parseJson<T extends z.ZodType>(

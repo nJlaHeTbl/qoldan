@@ -1772,6 +1772,13 @@ footer {
   background: var(--green2);
   color: var(--green);
 }
+.contact-actions button.report-action {
+  min-height: 34px;
+  height: auto;
+  background: transparent;
+  color: #9a4c40;
+  font-size: 9px;
+}
 .contact-actions svg {
   width: 15px;
 }
@@ -1840,6 +1847,48 @@ footer {
   font-size: 7px;
   font-style: normal;
   letter-spacing: 0;
+}
+.report-inline {
+  width: 100%;
+  min-height: 38px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin-top: 14px;
+  padding-top: 12px;
+  background: transparent;
+  color: #9a4c40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 9px;
+  font-weight: 800;
+}
+.report-inline svg {
+  width: 14px;
+}
+.report-title > span {
+  background: #f7eae7;
+  color: #9a4c40;
+}
+.report-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 11px 12px;
+  border-radius: 10px;
+  background: #f4f6f3;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+.report-note svg {
+  width: 16px;
+  color: var(--green);
+  flex-shrink: 0;
+}
+.submit-button.report-submit {
+  background: #8d493f;
 }
 .profile-cover {
   display: flex;

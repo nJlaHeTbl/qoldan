@@ -15,6 +15,13 @@
       "when": 1788021708959,
       "tag": "0001_common_puma",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1788022164718,
+      "tag": "0002_flawless_lorna_dane",
+      "breakpoints": true
     }
   ]
 }
