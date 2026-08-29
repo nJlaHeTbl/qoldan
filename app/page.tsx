@@ -23,6 +23,7 @@ import {
   CheckCircle2,
   MessageCircle,
   Navigation,
+  Phone,
 } from 'lucide-react';
 type Listing = {
   id: number | string;
@@ -75,6 +76,19 @@ type ActivityItem = {
   description: string;
   createdAt: number;
 };
+type BookingItem = {
+  id: string;
+  listingId: string;
+  listingTitle: string;
+  dateFrom: string;
+  dateTo: string;
+  contactPhone: string;
+  counterparty: string;
+  delivery: boolean;
+  comment: string;
+  status: 'pending' | 'accepted' | 'declined';
+  incoming: boolean;
+};
 type SubmitFormEvent = {
   preventDefault: () => void;
   currentTarget: HTMLFormElement;
@@ -102,6 +116,11 @@ const formatActivityDate = (timestamp: number) =>
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(timestamp));
+const formatBookingDate = (date: string) =>
+  new Intl.DateTimeFormat('ru-RU', {
+    day: 'numeric',
+    month: 'short',
+  }).format(new Date(`${date}T12:00:00`));
 const listings: Listing[] = [
   {
     id: 1,
@@ -573,6 +592,7 @@ export default function Home() {
   const [allRequests, setAllRequests] =
     useState<RequestItem[]>(initialRequests);
   const [allResponses, setAllResponses] = useState<ResponseItem[]>([]);
+  const [bookings, setBookings] = useState<BookingItem[]>([]);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [viewerName, setViewerName] = useState('Пользователь Qoldan');
   const [serverConnected, setServerConnected] = useState(false);
@@ -587,6 +607,7 @@ export default function Home() {
     | 'notifications'
     | 'info'
     | 'booking'
+    | 'bookings'
     | 'regions'
     | 'recycle'
     | null
@@ -644,6 +665,7 @@ export default function Home() {
           requests: RequestItem[];
           favorites: string[];
           responses: ResponseItem[];
+          bookings: BookingItem[];
           activities: ActivityItem[];
         };
         if (!active) return;
@@ -651,6 +673,7 @@ export default function Home() {
         setAllRequests([...data.requests, ...initialRequests]);
         setFavorites(data.favorites.map(String));
         setAllResponses(data.responses);
+        setBookings(data.bookings);
         setActivities(data.activities);
         setViewerName(data.viewer.displayName);
         setServerConnected(true);
@@ -1108,11 +1131,45 @@ export default function Home() {
         }),
       });
       if (!response.ok) throw new Error(await apiError(response));
+      const result = (await response.json()) as { booking: BookingItem };
+      setBookings((previous) => [result.booking, ...previous]);
       setModal(null);
       notify('Запрос на бронирование отправлен владельцу');
     } catch (error) {
       notify(
         error instanceof Error ? error.message : 'Не удалось отправить запрос',
+      );
+    } finally {
+      setSubmitting(null);
+    }
+  };
+  const updateBookingStatus = async (
+    bookingId: string,
+    status: 'accepted' | 'declined',
+  ) => {
+    setSubmitting(`booking-status-${bookingId}`);
+    try {
+      const response = await fetch('/api/bookings/status', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ bookingId, status }),
+      });
+      if (!response.ok) throw new Error(await apiError(response));
+      setBookings((previous) =>
+        previous.map((booking) =>
+          booking.id === bookingId ? { ...booking, status } : booking,
+        ),
+      );
+      notify(
+        status === 'accepted'
+          ? 'Бронирование подтверждено — арендатор увидит решение'
+          : 'Запрос на бронирование отклонён',
+      );
+    } catch (error) {
+      notify(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось изменить бронирование',
       );
     } finally {
       setSubmitting(null);
@@ -2888,8 +2945,10 @@ export default function Home() {
                     <span>заявок</span>
                   </div>
                   <div>
-                    <b>—</b>
-                    <span>рейтинг после сделок</span>
+                    <b>
+                      {bookings.filter((x) => x.status === 'pending').length}
+                    </b>
+                    <span>броней ожидают</span>
                   </div>
                 </div>
                 <div className="profile-menu">
@@ -2904,6 +2963,9 @@ export default function Home() {
                     }}
                   >
                     <Heart /> Избранное <b>{favorites.length}</b>
+                  </button>
+                  <button onClick={() => setModal('bookings')}>
+                    <Clock3 /> Бронирования <b>{bookings.length}</b>
                   </button>
                   <button
                     onClick={() => {
@@ -2930,6 +2992,107 @@ export default function Home() {
                     <MessageCircle /> Мои заявки <ArrowRight />
                   </button>
                 </div>
+              </>
+            )}
+            {modal === 'bookings' && (
+              <>
+                <div className="modal-title">
+                  <span>
+                    <Clock3 />
+                  </span>
+                  <div>
+                    <small>КАБИНЕТ АРЕНДЫ</small>
+                    <h2>Бронирования</h2>
+                    <p>
+                      Входящие запросы на ваши вещи и отправленные вами
+                      бронирования.
+                    </p>
+                  </div>
+                </div>
+                {bookings.length > 0 ? (
+                  <div className="booking-list">
+                    {bookings.map((booking) => (
+                      <article key={booking.id}>
+                        <div className="booking-head">
+                          <div>
+                            <small>
+                              {booking.incoming
+                                ? 'ВХОДЯЩИЙ ЗАПРОС'
+                                : 'ВЫ ОТПРАВИЛИ ЗАПРОС'}
+                            </small>
+                            <h3>{booking.listingTitle}</h3>
+                          </div>
+                          <span className={`booking-status ${booking.status}`}>
+                            {booking.status === 'accepted'
+                              ? 'Подтверждено'
+                              : booking.status === 'declined'
+                                ? 'Отклонено'
+                                : 'Ожидает ответа'}
+                          </span>
+                        </div>
+                        <div className="booking-meta">
+                          <span>
+                            <Clock3 /> {formatBookingDate(booking.dateFrom)} —{' '}
+                            {formatBookingDate(booking.dateTo)}
+                          </span>
+                          <span>
+                            <UserRound /> {booking.counterparty}
+                          </span>
+                          {booking.delivery && (
+                            <span>
+                              <Construction /> Нужна доставка
+                            </span>
+                          )}
+                        </div>
+                        {booking.comment && <p>{booking.comment}</p>}
+                        <div className="booking-footer">
+                          <a href={`tel:${booking.contactPhone}`}>
+                            <Phone /> {booking.contactPhone}
+                          </a>
+                          {booking.incoming && booking.status === 'pending' && (
+                            <div>
+                              <button
+                                className="decline"
+                                onClick={() =>
+                                  void updateBookingStatus(
+                                    booking.id,
+                                    'declined',
+                                  )
+                                }
+                                disabled={
+                                  submitting === `booking-status-${booking.id}`
+                                }
+                              >
+                                Отклонить
+                              </button>
+                              <button
+                                onClick={() =>
+                                  void updateBookingStatus(
+                                    booking.id,
+                                    'accepted',
+                                  )
+                                }
+                                disabled={
+                                  submitting === `booking-status-${booking.id}`
+                                }
+                              >
+                                Подтвердить
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="notification-empty">
+                    <Clock3 />
+                    <b>Бронирований пока нет</b>
+                    <span>
+                      Здесь появятся запросы на аренду и решения владельцев.
+                    </span>
+                  </div>
+                )}
               </>
             )}
             {modal === 'notifications' && (

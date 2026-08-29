@@ -21,9 +21,26 @@ export async function POST(request: Request) {
     await upsertViewer(viewer);
     const db = getMarketplaceDb();
     const listing = await db
-      .prepare('SELECT owner_id FROM listings WHERE id = ?')
+      .prepare(
+        `SELECT listings.owner_id, listings.title, listings.phone,
+                users.display_name AS owner_name
+         FROM listings
+         JOIN users ON users.id = listings.owner_id
+         WHERE listings.id = ? AND listings.status = 'active'`,
+      )
       .bind(input.listingId)
-      .first<{ owner_id: string }>();
+      .first<{
+        owner_id: string;
+        title: string;
+        phone: string;
+        owner_name: string;
+      }>();
+    if (!listing) {
+      return Response.json(
+        { error: 'Объявление не найдено или временно недоступно' },
+        { status: 404 },
+      );
+    }
     if (listing?.owner_id === viewer.id) {
       return Response.json(
         { error: 'Нельзя бронировать собственное объявление' },
@@ -51,7 +68,21 @@ export async function POST(request: Request) {
       )
       .run();
     return Response.json(
-      { booking: { id, status: 'pending' } },
+      {
+        booking: {
+          id,
+          listingId: input.listingId,
+          listingTitle: listing.title,
+          dateFrom: input.dateFrom,
+          dateTo: input.dateTo,
+          contactPhone: listing.phone,
+          counterparty: listing.owner_name,
+          delivery: input.delivery,
+          comment: input.comment,
+          status: 'pending',
+          incoming: false,
+        },
+      },
       { status: 201 },
     );
   } catch (error) {

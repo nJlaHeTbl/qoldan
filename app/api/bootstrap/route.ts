@@ -27,6 +27,14 @@ type BookingActivityRow = {
   target_title: string;
 };
 
+type BookingDecisionActivityRow = {
+  id: string;
+  status: 'accepted' | 'declined';
+  created_at: number;
+  actor_name: string;
+  target_title: string;
+};
+
 export async function GET(request: Request) {
   const viewer = getViewer(request);
   if (!viewer) return unauthorized();
@@ -39,8 +47,10 @@ export async function GET(request: Request) {
       requestResult,
       favoriteResult,
       responseResult,
+      bookingResult,
       responseActivityResult,
       bookingActivityResult,
+      bookingDecisionActivityResult,
     ] = await Promise.all([
       db
         .prepare(
@@ -96,6 +106,25 @@ export async function GET(request: Request) {
         .all<Record<string, unknown>>(),
       db
         .prepare(
+          `SELECT bookings.id, bookings.listing_id, bookings.owner_id AS customer_id,
+                  bookings.date_from, bookings.date_to, bookings.customer_phone,
+                  bookings.delivery, bookings.comment, bookings.status,
+                  listings.title AS listing_title, listings.phone AS listing_phone,
+                  listings.owner_id AS listing_owner_id,
+                  customers.display_name AS customer_name,
+                  listing_owners.display_name AS listing_owner_name
+           FROM bookings
+           JOIN listings ON listings.id = bookings.listing_id
+           JOIN users customers ON customers.id = bookings.owner_id
+           JOIN users listing_owners ON listing_owners.id = listings.owner_id
+           WHERE bookings.owner_id = ? OR listings.owner_id = ?
+           ORDER BY bookings.created_at DESC
+           LIMIT 150`,
+        )
+        .bind(viewer.id, viewer.id)
+        .all<Record<string, unknown>>(),
+      db
+        .prepare(
           `SELECT responses.id, responses.price, responses.message,
                     responses.created_at, users.display_name AS actor_name,
                     requests.title AS target_title
@@ -122,6 +151,21 @@ export async function GET(request: Request) {
         )
         .bind(viewer.id)
         .all<BookingActivityRow>(),
+      db
+        .prepare(
+          `SELECT bookings.id, bookings.status, bookings.created_at,
+                  users.display_name AS actor_name,
+                  listings.title AS target_title
+           FROM bookings
+           JOIN listings ON listings.id = bookings.listing_id
+           JOIN users ON users.id = listings.owner_id
+           WHERE bookings.owner_id = ?
+             AND bookings.status IN ('accepted', 'declined')
+           ORDER BY bookings.created_at DESC
+           LIMIT 50`,
+        )
+        .bind(viewer.id)
+        .all<BookingDecisionActivityRow>(),
     ]);
 
     const activities = [
@@ -137,6 +181,16 @@ export async function GET(request: Request) {
         kind: 'booking',
         title: `Запрос на аренду от ${String(row.actor_name)}`,
         description: `${String(row.target_title)} · ${String(row.date_from)} — ${String(row.date_to)}`,
+        createdAt: Number(row.created_at),
+      })),
+      ...bookingDecisionActivityResult.results.map((row) => ({
+        id: `booking-decision-${String(row.id)}-${row.status}`,
+        kind: 'booking',
+        title:
+          row.status === 'accepted'
+            ? `Бронирование подтверждено — ${String(row.actor_name)}`
+            : `Бронирование отклонено — ${String(row.actor_name)}`,
+        description: String(row.target_title),
         createdAt: Number(row.created_at),
       })),
     ]
@@ -187,6 +241,23 @@ export async function GET(request: Request) {
         owner: row.owner_name,
         mine: row.owner_id === viewer.id,
       })),
+      bookings: bookingResult.results.map((row) => {
+        const incoming =
+          row.listing_owner_id === viewer.id && row.customer_id !== viewer.id;
+        return {
+          id: String(row.id),
+          listingId: String(row.listing_id),
+          listingTitle: row.listing_title,
+          dateFrom: row.date_from,
+          dateTo: row.date_to,
+          contactPhone: incoming ? row.customer_phone : row.listing_phone,
+          counterparty: incoming ? row.customer_name : row.listing_owner_name,
+          delivery: Boolean(row.delivery),
+          comment: row.comment || '',
+          status: row.status,
+          incoming,
+        };
+      }),
       activities,
     });
   } catch (error) {

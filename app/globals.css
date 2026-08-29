@@ -1802,6 +1802,110 @@ footer {
 .profile-menu button svg:last-child {
   margin-left: auto;
 }
+.booking-list {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+.booking-list article {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+}
+.booking-head,
+.booking-footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.booking-head small {
+  color: var(--green);
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: 0.7px;
+}
+.booking-head h3 {
+  margin: 5px 0 0;
+  font-size: 14px;
+}
+.booking-status {
+  flex-shrink: 0;
+  padding: 5px 7px;
+  border-radius: 7px;
+  background: #fff0d2;
+  color: #7d5615;
+  font-size: 8px;
+  font-weight: 850;
+}
+.booking-status.accepted {
+  background: #e2f3e7;
+  color: var(--green);
+}
+.booking-status.declined {
+  background: #f9e6e2;
+  color: #a34435;
+}
+.booking-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 13px;
+  padding: 12px 0;
+}
+.booking-meta span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 9px;
+}
+.booking-meta svg,
+.booking-footer svg {
+  width: 14px;
+  height: 14px;
+  color: var(--green);
+}
+.booking-list article > p {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+.booking-footer {
+  align-items: center;
+  padding-top: 11px;
+  border-top: 1px solid var(--line);
+}
+.booking-footer > a {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink);
+  font-size: 9px;
+  font-weight: 800;
+}
+.booking-footer > div {
+  display: flex;
+  gap: 7px;
+}
+.booking-footer button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 10px;
+  background: var(--green);
+  color: #fff;
+  font-size: 8px;
+  font-weight: 850;
+}
+.booking-footer button.decline {
+  background: #f4e9e6;
+  color: #964434;
+}
+.booking-footer button:disabled {
+  opacity: 0.55;
+}
 .notification-list {
   display: flex;
   flex-direction: column;
@@ -2696,6 +2800,17 @@ footer {
   }
   .owner-management button {
     min-height: 39px;
+  }
+  .booking-head,
+  .booking-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .booking-footer > div {
+    width: 100%;
+  }
+  .booking-footer button {
+    flex: 1;
   }
   .mobile-bottom .mobile-profile {
     display: flex;
