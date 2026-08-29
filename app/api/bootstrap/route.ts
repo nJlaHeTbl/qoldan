@@ -58,6 +58,14 @@ type AppealRow = {
   reviewed_at: number | null;
 };
 
+type MessageActivityRow = {
+  id: string;
+  body: string;
+  created_at: number;
+  actor_name: string;
+  context_title: string;
+};
+
 export async function GET(request: Request) {
   const viewer = getViewer(request);
   if (!viewer) return unauthorized();
@@ -77,6 +85,8 @@ export async function GET(request: Request) {
       bookingDecisionActivityResult,
       moderationActivityResult,
       appealResult,
+      messageActivityResult,
+      unreadMessageResult,
     ] = await Promise.all([
       db
         .prepare(
@@ -224,6 +234,36 @@ export async function GET(request: Request) {
         )
         .bind(viewer.id)
         .all<AppealRow>(),
+      db
+        .prepare(
+          `SELECT messages.id, messages.body, messages.created_at,
+                  users.display_name AS actor_name,
+                  conversations.context_title
+           FROM messages
+           JOIN conversations
+             ON conversations.id = messages.conversation_id
+           JOIN users ON users.id = messages.sender_id
+           WHERE (conversations.context_owner_id = ?
+                  OR conversations.participant_id = ?)
+             AND messages.sender_id != ?
+           ORDER BY messages.created_at DESC
+           LIMIT 50`,
+        )
+        .bind(viewer.id, viewer.id, viewer.id)
+        .all<MessageActivityRow>(),
+      db
+        .prepare(
+          `SELECT COUNT(*) AS count
+           FROM messages
+           JOIN conversations
+             ON conversations.id = messages.conversation_id
+           WHERE (conversations.context_owner_id = ?
+                  OR conversations.participant_id = ?)
+             AND messages.sender_id != ?
+             AND messages.read_at IS NULL`,
+        )
+        .bind(viewer.id, viewer.id, viewer.id)
+        .first<{ count: number }>(),
     ]);
 
     const activities = [
@@ -282,6 +322,13 @@ export async function GET(request: Request) {
           appealId: row.id,
           appealStatus: row.status,
         })),
+      ...messageActivityResult.results.map((row) => ({
+        id: `message-${String(row.id)}`,
+        kind: 'message',
+        title: `Сообщение от ${String(row.actor_name)}`,
+        description: `«${String(row.context_title)}» · ${String(row.body)}`,
+        createdAt: Number(row.created_at),
+      })),
     ]
       .sort((a, b) => b.createdAt - a.createdAt)
       .slice(0, 50);
@@ -377,6 +424,9 @@ export async function GET(request: Request) {
         createdAt: Number(row.created_at),
         reviewedAt: row.reviewed_at ? Number(row.reviewed_at) : null,
       })),
+      messaging: {
+        unreadCount: Number(unreadMessageResult?.count || 0),
+      },
       activities,
     });
   } catch (error) {

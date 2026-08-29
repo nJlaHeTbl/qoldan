@@ -208,6 +208,24 @@ export async function ensureMarketplaceSchema() {
         created_at INTEGER NOT NULL,
         reviewed_at INTEGER
       )`),
+      db.prepare(`CREATE TABLE IF NOT EXISTS conversations (
+        id TEXT PRIMARY KEY NOT NULL,
+        context_type TEXT NOT NULL,
+        context_id TEXT NOT NULL,
+        context_title TEXT NOT NULL,
+        context_owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        participant_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )`),
+      db.prepare(`CREATE TABLE IF NOT EXISTS messages (
+        id TEXT PRIMARY KEY NOT NULL,
+        conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+        sender_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        body TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        read_at INTEGER
+      )`),
     ]);
     await db.batch([
       db.prepare(
@@ -269,6 +287,18 @@ export async function ensureMarketplaceSchema() {
       ),
       db.prepare(
         'CREATE INDEX IF NOT EXISTS appeals_status_created_at_idx ON appeals (status, created_at)',
+      ),
+      db.prepare(
+        'CREATE UNIQUE INDEX IF NOT EXISTS conversations_context_participant_unique ON conversations (context_type, context_id, participant_id)',
+      ),
+      db.prepare(
+        'CREATE INDEX IF NOT EXISTS conversations_owner_updated_at_idx ON conversations (context_owner_id, updated_at)',
+      ),
+      db.prepare(
+        'CREATE INDEX IF NOT EXISTS conversations_participant_updated_at_idx ON conversations (participant_id, updated_at)',
+      ),
+      db.prepare(
+        'CREATE INDEX IF NOT EXISTS messages_conversation_created_at_idx ON messages (conversation_id, created_at)',
       ),
     ]);
     await db.prepare('PRAGMA optimize').run();

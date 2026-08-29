@@ -134,6 +134,18 @@ export const moderationAppealInput = z
     }
   });
 
+export const conversationInput = z.object({
+  targetType: z.enum(['listing', 'request']),
+  targetId: z
+    .union([z.string(), z.number()])
+    .transform(String)
+    .pipe(z.string().min(1).max(100)),
+});
+
+export const messageInput = z.object({
+  body: z.string().trim().min(1, 'Напишите сообщение').max(1200),
+});
+
 export async function parseJson<T extends z.ZodType>(
   request: Request,
   schema: T,

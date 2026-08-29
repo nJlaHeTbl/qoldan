@@ -241,3 +241,58 @@ export const appeals = sqliteTable(
     index('appeals_status_created_at_idx').on(table.status, table.createdAt),
   ],
 );
+
+export const conversations = sqliteTable(
+  'conversations',
+  {
+    id: text('id').primaryKey(),
+    contextType: text('context_type').notNull(),
+    contextId: text('context_id').notNull(),
+    contextTitle: text('context_title').notNull(),
+    contextOwnerId: text('context_owner_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    participantId: text('participant_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (table) => [
+    uniqueIndex('conversations_context_participant_unique').on(
+      table.contextType,
+      table.contextId,
+      table.participantId,
+    ),
+    index('conversations_owner_updated_at_idx').on(
+      table.contextOwnerId,
+      table.updatedAt,
+    ),
+    index('conversations_participant_updated_at_idx').on(
+      table.participantId,
+      table.updatedAt,
+    ),
+  ],
+);
+
+export const messages = sqliteTable(
+  'messages',
+  {
+    id: text('id').primaryKey(),
+    conversationId: text('conversation_id')
+      .notNull()
+      .references(() => conversations.id, { onDelete: 'cascade' }),
+    senderId: text('sender_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    body: text('body').notNull(),
+    createdAt: integer('created_at').notNull(),
+    readAt: integer('read_at'),
+  },
+  (table) => [
+    index('messages_conversation_created_at_idx').on(
+      table.conversationId,
+      table.createdAt,
+    ),
+  ],
+);

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import {
   ArrowRight,
   Bell,
+  ChevronLeft,
   ChevronDown,
   Clock3,
   Construction,
@@ -32,6 +33,7 @@ import {
   ShieldAlert,
   ScrollText,
   Scale,
+  Send,
 } from 'lucide-react';
 import {
   MarketplaceMap,
@@ -90,7 +92,7 @@ type ResponseItem = {
 };
 type ActivityItem = {
   id: string;
-  kind: 'response' | 'booking' | 'moderation' | 'appeal';
+  kind: 'response' | 'booking' | 'moderation' | 'appeal' | 'message';
   title: string;
   description: string;
   createdAt: number;
@@ -99,6 +101,25 @@ type ActivityItem = {
   targetTitle?: string;
   appealId?: string | null;
   appealStatus?: AppealItem['status'] | null;
+};
+type ConversationSummary = {
+  id: string;
+  contextType: 'listing' | 'request';
+  contextId: string;
+  contextTitle: string;
+  counterparty: string;
+  lastMessage: string;
+  lastMessageAt: number | null;
+  unreadCount: number;
+  updatedAt: number;
+};
+type ChatMessage = {
+  id: string;
+  body: string;
+  senderName: string;
+  mine: boolean;
+  createdAt: number;
+  readAt: number | null;
 };
 type BookingItem = {
   id: string;
@@ -685,6 +706,12 @@ export default function Home() {
   const [allResponses, setAllResponses] = useState<ResponseItem[]>([]);
   const [bookings, setBookings] = useState<BookingItem[]>([]);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+  const [activeConversation, setActiveConversation] =
+    useState<ConversationSummary | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [messagingUnreadCount, setMessagingUnreadCount] = useState(0);
+  const [messagingLoading, setMessagingLoading] = useState(false);
   const [moderationReports, setModerationReports] = useState<
     ModerationReport[]
   >([]);
@@ -717,6 +744,7 @@ export default function Home() {
     | 'response'
     | 'profile'
     | 'notifications'
+    | 'messages'
     | 'info'
     | 'booking'
     | 'bookings'
@@ -807,6 +835,7 @@ export default function Home() {
           appeals: AppealItem[];
           activities: ActivityItem[];
           moderation: { canModerate: boolean; pendingCount: number };
+          messaging: { unreadCount: number };
         };
         if (!active) return;
         setAllListings([...data.listings, ...defaultListings]);
@@ -818,6 +847,7 @@ export default function Home() {
         setActivities(data.activities);
         setCanModerate(data.moderation.canModerate);
         setModerationPendingCount(data.moderation.pendingCount);
+        setMessagingUnreadCount(data.messaging.unreadCount);
         setViewerName(data.viewer.displayName);
         setServerConnected(true);
       } catch {
@@ -849,6 +879,60 @@ export default function Home() {
       document.removeEventListener('keydown', closeOnEscape);
     };
   }, [modal]);
+  useEffect(() => {
+    if (modal !== 'messages') return;
+    let active = true;
+    const refreshMessages = async () => {
+      try {
+        const conversationResponse = await fetch('/api/conversations', {
+          cache: 'no-store',
+        });
+        if (!conversationResponse.ok || !active) return;
+        const conversationData = (await conversationResponse.json()) as {
+          conversations: ConversationSummary[];
+        };
+        if (!active) return;
+        let nextConversations = conversationData.conversations;
+        if (activeConversation) {
+          const messageResponse = await fetch(
+            `/api/conversations/${encodeURIComponent(activeConversation.id)}/messages`,
+            { cache: 'no-store' },
+          );
+          if (messageResponse.ok && active) {
+            const messageData = (await messageResponse.json()) as {
+              messages: ChatMessage[];
+            };
+            setChatMessages(messageData.messages);
+            nextConversations = nextConversations.map((conversation) =>
+              conversation.id === activeConversation.id
+                ? { ...conversation, unreadCount: 0 }
+                : conversation,
+            );
+            const refreshedActive = nextConversations.find(
+              (conversation) => conversation.id === activeConversation.id,
+            );
+            if (refreshedActive) setActiveConversation(refreshedActive);
+          }
+        }
+        setConversations(nextConversations);
+        setMessagingUnreadCount(
+          nextConversations.reduce(
+            (total, conversation) => total + conversation.unreadCount,
+            0,
+          ),
+        );
+      } catch {
+        // The current thread stays usable if a background refresh misses a beat.
+      }
+    };
+    const refreshTimer = window.setInterval(() => {
+      void refreshMessages();
+    }, 12_000);
+    return () => {
+      active = false;
+      window.clearInterval(refreshTimer);
+    };
+  }, [modal, activeConversation]);
   const filtered = useMemo(
     () =>
       allListings.filter(
@@ -1037,6 +1121,137 @@ export default function Home() {
   const openListing = (item: Listing) => {
     setSelectedListing(item);
     setModal('detail');
+  };
+  const openConversation = async (conversation: ConversationSummary) => {
+    setActiveConversation(conversation);
+    setChatMessages([]);
+    setMessagingLoading(true);
+    try {
+      const response = await fetch(
+        `/api/conversations/${encodeURIComponent(conversation.id)}/messages`,
+        { cache: 'no-store' },
+      );
+      if (!response.ok) throw new Error(await apiError(response));
+      const data = (await response.json()) as { messages: ChatMessage[] };
+      setChatMessages(data.messages);
+      setConversations((current) =>
+        current.map((item) =>
+          item.id === conversation.id ? { ...item, unreadCount: 0 } : item,
+        ),
+      );
+      if (conversation.unreadCount > 0) {
+        setMessagingUnreadCount((current) =>
+          Math.max(0, current - conversation.unreadCount),
+        );
+      }
+    } catch (error) {
+      notify(
+        error instanceof Error ? error.message : 'Не удалось открыть диалог',
+      );
+    } finally {
+      setMessagingLoading(false);
+    }
+  };
+  const openMessages = async (conversationId?: string) => {
+    setModal('messages');
+    setMessagingLoading(true);
+    if (!conversationId) {
+      setActiveConversation(null);
+      setChatMessages([]);
+    }
+    try {
+      const response = await fetch('/api/conversations', { cache: 'no-store' });
+      if (!response.ok) throw new Error(await apiError(response));
+      const data = (await response.json()) as {
+        conversations: ConversationSummary[];
+      };
+      setConversations(data.conversations);
+      const selected = conversationId
+        ? data.conversations.find((item) => item.id === conversationId)
+        : null;
+      if (selected) await openConversation(selected);
+    } catch (error) {
+      notify(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось загрузить сообщения',
+      );
+    } finally {
+      setMessagingLoading(false);
+    }
+  };
+  const startConversation = async (
+    targetType: ConversationSummary['contextType'],
+    targetId: string,
+  ) => {
+    setSubmitting(`conversation-${targetType}-${targetId}`);
+    try {
+      const response = await fetch('/api/conversations', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ targetType, targetId }),
+      });
+      if (!response.ok) throw new Error(await apiError(response));
+      const data = (await response.json()) as {
+        conversation: ConversationSummary;
+      };
+      setConversations((current) => [
+        data.conversation,
+        ...current.filter((item) => item.id !== data.conversation.id),
+      ]);
+      setModal('messages');
+      await openConversation(data.conversation);
+    } catch (error) {
+      notify(
+        error instanceof Error ? error.message : 'Не удалось начать диалог',
+      );
+    } finally {
+      setSubmitting(null);
+    }
+  };
+  const sendChatMessage = async (event: SubmitFormEvent) => {
+    event.preventDefault();
+    if (!activeConversation) return;
+    const formElement = event.currentTarget;
+    const body = fieldText(new FormData(formElement), 'body').trim();
+    if (!body) return;
+    setSubmitting('chat-message');
+    try {
+      const response = await fetch(
+        `/api/conversations/${encodeURIComponent(activeConversation.id)}/messages`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ body }),
+        },
+      );
+      if (!response.ok) throw new Error(await apiError(response));
+      const data = (await response.json()) as { message: ChatMessage };
+      setChatMessages((current) => [...current, data.message]);
+      setConversations((current) =>
+        current
+          .map((item) =>
+            item.id === activeConversation.id
+              ? {
+                  ...item,
+                  lastMessage: data.message.body,
+                  lastMessageAt: data.message.createdAt,
+                  updatedAt: data.message.createdAt,
+                }
+              : item,
+          )
+          .sort((a, b) => b.updatedAt - a.updatedAt),
+      );
+      formElement.reset();
+    } catch (error) {
+      notify(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось отправить сообщение',
+      );
+    } finally {
+      setSubmitting(null);
+    }
   };
   const openReport = (target: ReportTarget) => {
     setReportTarget(target);
@@ -1698,6 +1913,14 @@ export default function Home() {
           </a>
         </nav>
         <div className="header-actions">
+          <button
+            className="icon-button hide-mobile"
+            onClick={() => void openMessages()}
+            aria-label={`Сообщения${messagingUnreadCount ? `, непрочитанных: ${messagingUnreadCount}` : ''}`}
+          >
+            <MessageCircle size={19} />
+            {messagingUnreadCount > 0 && <i />}
+          </button>
           <button
             className="icon-button hide-mobile"
             onClick={() => setModal('notifications')}
@@ -2735,7 +2958,7 @@ export default function Home() {
         >
           <dialog
             open
-            className={`app-modal ${modal === 'detail' ? 'detail-modal' : ''} ${modal === 'moderation' ? 'moderation-modal' : ''}`}
+            className={`app-modal ${modal === 'detail' ? 'detail-modal' : ''} ${modal === 'moderation' ? 'moderation-modal' : ''} ${modal === 'messages' ? 'messages-modal' : ''}`}
             aria-label="Окно Qoldan"
           >
             <button
@@ -3104,6 +3327,29 @@ export default function Home() {
                     </span>
                   </div>
                 ) : null}
+                {!selectedRequest.mine &&
+                  !isDemoRequest(selectedRequest.id) && (
+                    <button
+                      className="chat-request-button"
+                      type="button"
+                      onClick={() =>
+                        void startConversation(
+                          'request',
+                          String(selectedRequest.id),
+                        )
+                      }
+                      disabled={
+                        submitting ===
+                        `conversation-request-${String(selectedRequest.id)}`
+                      }
+                    >
+                      <MessageCircle />
+                      {submitting ===
+                      `conversation-request-${String(selectedRequest.id)}`
+                        ? 'Открываем диалог…'
+                        : 'Написать заказчику в Qoldan'}
+                    </button>
+                  )}
                 {selectedRequest.mine ? (
                   <div className="owner-management">
                     <div>
@@ -3348,6 +3594,28 @@ export default function Home() {
                             <MessageCircle /> WhatsApp
                           </a>
                         </>
+                      )}
+                      {!isDemoListing(selectedListing.id) && (
+                        <button
+                          className="chat-action"
+                          type="button"
+                          onClick={() =>
+                            void startConversation(
+                              'listing',
+                              String(selectedListing.id),
+                            )
+                          }
+                          disabled={
+                            submitting ===
+                            `conversation-listing-${String(selectedListing.id)}`
+                          }
+                        >
+                          <MessageCircle />
+                          {submitting ===
+                          `conversation-listing-${String(selectedListing.id)}`
+                            ? 'Открываем диалог…'
+                            : 'Написать в Qoldan'}
+                        </button>
                       )}
                       {!isDemoListing(selectedListing.id) &&
                         selectedListing.type === 'Сдам' && (
@@ -3818,6 +4086,10 @@ export default function Home() {
                   >
                     <Heart /> Избранное <b>{favorites.length}</b>
                   </button>
+                  <button onClick={() => void openMessages()}>
+                    <MessageCircle /> Сообщения
+                    <b>{messagingUnreadCount}</b>
+                  </button>
                   <button onClick={() => setModal('bookings')}>
                     <Clock3 /> Бронирования <b>{bookings.length}</b>
                   </button>
@@ -3848,6 +4120,177 @@ export default function Home() {
                   >
                     <MessageCircle /> Мои заявки <ArrowRight />
                   </button>
+                </div>
+              </>
+            )}
+            {modal === 'messages' && (
+              <>
+                <div className="modal-title messages-title">
+                  <span>
+                    <MessageCircle />
+                  </span>
+                  <div>
+                    <small>СООБЩЕНИЯ QOLDAN</small>
+                    <h2>Договоритесь напрямую</h2>
+                    <p>
+                      Каждый диалог привязан к реальному объявлению или заявке.
+                    </p>
+                  </div>
+                </div>
+                <div className="chat-safety">
+                  <ShieldCheck />
+                  <span>
+                    Не отправляйте коды из SMS, данные карты и предоплату
+                    незнакомому человеку.
+                  </span>
+                </div>
+                <div
+                  className={`message-layout ${activeConversation ? 'has-active' : ''}`}
+                >
+                  <aside className="conversation-list" aria-label="Диалоги">
+                    <div className="conversation-list-head">
+                      <b>Входящие</b>
+                      <span>{conversations.length}</span>
+                    </div>
+                    {messagingLoading && conversations.length === 0 ? (
+                      <div className="conversation-empty compact">
+                        <MessageCircle />
+                        <span>Загружаем диалоги…</span>
+                      </div>
+                    ) : conversations.length > 0 ? (
+                      conversations.map((conversation) => (
+                        <button
+                          key={conversation.id}
+                          type="button"
+                          className={`conversation-row ${activeConversation?.id === conversation.id ? 'active' : ''}`}
+                          onClick={() => void openConversation(conversation)}
+                        >
+                          <span className="conversation-avatar">
+                            {conversation.counterparty
+                              .slice(0, 1)
+                              .toUpperCase()}
+                          </span>
+                          <span className="conversation-copy">
+                            <b>{conversation.counterparty}</b>
+                            <small>{conversation.contextTitle}</small>
+                            <em>
+                              {conversation.lastMessage || 'Начните диалог'}
+                            </em>
+                          </span>
+                          <span className="conversation-meta">
+                            <small>
+                              {formatActivityDate(
+                                conversation.lastMessageAt ||
+                                  conversation.updatedAt,
+                              )}
+                            </small>
+                            {conversation.unreadCount > 0 && (
+                              <b>{conversation.unreadCount}</b>
+                            )}
+                          </span>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="conversation-empty">
+                        <MessageCircle />
+                        <b>Диалогов пока нет</b>
+                        <span>
+                          Откройте реальное объявление или заявку и нажмите
+                          «Написать в Qoldan».
+                        </span>
+                      </div>
+                    )}
+                  </aside>
+                  <section className="chat-panel" aria-label="Переписка">
+                    {activeConversation ? (
+                      <>
+                        <div className="chat-head">
+                          <button
+                            type="button"
+                            className="chat-back"
+                            onClick={() => {
+                              setActiveConversation(null);
+                              setChatMessages([]);
+                            }}
+                            aria-label="Вернуться к диалогам"
+                          >
+                            <ChevronLeft />
+                          </button>
+                          <span className="conversation-avatar">
+                            {activeConversation.counterparty
+                              .slice(0, 1)
+                              .toUpperCase()}
+                          </span>
+                          <div>
+                            <b>{activeConversation.counterparty}</b>
+                            <span>
+                              {activeConversation.contextType === 'listing'
+                                ? 'Объявление'
+                                : 'Заявка'}{' '}
+                              · {activeConversation.contextTitle}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="message-bubbles" aria-live="polite">
+                          {messagingLoading && chatMessages.length === 0 ? (
+                            <div className="chat-placeholder">
+                              Загружаем переписку…
+                            </div>
+                          ) : chatMessages.length > 0 ? (
+                            chatMessages.map((message) => (
+                              <div
+                                key={message.id}
+                                className={`message-bubble ${message.mine ? 'mine' : ''}`}
+                              >
+                                {!message.mine && <b>{message.senderName}</b>}
+                                <p>{message.body}</p>
+                                <small>
+                                  {formatActivityDate(message.createdAt)}
+                                  {message.mine && message.readAt
+                                    ? ' · прочитано'
+                                    : ''}
+                                </small>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="chat-placeholder welcome">
+                              <MessageCircle />
+                              <b>Начните разговор</b>
+                              <span>
+                                Уточните цену, сроки, состояние или условия
+                                выезда.
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <form className="chat-form" onSubmit={sendChatMessage}>
+                          <textarea
+                            name="body"
+                            rows={2}
+                            maxLength={1200}
+                            required
+                            placeholder="Напишите сообщение…"
+                            aria-label="Сообщение"
+                          />
+                          <button
+                            type="submit"
+                            disabled={submitting === 'chat-message'}
+                            aria-label="Отправить сообщение"
+                          >
+                            <Send />
+                          </button>
+                        </form>
+                      </>
+                    ) : (
+                      <div className="chat-placeholder select-chat">
+                        <MessageCircle />
+                        <b>Выберите диалог</b>
+                        <span>
+                          Переписка и контекст публикации будут здесь.
+                        </span>
+                      </div>
+                    )}
+                  </section>
                 </div>
               </>
             )}
@@ -4398,6 +4841,15 @@ export default function Home() {
                                 <Scale /> Оспорить решение
                               </button>
                             ))}
+                          {activity.kind === 'message' && (
+                            <button
+                              type="button"
+                              className="appeal-inline-button"
+                              onClick={() => void openMessages()}
+                            >
+                              <MessageCircle /> Открыть сообщения
+                            </button>
+                          )}
                         </div>
                       </article>
                     ))}
