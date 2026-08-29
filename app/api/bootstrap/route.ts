@@ -36,6 +36,14 @@ type BookingDecisionActivityRow = {
   target_title: string;
 };
 
+type ModerationActivityRow = {
+  id: string;
+  action: 'warn' | 'restrict' | 'restore';
+  target_title: string;
+  note: string;
+  created_at: number;
+};
+
 export async function GET(request: Request) {
   const viewer = getViewer(request);
   if (!viewer) return unauthorized();
@@ -53,6 +61,7 @@ export async function GET(request: Request) {
       responseActivityResult,
       bookingActivityResult,
       bookingDecisionActivityResult,
+      moderationActivityResult,
     ] = await Promise.all([
       db
         .prepare(
@@ -170,6 +179,16 @@ export async function GET(request: Request) {
         )
         .bind(viewer.id)
         .all<BookingDecisionActivityRow>(),
+      db
+        .prepare(
+          `SELECT id, action, target_title, note, created_at
+             FROM moderation_actions
+             WHERE target_owner_id = ?
+             ORDER BY created_at DESC
+             LIMIT 50`,
+        )
+        .bind(viewer.id)
+        .all<ModerationActivityRow>(),
     ]);
 
     const activities = [
@@ -195,6 +214,18 @@ export async function GET(request: Request) {
             ? `Бронирование подтверждено — ${String(row.actor_name)}`
             : `Бронирование отклонено — ${String(row.actor_name)}`,
         description: String(row.target_title),
+        createdAt: Number(row.created_at),
+      })),
+      ...moderationActivityResult.results.map((row) => ({
+        id: `moderation-${String(row.id)}`,
+        kind: 'moderation',
+        title:
+          row.action === 'restrict'
+            ? 'Публикация временно скрыта'
+            : row.action === 'restore'
+              ? 'Публикация снова активна'
+              : 'Предупреждение от команды Qoldan',
+        description: `«${String(row.target_title)}» · ${String(row.note)}`,
         createdAt: Number(row.created_at),
       })),
     ]

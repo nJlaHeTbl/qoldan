@@ -27,6 +27,10 @@ import {
   Flag,
   ShieldCheck,
   CircleAlert,
+  Eye,
+  EyeOff,
+  ShieldAlert,
+  ScrollText,
 } from 'lucide-react';
 import {
   MarketplaceMap,
@@ -85,7 +89,7 @@ type ResponseItem = {
 };
 type ActivityItem = {
   id: string;
-  kind: 'response' | 'booking';
+  kind: 'response' | 'booking' | 'moderation';
   title: string;
   description: string;
   createdAt: number;
@@ -125,6 +129,18 @@ type ModerationReport = {
   reviewerName: string;
   createdAt: number;
   reviewedAt: number | null;
+};
+type ModerationAction = {
+  id: string;
+  reportId: string | null;
+  targetType: 'listing' | 'request';
+  targetId: string;
+  targetTitle: string;
+  targetOwner: string;
+  action: 'warn' | 'restrict' | 'restore';
+  note: string;
+  moderatorName: string;
+  createdAt: number;
 };
 type SubmitFormEvent = {
   preventDefault: () => void;
@@ -645,11 +661,14 @@ export default function Home() {
   const [moderationReports, setModerationReports] = useState<
     ModerationReport[]
   >([]);
+  const [moderationActions, setModerationActions] = useState<
+    ModerationAction[]
+  >([]);
   const [moderationNotes, setModerationNotes] = useState<
     Record<string, string>
   >({});
   const [moderationFilter, setModerationFilter] = useState<
-    'active' | ModerationReport['status']
+    'active' | 'journal' | ModerationReport['status']
   >('active');
   const [moderationLoading, setModerationLoading] = useState(false);
   const [canModerate, setCanModerate] = useState(false);
@@ -713,7 +732,9 @@ export default function Home() {
   const visibleModerationReports = moderationReports.filter((report) =>
     moderationFilter === 'active'
       ? report.status !== 'closed'
-      : report.status === moderationFilter,
+      : moderationFilter === 'journal'
+        ? false
+        : report.status === moderationFilter,
   );
   const activeFilterCount = [
     categoryFilter !== 'Все категории',
@@ -962,8 +983,12 @@ export default function Home() {
         cache: 'no-store',
       });
       if (!response.ok) throw new Error(await apiError(response));
-      const data = (await response.json()) as { reports: ModerationReport[] };
+      const data = (await response.json()) as {
+        reports: ModerationReport[];
+        actions: ModerationAction[];
+      };
       setModerationReports(data.reports);
+      setModerationActions(data.actions);
       setModerationNotes(
         Object.fromEntries(
           data.reports.map((report) => [report.id, report.reviewNote]),
@@ -1018,6 +1043,62 @@ export default function Home() {
     } catch (error) {
       notify(
         error instanceof Error ? error.message : 'Не удалось обновить жалобу',
+      );
+    } finally {
+      setSubmitting(null);
+    }
+  };
+  const applyModerationAction = async (
+    report: ModerationReport,
+    action: ModerationAction['action'],
+  ) => {
+    const note = (moderationNotes[report.id] || '').trim();
+    if (note.length < 5) {
+      notify('Сначала добавьте короткую заметку с причиной решения');
+      return;
+    }
+    setSubmitting(`moderation-action-${report.id}`);
+    try {
+      const response = await fetch('/api/moderation/actions', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          reportId: report.id,
+          targetType: report.targetType,
+          targetId: report.targetId,
+          action,
+          note,
+        }),
+      });
+      if (!response.ok) throw new Error(await apiError(response));
+      const data = (await response.json()) as {
+        action: ModerationAction;
+        targetStatus: string;
+      };
+      setModerationActions((current) => [data.action, ...current]);
+      setModerationReports((current) =>
+        current.map((item) =>
+          item.id === report.id
+            ? {
+                ...item,
+                targetStatus: data.targetStatus,
+                status: item.status === 'new' ? 'reviewing' : item.status,
+              }
+            : item,
+        ),
+      );
+      notify(
+        action === 'warn'
+          ? 'Предупреждение отправлено автору'
+          : action === 'restrict'
+            ? 'Публикация скрыта и автор уведомлён'
+            : 'Публикация восстановлена и автор уведомлён',
+      );
+    } catch (error) {
+      notify(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось применить действие модератора',
       );
     } finally {
       setSubmitting(null);
@@ -3351,6 +3432,7 @@ export default function Home() {
                       ['new', 'Новые'],
                       ['reviewing', 'Проверяются'],
                       ['closed', 'История'],
+                      ['journal', 'Журнал действий'],
                     ] as const
                   ).map(([value, label]) => (
                     <button
@@ -3369,6 +3451,53 @@ export default function Home() {
                     <b>Загружаем обращения…</b>
                     <span>Проверяем актуальные статусы в общей базе.</span>
                   </div>
+                ) : moderationFilter === 'journal' ? (
+                  moderationActions.length > 0 ? (
+                    <div className="moderation-journal">
+                      {moderationActions.map((action) => (
+                        <article key={action.id}>
+                          <span
+                            className={`moderation-action-icon ${action.action}`}
+                          >
+                            {action.action === 'restrict' ? (
+                              <EyeOff />
+                            ) : action.action === 'restore' ? (
+                              <Eye />
+                            ) : (
+                              <ShieldAlert />
+                            )}
+                          </span>
+                          <div>
+                            <small>
+                              {action.action === 'restrict'
+                                ? 'ПУБЛИКАЦИЯ СКРЫТА'
+                                : action.action === 'restore'
+                                  ? 'ПУБЛИКАЦИЯ ВОССТАНОВЛЕНА'
+                                  : 'ПРЕДУПРЕЖДЕНИЕ'}
+                            </small>
+                            <h3>{action.targetTitle}</h3>
+                            <p>{action.note}</p>
+                            <footer>
+                              <span>Автор: {action.targetOwner}</span>
+                              <span>Модератор: {action.moderatorName}</span>
+                              <span>
+                                {formatActivityDate(action.createdAt)}
+                              </span>
+                            </footer>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="notification-empty moderation-empty">
+                      <ScrollText />
+                      <b>Журнал пока пуст</b>
+                      <span>
+                        Предупреждения, скрытия и восстановления появятся здесь
+                        автоматически.
+                      </span>
+                    </div>
+                  )
                 ) : visibleModerationReports.length > 0 ? (
                   <div className="moderation-list">
                     {visibleModerationReports.map((report) => (
@@ -3424,6 +3553,60 @@ export default function Home() {
                             }
                           />
                         </label>
+                        {report.status !== 'closed' &&
+                          report.targetStatus !== 'deleted' && (
+                            <div className="moderation-enforcement">
+                              <button
+                                type="button"
+                                className="warn"
+                                disabled={
+                                  submitting ===
+                                  `moderation-action-${report.id}`
+                                }
+                                onClick={() =>
+                                  void applyModerationAction(report, 'warn')
+                                }
+                              >
+                                <ShieldAlert /> Предупредить автора
+                              </button>
+                              {report.targetStatus === 'active' ||
+                              report.targetStatus === 'open' ? (
+                                <button
+                                  type="button"
+                                  className="restrict"
+                                  disabled={
+                                    submitting ===
+                                    `moderation-action-${report.id}`
+                                  }
+                                  onClick={() =>
+                                    void applyModerationAction(
+                                      report,
+                                      'restrict',
+                                    )
+                                  }
+                                >
+                                  <EyeOff /> Временно скрыть
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="restore"
+                                  disabled={
+                                    submitting ===
+                                    `moderation-action-${report.id}`
+                                  }
+                                  onClick={() =>
+                                    void applyModerationAction(
+                                      report,
+                                      'restore',
+                                    )
+                                  }
+                                >
+                                  <Eye /> Восстановить
+                                </button>
+                              )}
+                            </div>
+                          )}
                         {report.status === 'closed' ? (
                           <div className="moderation-resolution">
                             <CheckCircle2 />
@@ -3601,6 +3784,8 @@ export default function Home() {
                         <span>
                           {activity.kind === 'booking' ? (
                             <Clock3 />
+                          ) : activity.kind === 'moderation' ? (
+                            <ShieldAlert />
                           ) : (
                             <MessageCircle />
                           )}

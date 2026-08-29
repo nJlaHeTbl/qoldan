@@ -183,3 +183,32 @@ export const reports = sqliteTable(
     index('reports_target_idx').on(table.targetType, table.targetId),
   ],
 );
+
+export const moderationActions = sqliteTable(
+  'moderation_actions',
+  {
+    id: text('id').primaryKey(),
+    reportId: text('report_id').references(() => reports.id, {
+      onDelete: 'set null',
+    }),
+    moderatorId: text('moderator_id')
+      .notNull()
+      .references(() => users.id),
+    targetType: text('target_type').notNull(),
+    targetId: text('target_id').notNull(),
+    targetOwnerId: text('target_owner_id')
+      .notNull()
+      .references(() => users.id),
+    targetTitle: text('target_title').notNull(),
+    action: text('action').notNull(),
+    note: text('note').notNull(),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => [
+    index('moderation_actions_created_at_idx').on(table.createdAt),
+    index('moderation_actions_target_owner_created_at_idx').on(
+      table.targetOwnerId,
+      table.createdAt,
+    ),
+  ],
+);

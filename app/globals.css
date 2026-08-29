@@ -2127,6 +2127,45 @@ footer {
   background: #f2f4f1;
   color: var(--muted);
 }
+.moderation-enforcement {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  background: #f4f6f3;
+}
+.moderation-enforcement button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 8px;
+  font-weight: 850;
+}
+.moderation-enforcement button svg {
+  width: 14px;
+}
+.moderation-enforcement button.warn {
+  background: #fff0d2;
+  color: #78500d;
+}
+.moderation-enforcement button.restrict {
+  background: #f5e5e1;
+  color: #974536;
+}
+.moderation-enforcement button.restore {
+  background: #dfeee2;
+  color: var(--green);
+}
+.moderation-enforcement button:disabled {
+  opacity: 0.55;
+}
 .moderation-actions {
   display: flex;
   justify-content: flex-end;
@@ -2164,6 +2203,64 @@ footer {
 }
 .moderation-empty {
   min-height: 220px;
+}
+.moderation-journal {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.moderation-journal article {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #fff;
+}
+.moderation-action-icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: #fff0d2;
+  color: #7d5615;
+}
+.moderation-action-icon.restrict {
+  background: #f5e5e1;
+  color: #974536;
+}
+.moderation-action-icon.restore {
+  background: #dfeee2;
+  color: var(--green);
+}
+.moderation-action-icon svg {
+  width: 17px;
+}
+.moderation-journal small {
+  color: var(--green);
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: 0.6px;
+}
+.moderation-journal h3 {
+  margin: 4px 0;
+  font-size: 13px;
+}
+.moderation-journal p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+.moderation-journal footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 11px;
+  margin-top: 8px;
+  color: #8a938c;
+  font-size: 8px;
 }
 .booking-list {
   display: flex;
@@ -3185,6 +3282,15 @@ footer {
   }
   .moderation-actions button {
     width: 100%;
+  }
+  .moderation-enforcement {
+    flex-direction: column;
+  }
+  .moderation-enforcement button {
+    width: 100%;
+  }
+  .moderation-journal article {
+    grid-template-columns: 1fr;
   }
   .mobile-bottom .mobile-profile {
     display: flex;

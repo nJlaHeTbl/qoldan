@@ -102,6 +102,14 @@ export const moderationReportInput = z.object({
   reviewNote: z.string().trim().max(800).optional().default(''),
 });
 
+export const moderationActionInput = z.object({
+  reportId: z.string().trim().min(1).max(100).optional(),
+  targetType: z.enum(['listing', 'request']),
+  targetId: z.string().trim().min(1).max(100),
+  action: z.enum(['warn', 'restrict', 'restore']),
+  note: z.string().trim().min(5).max(800),
+});
+
 export async function parseJson<T extends z.ZodType>(
   request: Request,
   schema: T,

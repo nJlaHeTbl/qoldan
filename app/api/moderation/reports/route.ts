@@ -35,6 +35,19 @@ type ModerationReportRow = {
   target_status: string | null;
 };
 
+type ModerationActionRow = {
+  id: string;
+  report_id: string | null;
+  target_type: 'listing' | 'request';
+  target_id: string;
+  target_title: string;
+  action: 'warn' | 'restrict' | 'restore';
+  note: string;
+  created_at: number;
+  moderator_name: string;
+  target_owner: string;
+};
+
 function getModerator(request: Request) {
   const viewer = getViewer(request);
   if (!viewer) return { viewer: null, response: unauthorized() };
@@ -48,9 +61,11 @@ export async function GET(request: Request) {
   try {
     await ensureMarketplaceSchema();
     await upsertViewer(moderator.viewer);
-    const result = await getMarketplaceDb()
-      .prepare(
-        `SELECT reports.id, reports.target_type, reports.target_id,
+    const db = getMarketplaceDb();
+    const [reportResult, actionResult] = await Promise.all([
+      db
+        .prepare(
+          `SELECT reports.id, reports.target_type, reports.target_id,
                 reports.reason, reports.description, reports.status,
                 reports.review_note, reports.created_at, reports.reviewed_at,
                 reporters.display_name AS reporter_name,
@@ -76,10 +91,28 @@ export async function GET(request: Request) {
              ELSE 2
            END, reports.created_at DESC
            LIMIT 200`,
-      )
-      .all<ModerationReportRow>();
+        )
+        .all<ModerationReportRow>(),
+      db
+        .prepare(
+          `SELECT moderation_actions.id, moderation_actions.report_id,
+                  moderation_actions.target_type, moderation_actions.target_id,
+                  moderation_actions.target_title, moderation_actions.action,
+                  moderation_actions.note, moderation_actions.created_at,
+                  moderators.display_name AS moderator_name,
+                  target_owners.display_name AS target_owner
+             FROM moderation_actions
+             JOIN users moderators
+               ON moderators.id = moderation_actions.moderator_id
+             JOIN users target_owners
+               ON target_owners.id = moderation_actions.target_owner_id
+             ORDER BY moderation_actions.created_at DESC
+             LIMIT 200`,
+        )
+        .all<ModerationActionRow>(),
+    ]);
     return Response.json({
-      reports: result.results.map((row) => ({
+      reports: reportResult.results.map((row) => ({
         id: row.id,
         targetType: row.target_type,
         targetId: row.target_id,
@@ -96,6 +129,18 @@ export async function GET(request: Request) {
         reviewerName: row.reviewer_name || '',
         createdAt: Number(row.created_at),
         reviewedAt: row.reviewed_at ? Number(row.reviewed_at) : null,
+      })),
+      actions: actionResult.results.map((row) => ({
+        id: row.id,
+        reportId: row.report_id,
+        targetType: row.target_type,
+        targetId: row.target_id,
+        targetTitle: row.target_title,
+        targetOwner: row.target_owner,
+        action: row.action,
+        note: row.note,
+        moderatorName: row.moderator_name,
+        createdAt: Number(row.created_at),
       })),
     });
   } catch (error) {
