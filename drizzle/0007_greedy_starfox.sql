@@ -1,0 +1,1 @@
+CREATE INDEX `bookings_listing_status_dates_idx` ON `bookings` (`listing_id`,`status`,`date_from`,`date_to`);

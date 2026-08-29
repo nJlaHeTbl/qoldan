@@ -142,6 +142,12 @@ export const bookings = sqliteTable(
       table.createdAt,
     ),
     index('bookings_owner_id_idx').on(table.ownerId),
+    index('bookings_listing_status_dates_idx').on(
+      table.listingId,
+      table.status,
+      table.dateFrom,
+      table.dateTo,
+    ),
   ],
 );
 

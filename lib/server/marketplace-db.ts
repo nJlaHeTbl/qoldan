@@ -262,6 +262,9 @@ export async function ensureMarketplaceSchema() {
         'CREATE INDEX IF NOT EXISTS bookings_owner_id_idx ON bookings (owner_id)',
       ),
       db.prepare(
+        'CREATE INDEX IF NOT EXISTS bookings_listing_status_dates_idx ON bookings (listing_id, status, date_from, date_to)',
+      ),
+      db.prepare(
         'CREATE INDEX IF NOT EXISTS uploads_owner_id_idx ON uploads (owner_id)',
       ),
       db.prepare(

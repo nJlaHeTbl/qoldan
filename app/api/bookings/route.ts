@@ -26,7 +26,9 @@ export async function POST(request: Request) {
                 users.display_name AS owner_name
          FROM listings
          JOIN users ON users.id = listings.owner_id
-         WHERE listings.id = ? AND listings.status = 'active'`,
+         WHERE listings.id = ?
+           AND listings.status = 'active'
+           AND listings.offer_type = 'Сдам'`,
       )
       .bind(input.listingId)
       .first<{
@@ -44,6 +46,45 @@ export async function POST(request: Request) {
     if (listing?.owner_id === viewer.id) {
       return Response.json(
         { error: 'Нельзя бронировать собственное объявление' },
+        { status: 409 },
+      );
+    }
+    const occupied = await db
+      .prepare(
+        `SELECT date_from, date_to
+         FROM bookings
+         WHERE listing_id = ?
+           AND status = 'accepted'
+           AND date_from <= ?
+           AND date_to >= ?
+         LIMIT 1`,
+      )
+      .bind(input.listingId, input.dateTo, input.dateFrom)
+      .first<{ date_from: string; date_to: string }>();
+    if (occupied) {
+      return Response.json(
+        {
+          error: `Эти даты уже заняты: ${occupied.date_from} — ${occupied.date_to}`,
+        },
+        { status: 409 },
+      );
+    }
+    const duplicate = await db
+      .prepare(
+        `SELECT id
+         FROM bookings
+         WHERE listing_id = ?
+           AND owner_id = ?
+           AND status IN ('pending', 'accepted')
+           AND date_from <= ?
+           AND date_to >= ?
+         LIMIT 1`,
+      )
+      .bind(input.listingId, viewer.id, input.dateTo, input.dateFrom)
+      .first<{ id: string }>();
+    if (duplicate) {
+      return Response.json(
+        { error: 'У вас уже есть запрос на пересекающиеся даты' },
         { status: 409 },
       );
     }
