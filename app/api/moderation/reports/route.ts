@@ -48,6 +48,20 @@ type ModerationActionRow = {
   target_owner: string;
 };
 
+type ModerationAppealRow = {
+  id: string;
+  moderation_action_id: string;
+  owner_name: string;
+  target_title: string;
+  action: 'warn' | 'restrict';
+  message: string;
+  status: 'new' | 'reviewing' | 'approved' | 'rejected';
+  resolution_note: string | null;
+  created_at: number;
+  reviewed_at: number | null;
+  reviewer_name: string | null;
+};
+
 function getModerator(request: Request) {
   const viewer = getViewer(request);
   if (!viewer) return { viewer: null, response: unauthorized() };
@@ -62,7 +76,7 @@ export async function GET(request: Request) {
     await ensureMarketplaceSchema();
     await upsertViewer(moderator.viewer);
     const db = getMarketplaceDb();
-    const [reportResult, actionResult] = await Promise.all([
+    const [reportResult, actionResult, appealResult] = await Promise.all([
       db
         .prepare(
           `SELECT reports.id, reports.target_type, reports.target_id,
@@ -110,6 +124,28 @@ export async function GET(request: Request) {
              LIMIT 200`,
         )
         .all<ModerationActionRow>(),
+      db
+        .prepare(
+          `SELECT appeals.id, appeals.moderation_action_id,
+                  owners.display_name AS owner_name,
+                  moderation_actions.target_title,
+                  moderation_actions.action,
+                  appeals.message, appeals.status, appeals.resolution_note,
+                  appeals.created_at, appeals.reviewed_at,
+                  reviewers.display_name AS reviewer_name
+             FROM appeals
+             JOIN moderation_actions
+               ON moderation_actions.id = appeals.moderation_action_id
+             JOIN users owners ON owners.id = appeals.owner_id
+             LEFT JOIN users reviewers ON reviewers.id = appeals.reviewed_by
+             ORDER BY CASE appeals.status
+               WHEN 'new' THEN 0
+               WHEN 'reviewing' THEN 1
+               ELSE 2
+             END, appeals.created_at DESC
+             LIMIT 200`,
+        )
+        .all<ModerationAppealRow>(),
     ]);
     return Response.json({
       reports: reportResult.results.map((row) => ({
@@ -141,6 +177,19 @@ export async function GET(request: Request) {
         note: row.note,
         moderatorName: row.moderator_name,
         createdAt: Number(row.created_at),
+      })),
+      appeals: appealResult.results.map((row) => ({
+        id: row.id,
+        moderationActionId: row.moderation_action_id,
+        ownerName: row.owner_name,
+        targetTitle: row.target_title,
+        action: row.action,
+        message: row.message,
+        status: row.status,
+        resolutionNote: row.resolution_note || '',
+        reviewerName: row.reviewer_name || '',
+        createdAt: Number(row.created_at),
+        reviewedAt: row.reviewed_at ? Number(row.reviewed_at) : null,
       })),
     });
   } catch (error) {

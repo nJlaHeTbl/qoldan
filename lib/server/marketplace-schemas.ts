@@ -110,6 +110,30 @@ export const moderationActionInput = z.object({
   note: z.string().trim().min(5).max(800),
 });
 
+export const appealInput = z.object({
+  moderationActionId: z.string().trim().min(1).max(100),
+  message: z.string().trim().min(10).max(1200),
+});
+
+export const moderationAppealInput = z
+  .object({
+    appealId: z.string().trim().min(1).max(100),
+    status: z.enum(['reviewing', 'approved', 'rejected']),
+    resolutionNote: z.string().trim().max(1200).optional().default(''),
+  })
+  .superRefine((value, context) => {
+    if (
+      value.status !== 'reviewing' &&
+      value.resolutionNote.trim().length < 5
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['resolutionNote'],
+        message: 'Добавьте пояснение решения',
+      });
+    }
+  });
+
 export async function parseJson<T extends z.ZodType>(
   request: Request,
   schema: T,

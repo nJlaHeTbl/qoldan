@@ -5,6 +5,7 @@ import {
   real,
   sqliteTable,
   text,
+  uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
 
 export const users = sqliteTable('users', {
@@ -210,5 +211,33 @@ export const moderationActions = sqliteTable(
       table.targetOwnerId,
       table.createdAt,
     ),
+  ],
+);
+
+export const appeals = sqliteTable(
+  'appeals',
+  {
+    id: text('id').primaryKey(),
+    moderationActionId: text('moderation_action_id')
+      .notNull()
+      .references(() => moderationActions.id, { onDelete: 'cascade' }),
+    ownerId: text('owner_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    message: text('message').notNull(),
+    status: text('status').notNull().default('new'),
+    resolutionNote: text('resolution_note'),
+    reviewedBy: text('reviewed_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: integer('created_at').notNull(),
+    reviewedAt: integer('reviewed_at'),
+  },
+  (table) => [
+    uniqueIndex('appeals_moderation_action_id_unique').on(
+      table.moderationActionId,
+    ),
+    index('appeals_owner_id_created_at_idx').on(table.ownerId, table.createdAt),
+    index('appeals_status_created_at_idx').on(table.status, table.createdAt),
   ],
 );

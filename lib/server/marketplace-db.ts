@@ -197,6 +197,17 @@ export async function ensureMarketplaceSchema() {
         note TEXT NOT NULL,
         created_at INTEGER NOT NULL
       )`),
+      db.prepare(`CREATE TABLE IF NOT EXISTS appeals (
+        id TEXT PRIMARY KEY NOT NULL,
+        moderation_action_id TEXT NOT NULL UNIQUE REFERENCES moderation_actions(id) ON DELETE CASCADE,
+        owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        message TEXT NOT NULL,
+        status TEXT DEFAULT 'new' NOT NULL,
+        resolution_note TEXT,
+        reviewed_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        created_at INTEGER NOT NULL,
+        reviewed_at INTEGER
+      )`),
     ]);
     await db.batch([
       db.prepare(
@@ -249,6 +260,15 @@ export async function ensureMarketplaceSchema() {
       ),
       db.prepare(
         'CREATE INDEX IF NOT EXISTS moderation_actions_target_owner_created_at_idx ON moderation_actions (target_owner_id, created_at)',
+      ),
+      db.prepare(
+        'CREATE UNIQUE INDEX IF NOT EXISTS appeals_moderation_action_id_unique ON appeals (moderation_action_id)',
+      ),
+      db.prepare(
+        'CREATE INDEX IF NOT EXISTS appeals_owner_id_created_at_idx ON appeals (owner_id, created_at)',
+      ),
+      db.prepare(
+        'CREATE INDEX IF NOT EXISTS appeals_status_created_at_idx ON appeals (status, created_at)',
       ),
     ]);
     await db.prepare('PRAGMA optimize').run();

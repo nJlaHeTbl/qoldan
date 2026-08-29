@@ -42,6 +42,20 @@ type ModerationActivityRow = {
   target_title: string;
   note: string;
   created_at: number;
+  appeal_id: string | null;
+  appeal_status: 'new' | 'reviewing' | 'approved' | 'rejected' | null;
+};
+
+type AppealRow = {
+  id: string;
+  moderation_action_id: string;
+  target_title: string;
+  action: 'warn' | 'restrict';
+  message: string;
+  status: 'new' | 'reviewing' | 'approved' | 'rejected';
+  resolution_note: string | null;
+  created_at: number;
+  reviewed_at: number | null;
 };
 
 export async function GET(request: Request) {
@@ -62,6 +76,7 @@ export async function GET(request: Request) {
       bookingActivityResult,
       bookingDecisionActivityResult,
       moderationActivityResult,
+      appealResult,
     ] = await Promise.all([
       db
         .prepare(
@@ -181,14 +196,34 @@ export async function GET(request: Request) {
         .all<BookingDecisionActivityRow>(),
       db
         .prepare(
-          `SELECT id, action, target_title, note, created_at
+          `SELECT moderation_actions.id, moderation_actions.action,
+                  moderation_actions.target_title, moderation_actions.note,
+                  moderation_actions.created_at, appeals.id AS appeal_id,
+                  appeals.status AS appeal_status
              FROM moderation_actions
-             WHERE target_owner_id = ?
-             ORDER BY created_at DESC
+             LEFT JOIN appeals
+               ON appeals.moderation_action_id = moderation_actions.id
+             WHERE moderation_actions.target_owner_id = ?
+             ORDER BY moderation_actions.created_at DESC
              LIMIT 50`,
         )
         .bind(viewer.id)
         .all<ModerationActivityRow>(),
+      db
+        .prepare(
+          `SELECT appeals.id, appeals.moderation_action_id,
+                  moderation_actions.target_title, moderation_actions.action,
+                  appeals.message, appeals.status, appeals.resolution_note,
+                  appeals.created_at, appeals.reviewed_at
+             FROM appeals
+             JOIN moderation_actions
+               ON moderation_actions.id = appeals.moderation_action_id
+             WHERE appeals.owner_id = ?
+             ORDER BY appeals.created_at DESC
+             LIMIT 100`,
+        )
+        .bind(viewer.id)
+        .all<AppealRow>(),
     ]);
 
     const activities = [
@@ -227,7 +262,26 @@ export async function GET(request: Request) {
               : 'Предупреждение от команды Qoldan',
         description: `«${String(row.target_title)}» · ${String(row.note)}`,
         createdAt: Number(row.created_at),
+        moderationActionId: row.id,
+        moderationAction: row.action,
+        targetTitle: row.target_title,
+        appealId: row.appeal_id,
+        appealStatus: row.appeal_status,
       })),
+      ...appealResult.results
+        .filter((row) => row.status === 'approved' || row.status === 'rejected')
+        .map((row) => ({
+          id: `appeal-decision-${String(row.id)}-${row.status}`,
+          kind: 'appeal',
+          title:
+            row.status === 'approved'
+              ? 'Апелляция удовлетворена'
+              : 'Апелляция отклонена',
+          description: `«${String(row.target_title)}»${row.resolution_note ? ` · ${String(row.resolution_note)}` : ''}`,
+          createdAt: Number(row.reviewed_at || row.created_at),
+          appealId: row.id,
+          appealStatus: row.status,
+        })),
     ]
       .sort((a, b) => b.createdAt - a.createdAt)
       .slice(0, 50);
@@ -235,7 +289,11 @@ export async function GET(request: Request) {
     const moderationCount = viewerCanModerate
       ? await db
           .prepare(
-            "SELECT COUNT(*) AS count FROM reports WHERE status IN ('new', 'reviewing')",
+            `SELECT
+               (SELECT COUNT(*) FROM reports
+                 WHERE status IN ('new', 'reviewing')) +
+               (SELECT COUNT(*) FROM appeals
+                 WHERE status IN ('new', 'reviewing')) AS count`,
           )
           .first<{ count: number }>()
       : null;
@@ -308,6 +366,17 @@ export async function GET(request: Request) {
           incoming,
         };
       }),
+      appeals: appealResult.results.map((row) => ({
+        id: row.id,
+        moderationActionId: row.moderation_action_id,
+        targetTitle: row.target_title,
+        action: row.action,
+        message: row.message,
+        status: row.status,
+        resolutionNote: row.resolution_note || '',
+        createdAt: Number(row.created_at),
+        reviewedAt: row.reviewed_at ? Number(row.reviewed_at) : null,
+      })),
       activities,
     });
   } catch (error) {

@@ -83,17 +83,12 @@
       "indexes": {
         "bookings_listing_id_created_at_idx": {
           "name": "bookings_listing_id_created_at_idx",
-          "columns": [
-            "listing_id",
-            "created_at"
-          ],
+          "columns": ["listing_id", "created_at"],
           "isUnique": false
         },
         "bookings_owner_id_idx": {
           "name": "bookings_owner_id_idx",
-          "columns": [
-            "owner_id"
-          ],
+          "columns": ["owner_id"],
           "isUnique": false
         }
       },
@@ -102,12 +97,8 @@
           "name": "bookings_owner_id_users_id_fk",
           "tableFrom": "bookings",
           "tableTo": "users",
-          "columnsFrom": [
-            "owner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -147,22 +138,15 @@
           "name": "favorites_owner_id_users_id_fk",
           "tableFrom": "favorites",
           "tableTo": "users",
-          "columnsFrom": [
-            "owner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "favorites_owner_id_listing_id_pk": {
-          "columns": [
-            "owner_id",
-            "listing_id"
-          ],
+          "columns": ["owner_id", "listing_id"],
           "name": "favorites_owner_id_listing_id_pk"
         }
       },
@@ -207,12 +191,8 @@
           "name": "listing_locations_listing_id_listings_id_fk",
           "tableFrom": "listing_locations",
           "tableTo": "listings",
-          "columnsFrom": [
-            "listing_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["listing_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -356,33 +336,22 @@
       "indexes": {
         "listings_status_created_at_idx": {
           "name": "listings_status_created_at_idx",
-          "columns": [
-            "status",
-            "created_at"
-          ],
+          "columns": ["status", "created_at"],
           "isUnique": false
         },
         "listings_region_status_idx": {
           "name": "listings_region_status_idx",
-          "columns": [
-            "region",
-            "status"
-          ],
+          "columns": ["region", "status"],
           "isUnique": false
         },
         "listings_owner_id_idx": {
           "name": "listings_owner_id_idx",
-          "columns": [
-            "owner_id"
-          ],
+          "columns": ["owner_id"],
           "isUnique": false
         },
         "listings_category_offer_type_idx": {
           "name": "listings_category_offer_type_idx",
-          "columns": [
-            "category",
-            "offer_type"
-          ],
+          "columns": ["category", "offer_type"],
           "isUnique": false
         }
       },
@@ -391,12 +360,8 @@
           "name": "listings_owner_id_users_id_fk",
           "tableFrom": "listings",
           "tableTo": "users",
-          "columnsFrom": [
-            "owner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -498,25 +463,17 @@
       "indexes": {
         "requests_status_created_at_idx": {
           "name": "requests_status_created_at_idx",
-          "columns": [
-            "status",
-            "created_at"
-          ],
+          "columns": ["status", "created_at"],
           "isUnique": false
         },
         "requests_region_kind_idx": {
           "name": "requests_region_kind_idx",
-          "columns": [
-            "region",
-            "kind"
-          ],
+          "columns": ["region", "kind"],
           "isUnique": false
         },
         "requests_owner_id_idx": {
           "name": "requests_owner_id_idx",
-          "columns": [
-            "owner_id"
-          ],
+          "columns": ["owner_id"],
           "isUnique": false
         }
       },
@@ -525,12 +482,8 @@
           "name": "requests_owner_id_users_id_fk",
           "tableFrom": "requests",
           "tableTo": "users",
-          "columnsFrom": [
-            "owner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -588,17 +541,12 @@
       "indexes": {
         "responses_request_id_created_at_idx": {
           "name": "responses_request_id_created_at_idx",
-          "columns": [
-            "request_id",
-            "created_at"
-          ],
+          "columns": ["request_id", "created_at"],
           "isUnique": false
         },
         "responses_owner_id_idx": {
           "name": "responses_owner_id_idx",
-          "columns": [
-            "owner_id"
-          ],
+          "columns": ["owner_id"],
           "isUnique": false
         }
       },
@@ -607,12 +555,8 @@
           "name": "responses_request_id_requests_id_fk",
           "tableFrom": "responses",
           "tableTo": "requests",
-          "columnsFrom": [
-            "request_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["request_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -620,12 +564,8 @@
           "name": "responses_owner_id_users_id_fk",
           "tableFrom": "responses",
           "tableTo": "users",
-          "columnsFrom": [
-            "owner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -676,9 +616,7 @@
       "indexes": {
         "uploads_owner_id_idx": {
           "name": "uploads_owner_id_idx",
-          "columns": [
-            "owner_id"
-          ],
+          "columns": ["owner_id"],
           "isUnique": false
         }
       },
@@ -687,12 +625,8 @@
           "name": "uploads_owner_id_users_id_fk",
           "tableFrom": "uploads",
           "tableTo": "users",
-          "columnsFrom": [
-            "owner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }

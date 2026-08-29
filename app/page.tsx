@@ -31,6 +31,7 @@ import {
   EyeOff,
   ShieldAlert,
   ScrollText,
+  Scale,
 } from 'lucide-react';
 import {
   MarketplaceMap,
@@ -89,10 +90,15 @@ type ResponseItem = {
 };
 type ActivityItem = {
   id: string;
-  kind: 'response' | 'booking' | 'moderation';
+  kind: 'response' | 'booking' | 'moderation' | 'appeal';
   title: string;
   description: string;
   createdAt: number;
+  moderationActionId?: string;
+  moderationAction?: 'warn' | 'restrict' | 'restore';
+  targetTitle?: string;
+  appealId?: string | null;
+  appealStatus?: AppealItem['status'] | null;
 };
 type BookingItem = {
   id: string;
@@ -141,6 +147,26 @@ type ModerationAction = {
   note: string;
   moderatorName: string;
   createdAt: number;
+};
+type AppealItem = {
+  id: string;
+  moderationActionId: string;
+  targetTitle: string;
+  action: 'warn' | 'restrict';
+  message: string;
+  status: 'new' | 'reviewing' | 'approved' | 'rejected';
+  resolutionNote: string;
+  createdAt: number;
+  reviewedAt: number | null;
+};
+type ModerationAppeal = AppealItem & {
+  ownerName: string;
+  reviewerName: string;
+};
+type AppealTarget = {
+  moderationActionId: string;
+  targetTitle: string;
+  action: 'warn' | 'restrict';
 };
 type SubmitFormEvent = {
   preventDefault: () => void;
@@ -664,11 +690,17 @@ export default function Home() {
   const [moderationActions, setModerationActions] = useState<
     ModerationAction[]
   >([]);
+  const [appeals, setAppeals] = useState<AppealItem[]>([]);
+  const [moderationAppeals, setModerationAppeals] = useState<
+    ModerationAppeal[]
+  >([]);
+  const [appealTarget, setAppealTarget] = useState<AppealTarget | null>(null);
+  const [appealNotes, setAppealNotes] = useState<Record<string, string>>({});
   const [moderationNotes, setModerationNotes] = useState<
     Record<string, string>
   >({});
   const [moderationFilter, setModerationFilter] = useState<
-    'active' | 'journal' | ModerationReport['status']
+    'active' | 'appeals' | 'journal' | ModerationReport['status']
   >('active');
   const [moderationLoading, setModerationLoading] = useState(false);
   const [canModerate, setCanModerate] = useState(false);
@@ -688,6 +720,8 @@ export default function Home() {
     | 'booking'
     | 'bookings'
     | 'report'
+    | 'appeal'
+    | 'appeals'
     | 'moderation'
     | 'regions'
     | 'recycle'
@@ -756,6 +790,7 @@ export default function Home() {
           favorites: string[];
           responses: ResponseItem[];
           bookings: BookingItem[];
+          appeals: AppealItem[];
           activities: ActivityItem[];
           moderation: { canModerate: boolean; pendingCount: number };
         };
@@ -765,6 +800,7 @@ export default function Home() {
         setFavorites(data.favorites.map(String));
         setAllResponses(data.responses);
         setBookings(data.bookings);
+        setAppeals(data.appeals);
         setActivities(data.activities);
         setCanModerate(data.moderation.canModerate);
         setModerationPendingCount(data.moderation.pendingCount);
@@ -975,6 +1011,63 @@ export default function Home() {
     setReportTarget(target);
     setModal('report');
   };
+  const openAppeal = (activity: ActivityItem) => {
+    if (
+      !activity.moderationActionId ||
+      (activity.moderationAction !== 'warn' &&
+        activity.moderationAction !== 'restrict')
+    ) {
+      return;
+    }
+    setAppealTarget({
+      moderationActionId: activity.moderationActionId,
+      targetTitle: activity.targetTitle || activity.title,
+      action: activity.moderationAction,
+    });
+    setModal('appeal');
+  };
+  const submitAppeal = async (event: SubmitFormEvent) => {
+    event.preventDefault();
+    if (!appealTarget) return;
+    const form = new FormData(event.currentTarget);
+    const message = fieldText(form, 'message').trim();
+    setSubmitting('appeal');
+    try {
+      const response = await fetch('/api/appeals', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          moderationActionId: appealTarget.moderationActionId,
+          message,
+        }),
+      });
+      if (!response.ok) throw new Error(await apiError(response));
+      const data = (await response.json()) as { appeal: AppealItem };
+      setAppeals((current) => [data.appeal, ...current]);
+      setActivities((current) =>
+        current.map((activity) =>
+          activity.moderationActionId === data.appeal.moderationActionId
+            ? {
+                ...activity,
+                appealId: data.appeal.id,
+                appealStatus: data.appeal.status,
+              }
+            : activity,
+        ),
+      );
+      setAppealTarget(null);
+      setModal('appeals');
+      notify('Апелляция отправлена команде Qoldan');
+    } catch (error) {
+      notify(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось отправить апелляцию',
+      );
+    } finally {
+      setSubmitting(null);
+    }
+  };
   const openModeration = async () => {
     setModal('moderation');
     setModerationLoading(true);
@@ -986,12 +1079,19 @@ export default function Home() {
       const data = (await response.json()) as {
         reports: ModerationReport[];
         actions: ModerationAction[];
+        appeals: ModerationAppeal[];
       };
       setModerationReports(data.reports);
       setModerationActions(data.actions);
+      setModerationAppeals(data.appeals);
       setModerationNotes(
         Object.fromEntries(
           data.reports.map((report) => [report.id, report.reviewNote]),
+        ),
+      );
+      setAppealNotes(
+        Object.fromEntries(
+          data.appeals.map((appeal) => [appeal.id, appeal.resolutionNote]),
         ),
       );
     } catch (error) {
@@ -1002,6 +1102,61 @@ export default function Home() {
       );
     } finally {
       setModerationLoading(false);
+    }
+  };
+  const updateModerationAppeal = async (
+    appealId: string,
+    status: 'reviewing' | 'approved' | 'rejected',
+  ) => {
+    const resolutionNote = (appealNotes[appealId] || '').trim();
+    if (status !== 'reviewing' && resolutionNote.length < 5) {
+      notify('Добавьте короткое объяснение итогового решения');
+      return;
+    }
+    setSubmitting(`moderation-appeal-${appealId}`);
+    try {
+      const response = await fetch('/api/moderation/appeals', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ appealId, status, resolutionNote }),
+      });
+      if (!response.ok) throw new Error(await apiError(response));
+      const data = (await response.json()) as {
+        appeal: Pick<
+          ModerationAppeal,
+          'id' | 'status' | 'resolutionNote' | 'reviewerName' | 'reviewedAt'
+        >;
+        restorationAction: ModerationAction | null;
+      };
+      setModerationAppeals((current) =>
+        current.map((appeal) =>
+          appeal.id === data.appeal.id ? { ...appeal, ...data.appeal } : appeal,
+        ),
+      );
+      if (data.restorationAction) {
+        setModerationActions((current) => [
+          data.restorationAction as ModerationAction,
+          ...current,
+        ]);
+      }
+      if (status === 'approved' || status === 'rejected') {
+        setModerationPendingCount((current) => Math.max(0, current - 1));
+      }
+      notify(
+        status === 'reviewing'
+          ? 'Апелляция взята на проверку'
+          : status === 'approved'
+            ? 'Апелляция удовлетворена'
+            : 'Итог по апелляции сохранён',
+      );
+    } catch (error) {
+      notify(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось обновить апелляцию',
+      );
+    } finally {
+      setSubmitting(null);
     }
   };
   const updateModerationReport = async (
@@ -1026,15 +1181,14 @@ export default function Home() {
           'id' | 'status' | 'reviewNote' | 'reviewerName' | 'reviewedAt'
         >;
       };
-      setModerationReports((current) => {
-        const next = current.map((report) =>
+      setModerationReports((current) =>
+        current.map((report) =>
           report.id === data.report.id ? { ...report, ...data.report } : report,
-        );
-        setModerationPendingCount(
-          next.filter((report) => report.status !== 'closed').length,
-        );
-        return next;
-      });
+        ),
+      );
+      if (status === 'closed') {
+        setModerationPendingCount((current) => Math.max(0, current - 1));
+      }
       notify(
         status === 'closed'
           ? 'Жалоба закрыта и сохранена в истории'
@@ -3326,6 +3480,123 @@ export default function Home() {
                 </form>
               </>
             )}
+            {modal === 'appeal' && appealTarget && (
+              <>
+                <div className="modal-title appeal-title">
+                  <span>
+                    <Scale />
+                  </span>
+                  <div>
+                    <small>АПЕЛЛЯЦИЯ</small>
+                    <h2>Оспорить решение</h2>
+                    <p>
+                      Спокойно объясните, почему решение стоит пересмотреть.
+                      Обращение увидит только команда Qoldan.
+                    </p>
+                  </div>
+                </div>
+                <div className="appeal-target-card">
+                  <small>
+                    {appealTarget.action === 'restrict'
+                      ? 'ПУБЛИКАЦИЯ ВРЕМЕННО СКРЫТА'
+                      : 'ПРЕДУПРЕЖДЕНИЕ'}
+                  </small>
+                  <b>{appealTarget.targetTitle}</b>
+                </div>
+                <form className="app-form appeal-form" onSubmit={submitAppeal}>
+                  <label>
+                    Почему решение нужно пересмотреть?
+                    <textarea
+                      name="message"
+                      rows={5}
+                      minLength={10}
+                      maxLength={1200}
+                      required
+                      placeholder="Например: в объявлении указаны реальные данные, а подтверждающие документы готов предоставить…"
+                    />
+                  </label>
+                  <p className="appeal-hint">
+                    Одна апелляция на одно решение. Команда сохранит ответ в
+                    разделе «Мои апелляции».
+                  </p>
+                  <button
+                    className="submit-button"
+                    type="submit"
+                    disabled={submitting === 'appeal'}
+                  >
+                    {submitting === 'appeal'
+                      ? 'Отправляем…'
+                      : 'Отправить апелляцию'}{' '}
+                    <ArrowRight />
+                  </button>
+                </form>
+              </>
+            )}
+            {modal === 'appeals' && (
+              <>
+                <div className="modal-title appeal-title">
+                  <span>
+                    <Scale />
+                  </span>
+                  <div>
+                    <small>ЛИЧНЫЙ КАБИНЕТ</small>
+                    <h2>Мои апелляции</h2>
+                    <p>
+                      Статусы обращений и ответы команды по решениям модерации.
+                    </p>
+                  </div>
+                </div>
+                {appeals.length > 0 ? (
+                  <div className="appeal-list">
+                    {appeals.map((appeal) => (
+                      <article key={appeal.id}>
+                        <div className="appeal-list-head">
+                          <div>
+                            <small>
+                              {appeal.action === 'restrict'
+                                ? 'СКРЫТИЕ ПУБЛИКАЦИИ'
+                                : 'ПРЕДУПРЕЖДЕНИЕ'}
+                            </small>
+                            <h3>{appeal.targetTitle}</h3>
+                          </div>
+                          <span
+                            className={`moderation-status ${appeal.status}`}
+                          >
+                            {appeal.status === 'new'
+                              ? 'Отправлена'
+                              : appeal.status === 'reviewing'
+                                ? 'Проверяется'
+                                : appeal.status === 'approved'
+                                  ? 'Одобрена'
+                                  : 'Отклонена'}
+                          </span>
+                        </div>
+                        <p>{appeal.message}</p>
+                        {appeal.resolutionNote && (
+                          <div className="appeal-answer">
+                            <CheckCircle2 />
+                            <div>
+                              <b>Ответ команды Qoldan</b>
+                              <p>{appeal.resolutionNote}</p>
+                            </div>
+                          </div>
+                        )}
+                        <small>{formatActivityDate(appeal.createdAt)}</small>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="notification-empty">
+                    <Scale />
+                    <b>Апелляций нет</b>
+                    <span>
+                      Если вы не согласитесь с предупреждением или скрытием,
+                      решение можно будет оспорить из уведомления.
+                    </span>
+                  </div>
+                )}
+              </>
+            )}
             {modal === 'profile' && (
               <>
                 <div className="profile-cover">
@@ -3383,6 +3654,9 @@ export default function Home() {
                   <button onClick={() => setModal('bookings')}>
                     <Clock3 /> Бронирования <b>{bookings.length}</b>
                   </button>
+                  <button onClick={() => setModal('appeals')}>
+                    <Scale /> Мои апелляции <b>{appeals.length}</b>
+                  </button>
                   <button
                     onClick={() => {
                       setModal(null);
@@ -3431,6 +3705,7 @@ export default function Home() {
                       ['active', 'В работе'],
                       ['new', 'Новые'],
                       ['reviewing', 'Проверяются'],
+                      ['appeals', 'Апелляции'],
                       ['closed', 'История'],
                       ['journal', 'Журнал действий'],
                     ] as const
@@ -3451,6 +3726,141 @@ export default function Home() {
                     <b>Загружаем обращения…</b>
                     <span>Проверяем актуальные статусы в общей базе.</span>
                   </div>
+                ) : moderationFilter === 'appeals' ? (
+                  moderationAppeals.length > 0 ? (
+                    <div className="moderation-list appeal-moderation-list">
+                      {moderationAppeals.map((appeal) => (
+                        <article key={appeal.id}>
+                          <div className="moderation-card-head">
+                            <div>
+                              <small>
+                                АПЕЛЛЯЦИЯ ·{' '}
+                                {appeal.action === 'restrict'
+                                  ? 'СКРЫТИЕ'
+                                  : 'ПРЕДУПРЕЖДЕНИЕ'}
+                              </small>
+                              <h3>{appeal.targetTitle}</h3>
+                            </div>
+                            <span
+                              className={`moderation-status ${appeal.status}`}
+                            >
+                              {appeal.status === 'new'
+                                ? 'Новая'
+                                : appeal.status === 'reviewing'
+                                  ? 'На проверке'
+                                  : appeal.status === 'approved'
+                                    ? 'Одобрена'
+                                    : 'Отклонена'}
+                            </span>
+                          </div>
+                          <div className="appeal-message">
+                            <Scale />
+                            <div>
+                              <b>Позиция автора</b>
+                              <p>{appeal.message}</p>
+                            </div>
+                          </div>
+                          <div className="moderation-meta">
+                            <span>Автор: {appeal.ownerName}</span>
+                            <span>{formatActivityDate(appeal.createdAt)}</span>
+                          </div>
+                          <label>
+                            Ответ команды Qoldan
+                            <textarea
+                              rows={2}
+                              maxLength={800}
+                              value={appealNotes[appeal.id] ?? ''}
+                              disabled={
+                                appeal.status === 'approved' ||
+                                appeal.status === 'rejected'
+                              }
+                              placeholder="Что проверили и почему приняли такое решение"
+                              onChange={(event) =>
+                                setAppealNotes((current) => ({
+                                  ...current,
+                                  [appeal.id]: event.target.value,
+                                }))
+                              }
+                            />
+                          </label>
+                          {appeal.status === 'approved' ||
+                          appeal.status === 'rejected' ? (
+                            <div className="moderation-resolution">
+                              <CheckCircle2 />
+                              <span>
+                                Решил: {appeal.reviewerName || 'модератор'}
+                                {appeal.reviewedAt
+                                  ? ` · ${formatActivityDate(appeal.reviewedAt)}`
+                                  : ''}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="moderation-actions appeal-actions">
+                              {appeal.status === 'new' && (
+                                <button
+                                  type="button"
+                                  className="review"
+                                  disabled={
+                                    submitting ===
+                                    `moderation-appeal-${appeal.id}`
+                                  }
+                                  onClick={() =>
+                                    void updateModerationAppeal(
+                                      appeal.id,
+                                      'reviewing',
+                                    )
+                                  }
+                                >
+                                  Взять на проверку
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                className="approve"
+                                disabled={
+                                  submitting ===
+                                  `moderation-appeal-${appeal.id}`
+                                }
+                                onClick={() =>
+                                  void updateModerationAppeal(
+                                    appeal.id,
+                                    'approved',
+                                  )
+                                }
+                              >
+                                Удовлетворить
+                              </button>
+                              <button
+                                type="button"
+                                className="reject"
+                                disabled={
+                                  submitting ===
+                                  `moderation-appeal-${appeal.id}`
+                                }
+                                onClick={() =>
+                                  void updateModerationAppeal(
+                                    appeal.id,
+                                    'rejected',
+                                  )
+                                }
+                              >
+                                Отклонить
+                              </button>
+                            </div>
+                          )}
+                        </article>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="notification-empty moderation-empty">
+                      <Scale />
+                      <b>Апелляций пока нет</b>
+                      <span>
+                        Обращения авторов появятся здесь после предупреждения
+                        или временного скрытия публикации.
+                      </span>
+                    </div>
+                  )
                 ) : moderationFilter === 'journal' ? (
                   moderationActions.length > 0 ? (
                     <div className="moderation-journal">
@@ -3786,6 +4196,8 @@ export default function Home() {
                             <Clock3 />
                           ) : activity.kind === 'moderation' ? (
                             <ShieldAlert />
+                          ) : activity.kind === 'appeal' ? (
+                            <Scale />
                           ) : (
                             <MessageCircle />
                           )}
@@ -3796,6 +4208,29 @@ export default function Home() {
                           <small>
                             {formatActivityDate(activity.createdAt)}
                           </small>
+                          {activity.kind === 'moderation' &&
+                            activity.moderationAction !== 'restore' &&
+                            (activity.appealStatus ? (
+                              <span
+                                className={`appeal-inline-status ${activity.appealStatus}`}
+                              >
+                                {activity.appealStatus === 'new'
+                                  ? 'Апелляция отправлена'
+                                  : activity.appealStatus === 'reviewing'
+                                    ? 'Апелляция проверяется'
+                                    : activity.appealStatus === 'approved'
+                                      ? 'Апелляция одобрена'
+                                      : 'Апелляция отклонена'}
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                className="appeal-inline-button"
+                                onClick={() => openAppeal(activity)}
+                              >
+                                <Scale /> Оспорить решение
+                              </button>
+                            ))}
                         </div>
                       </article>
                     ))}

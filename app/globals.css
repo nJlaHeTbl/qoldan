@@ -2067,6 +2067,14 @@ footer {
   background: #e3f1e6;
   color: var(--green);
 }
+.moderation-status.approved {
+  background: #e3f1e6;
+  color: var(--green);
+}
+.moderation-status.rejected {
+  background: #f4e9e6;
+  color: #964434;
+}
 .moderation-reason {
   display: flex;
   align-items: flex-start;
@@ -2186,6 +2194,14 @@ footer {
   background: #fff0d2;
   color: #78500d;
 }
+.moderation-actions button.approve {
+  background: #dfeee2;
+  color: var(--green);
+}
+.moderation-actions button.reject {
+  background: #f4e9e6;
+  color: #964434;
+}
 .moderation-actions button:disabled {
   opacity: 0.55;
 }
@@ -2261,6 +2277,147 @@ footer {
   margin-top: 8px;
   color: #8a938c;
   font-size: 8px;
+}
+.appeal-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 13px 0 10px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #f1f5ef;
+}
+.appeal-message > svg {
+  width: 17px;
+  color: var(--green);
+  flex-shrink: 0;
+}
+.appeal-message b {
+  display: block;
+  font-size: 10px;
+}
+.appeal-message p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.55;
+}
+.appeal-title > span {
+  background: #e9f3e9;
+}
+.appeal-target-card {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px;
+  margin-bottom: 15px;
+  border: 1px solid #dce8dd;
+  border-radius: 12px;
+  background: #f4f8f3;
+}
+.appeal-target-card small {
+  color: var(--green);
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: 0.5px;
+}
+.appeal-target-card b {
+  font-size: 12px;
+}
+.appeal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.appeal-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: #566159;
+  font-size: 10px;
+  font-weight: 750;
+}
+.appeal-form textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid #d9e0d9;
+  border-radius: 10px;
+  padding: 12px;
+  background: #fbfcfa;
+  outline: 0;
+  color: var(--ink);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.55;
+}
+.appeal-form textarea:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px #0d6b4512;
+}
+.appeal-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+.appeal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+.appeal-list > article {
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #fff;
+}
+.appeal-list-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.appeal-list-head small {
+  color: var(--green);
+  font-size: 8px;
+  font-weight: 850;
+}
+.appeal-list-head h3 {
+  margin: 5px 0 0;
+  font-size: 13px;
+}
+.appeal-list > article > p {
+  margin: 12px 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.55;
+}
+.appeal-list > article > small {
+  color: #9ca49e;
+  font-size: 8px;
+}
+.appeal-answer {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 11px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  background: #eaf4ea;
+}
+.appeal-answer > svg {
+  width: 16px;
+  color: var(--green);
+  flex-shrink: 0;
+}
+.appeal-answer b {
+  font-size: 9px;
+}
+.appeal-answer p {
+  margin: 4px 0 0;
+  color: #506257;
+  font-size: 9px;
+  line-height: 1.5;
 }
 .booking-list {
   display: flex;
@@ -2386,6 +2543,10 @@ footer {
   color: var(--green);
   flex-shrink: 0;
 }
+.notification-list article > div {
+  min-width: 0;
+  flex: 1;
+}
 .notification-list svg {
   width: 17px;
 }
@@ -2400,6 +2561,43 @@ footer {
 .notification-list small {
   font-size: 8px;
   color: #9ca49e;
+}
+.appeal-inline-button {
+  width: max-content;
+  min-height: 31px;
+  margin-top: 9px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 10px;
+  background: #e9f3e9;
+  color: var(--green);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 8px;
+  font-weight: 850;
+}
+.appeal-inline-button svg {
+  width: 13px;
+}
+.appeal-inline-status {
+  width: max-content;
+  display: block;
+  margin-top: 8px;
+  border-radius: 7px;
+  padding: 5px 8px;
+  background: #fff0d2;
+  color: #7d5615;
+  font-size: 8px;
+  font-weight: 850;
+}
+.appeal-inline-status.approved {
+  background: #e3f1e6;
+  color: var(--green);
+}
+.appeal-inline-status.rejected {
+  background: #f4e9e6;
+  color: #964434;
 }
 .notification-empty {
   min-height: 190px;
@@ -3273,7 +3471,8 @@ footer {
     flex: 1;
   }
   .moderation-card-head,
-  .moderation-actions {
+  .moderation-actions,
+  .appeal-list-head {
     align-items: stretch;
     flex-direction: column;
   }
