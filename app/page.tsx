@@ -1,5 +1,5 @@
 'use client';
-/* oxlint-disable next(no-img-element), react(react-compiler) -- marketplace photos can be remote or local data URLs; browser storage hydration intentionally runs after mount */
+/* oxlint-disable next/no-img-element, react/react-compiler -- marketplace photos can be remote or user-uploaded; shared server data is hydrated after mount */
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import {
   ArrowRight,
@@ -25,7 +25,7 @@ import {
   Navigation,
 } from 'lucide-react';
 type Listing = {
-  id: number;
+  id: number | string;
   title: string;
   price: string;
   unit?: string;
@@ -44,9 +44,10 @@ type Listing = {
   deposit?: string;
   sellerType?: 'Частное лицо' | 'Компания' | 'Магазин';
   delivery?: boolean;
+  mine?: boolean;
 };
 type RequestItem = {
-  id: number;
+  id: number | string;
   title: string;
   place: string;
   when: string;
@@ -55,6 +56,15 @@ type RequestItem = {
   kind: 'agro' | 'build' | 'rent' | 'recycle';
   region?: string;
   owner?: string;
+  mine?: boolean;
+};
+type ResponseItem = {
+  id: string;
+  requestId: string;
+  price: string;
+  message: string;
+  owner: string;
+  mine?: boolean;
 };
 type SubmitFormEvent = {
   preventDefault: () => void;
@@ -63,6 +73,18 @@ type SubmitFormEvent = {
 const fieldText = (data: FormData, key: string, fallback = '') => {
   const value = data.get(key);
   return typeof value === 'string' ? value : fallback;
+};
+const apiError = async (response: Response) => {
+  try {
+    const body = (await response.json()) as { error?: string };
+    return body.error || 'Не удалось сохранить изменения';
+  } catch {
+    return 'Не удалось сохранить изменения';
+  }
+};
+const isDemoListing = (id: Listing['id']) => {
+  const numericId = Number(id);
+  return Number.isFinite(numericId) && numericId < 1000;
 };
 const listings: Listing[] = [
   {
@@ -525,7 +547,7 @@ const aboutContent = {
 export default function Home() {
   const [query, setQuery] = useState('');
   const [type, setType] = useState('Все');
-  const [favorites, setFavorites] = useState<number[]>([2]);
+  const [favorites, setFavorites] = useState<string[]>([]);
   const [mapOpen, setMapOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toast, setToast] = useState('');
@@ -534,6 +556,10 @@ export default function Home() {
   const [allListings, setAllListings] = useState<Listing[]>(defaultListings);
   const [allRequests, setAllRequests] =
     useState<RequestItem[]>(initialRequests);
+  const [allResponses, setAllResponses] = useState<ResponseItem[]>([]);
+  const [viewerName, setViewerName] = useState('Пользователь Qoldan');
+  const [serverConnected, setServerConnected] = useState(false);
+  const [submitting, setSubmitting] = useState<string | null>(null);
   const [storageReady, setStorageReady] = useState(false);
   const [modal, setModal] = useState<
     | 'listing'
@@ -570,6 +596,18 @@ export default function Home() {
     useState<RequestItem['kind']>('agro');
   const about = aboutContent[aboutLang];
   const aboutIcons = [Tractor, Wrench, PackageOpen];
+  const viewerInitials = viewerName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
+  const selectedResponses = selectedRequest
+    ? allResponses.filter(
+        (response) => response.requestId === String(selectedRequest.id),
+      )
+    : [];
   const activeFilterCount = [
     categoryFilter !== 'Все категории',
     maxDistance < 100 && selectedRegion !== 'Весь Казахстан',
@@ -578,39 +616,37 @@ export default function Home() {
     myOnly,
   ].filter(Boolean).length;
   useEffect(() => {
-    try {
-      const savedListings = localStorage.getItem('qoldan-listings');
-      const savedRequests = localStorage.getItem('qoldan-requests');
-      const savedFavorites = localStorage.getItem('qoldan-favorites');
-      if (savedListings) {
-        const custom = (JSON.parse(savedListings) as Listing[]).filter(
-          (x) => x.id > 1000,
-        );
-        setAllListings([...defaultListings, ...custom]);
+    let active = true;
+    const loadMarketplace = async () => {
+      try {
+        const response = await fetch('/api/bootstrap', { cache: 'no-store' });
+        if (!response.ok) throw new Error(await apiError(response));
+        const data = (await response.json()) as {
+          viewer: { displayName: string };
+          listings: Listing[];
+          requests: RequestItem[];
+          favorites: string[];
+          responses: ResponseItem[];
+        };
+        if (!active) return;
+        setAllListings([...data.listings, ...defaultListings]);
+        setAllRequests([...data.requests, ...initialRequests]);
+        setFavorites(data.favorites.map(String));
+        setAllResponses(data.responses);
+        setViewerName(data.viewer.displayName);
+        setServerConnected(true);
+      } catch {
+        if (!active) return;
+        setServerConnected(false);
+      } finally {
+        if (active) setStorageReady(true);
       }
-      if (savedRequests) {
-        const custom = (JSON.parse(savedRequests) as RequestItem[]).filter(
-          (x) => x.id > 10000,
-        );
-        setAllRequests([...initialRequests, ...custom]);
-      }
-      if (savedFavorites) setFavorites(JSON.parse(savedFavorites));
-    } catch {
-    } finally {
-      setStorageReady(true);
-    }
+    };
+    void loadMarketplace();
+    return () => {
+      active = false;
+    };
   }, []);
-  useEffect(() => {
-    if (!storageReady) return;
-    try {
-      localStorage.setItem('qoldan-listings', JSON.stringify(allListings));
-      localStorage.setItem('qoldan-requests', JSON.stringify(allRequests));
-      localStorage.setItem('qoldan-favorites', JSON.stringify(favorites));
-    } catch {
-      setToast('Память браузера заполнена — удалите тяжёлые фотографии');
-      setTimeout(() => setToast(''), 3200);
-    }
-  }, [storageReady, allListings, allRequests, favorites]);
   useEffect(() => {
     if (!modal) return;
     const previousOverflow = document.body.style.overflow;
@@ -640,8 +676,8 @@ export default function Home() {
             i.region === selectedRegion) &&
           (selectedRegion === 'Весь Казахстан' ||
             parseFloat(i.distance.replace(',', '.')) <= maxDistance) &&
-          (!favoriteOnly || favorites.includes(i.id)) &&
-          (!myOnly || i.owner === 'Азамат') &&
+          (!favoriteOnly || favorites.includes(String(i.id))) &&
+          (!myOnly || i.mine) &&
           (!deliveryOnly || i.delivery) &&
           (!companyOnly ||
             i.sellerType === 'Компания' ||
@@ -669,14 +705,38 @@ export default function Home() {
           (requestOwnerOnly ||
             selectedRegion === 'Весь Казахстан' ||
             request.region === selectedRegion) &&
-          (!requestOwnerOnly || request.owner === 'Азамат'),
+          (!requestOwnerOnly || request.mine),
       ),
     [allRequests, requestKind, requestOwnerOnly, selectedRegion],
   );
-  const toggleFavorite = (id: number) =>
-    setFavorites((p) =>
-      p.includes(id) ? p.filter((x) => x !== id) : [...p, id],
+  const toggleFavorite = async (id: Listing['id']) => {
+    const listingId = String(id);
+    const active = !favorites.includes(listingId);
+    setFavorites((previous) =>
+      active
+        ? [...previous, listingId]
+        : previous.filter((item) => item !== listingId),
     );
+    try {
+      const response = await fetch('/api/favorites', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ listingId, active }),
+      });
+      if (!response.ok) throw new Error(await apiError(response));
+    } catch (error) {
+      setFavorites((previous) =>
+        active
+          ? previous.filter((item) => item !== listingId)
+          : [...previous, listingId],
+      );
+      notify(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось обновить избранное',
+      );
+    }
+  };
   const notify = (m: string) => {
     setToast(m);
     setTimeout(() => setToast(''), 2600);
@@ -705,7 +765,7 @@ export default function Home() {
     reader.onload = () => {
       const source = new Image();
       source.onload = () => {
-        const maxSide = 1280;
+        const maxSide = 1100;
         const scale = Math.min(
           1,
           maxSide / Math.max(source.width, source.height),
@@ -716,7 +776,18 @@ export default function Home() {
         const context = canvas.getContext('2d');
         if (!context) return;
         context.drawImage(source, 0, 0, canvas.width, canvas.height);
-        setListingImage(canvas.toDataURL('image/jpeg', 0.8));
+        let quality = 0.78;
+        let compressed = canvas.toDataURL('image/jpeg', quality);
+        while (compressed.length > 1_100_000 && quality > 0.46) {
+          quality -= 0.08;
+          compressed = canvas.toDataURL('image/jpeg', quality);
+        }
+        if (compressed.length > 1_100_000) {
+          notify('Не удалось достаточно сжать фото — выберите другое');
+          e.target.value = '';
+          return;
+        }
+        setListingImage(compressed);
       };
       source.onerror = () => notify('Не удалось открыть фотографию');
       source.src = typeof reader.result === 'string' ? reader.result : '';
@@ -761,90 +832,196 @@ export default function Home() {
     }
     document.querySelector('#catalog')?.scrollIntoView({ behavior: 'smooth' });
   };
-  const addListing = (e: SubmitFormEvent) => {
+  const addListing = async (e: SubmitFormEvent) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    const category = fieldText(f, 'category');
-    const images: Record<string, string> = {
-      Сельхозуслуги: listings[0].image,
-      Инструменты: listings[1].image,
-      Стройматериалы: listings[2].image,
-      Спецтехника: listings[3].image,
-      Оборудование: listings[4].image,
-    };
-    const item: Listing = {
-      id: Date.now(),
-      title: fieldText(f, 'title'),
-      price: `${fieldText(f, 'price')} ₸`,
-      unit: fieldText(f, 'unit'),
-      location: fieldText(f, 'location'),
-      region: fieldText(f, 'region'),
-      distance: '0,8 км',
-      category,
-      type: fieldText(f, 'type') as Listing['type'],
-      image: listingImage || images[category] || listings[2].image,
-      owner: 'Азамат',
-      phone: fieldText(f, 'phone'),
-      available: fieldText(f, 'available', 'Доступно по договорённости'),
-      description: fieldText(
-        f,
-        'description',
-        'Новое предложение от пользователя Qoldan.',
-      ),
-      sellerType: fieldText(f, 'sellerType') as Listing['sellerType'],
-      delivery: f.get('delivery') === 'on',
-    };
-    setAllListings((p) => [item, ...p]);
-    setListingImage('');
-    setModal(null);
-    notify('Объявление сохранено в рабочей версии на этом устройстве');
+    if (!listingImage) {
+      notify('Добавьте фотографию объявления');
+      return;
+    }
+    setSubmitting('listing');
+    try {
+      const imageBlob = await (await fetch(listingImage)).blob();
+      const uploadData = new FormData();
+      uploadData.set('image', imageBlob, 'qoldan-photo.jpg');
+      const uploadResponse = await fetch('/api/uploads', {
+        method: 'POST',
+        body: uploadData,
+      });
+      if (!uploadResponse.ok) throw new Error(await apiError(uploadResponse));
+      const upload = (await uploadResponse.json()) as { url: string };
+      const response = await fetch('/api/listings', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          title: fieldText(f, 'title'),
+          price: `${fieldText(f, 'price')} ₸`,
+          unit: fieldText(f, 'unit'),
+          location: fieldText(f, 'location'),
+          region: fieldText(f, 'region'),
+          category: fieldText(f, 'category'),
+          type: fieldText(f, 'type'),
+          imageUrl: upload.url,
+          phone: fieldText(f, 'phone'),
+          available: fieldText(f, 'available', 'Доступно по договорённости'),
+          description: fieldText(
+            f,
+            'description',
+            'Новое предложение от пользователя Qoldan.',
+          ),
+          sellerType: fieldText(f, 'sellerType'),
+          delivery: f.get('delivery') === 'on',
+        }),
+      });
+      if (!response.ok) throw new Error(await apiError(response));
+      const data = (await response.json()) as { listing: Listing };
+      setAllListings((previous) => [data.listing, ...previous]);
+      setListingImage('');
+      setServerConnected(true);
+      setModal(null);
+      notify('Объявление опубликовано и доступно с других устройств');
+    } catch (error) {
+      notify(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось опубликовать объявление',
+      );
+    } finally {
+      setSubmitting(null);
+    }
   };
-  const addRequest = (e: SubmitFormEvent) => {
+  const addRequest = async (e: SubmitFormEvent) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    const item: RequestItem = {
-      id: Date.now(),
-      title: fieldText(f, 'title'),
-      place: fieldText(f, 'place'),
-      when: fieldText(f, 'when'),
-      budget: fieldText(f, 'budget', 'Договорная'),
-      responses: 0,
-      kind: fieldText(f, 'kind') as RequestItem['kind'],
-      region: fieldText(f, 'region'),
-      owner: 'Азамат',
-    };
-    setAllRequests((p) => [item, ...p]);
-    setModal(null);
-    notify('Заявка сохранена в рабочей версии на этом устройстве');
+    setSubmitting('request');
+    try {
+      const response = await fetch('/api/requests', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          title: fieldText(f, 'title'),
+          place: fieldText(f, 'place'),
+          when: fieldText(f, 'when'),
+          budget: fieldText(f, 'budget', 'Договорная'),
+          kind: fieldText(f, 'kind'),
+          region: fieldText(f, 'region'),
+        }),
+      });
+      if (!response.ok) throw new Error(await apiError(response));
+      const data = (await response.json()) as { request: RequestItem };
+      setAllRequests((previous) => [data.request, ...previous]);
+      setServerConnected(true);
+      setModal(null);
+      notify('Заявка опубликована — отклики будут общими для всех устройств');
+    } catch (error) {
+      notify(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось опубликовать заявку',
+      );
+    } finally {
+      setSubmitting(null);
+    }
   };
-  const sendResponse = (e: SubmitFormEvent) => {
+  const sendResponse = async (e: SubmitFormEvent) => {
     e.preventDefault();
     if (!selectedRequest) return;
-    setAllRequests((p) =>
-      p.map((r) =>
-        r.id === selectedRequest.id ? { ...r, responses: r.responses + 1 } : r,
-      ),
-    );
-    setModal(null);
-    notify(`Отклик добавлен к заявке #${selectedRequest.id} в рабочей версии`);
+    const f = new FormData(e.currentTarget);
+    setSubmitting('response');
+    try {
+      const response = await fetch('/api/responses', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          requestId: selectedRequest.id,
+          price: fieldText(f, 'price'),
+          message: fieldText(f, 'message'),
+        }),
+      });
+      if (!response.ok) throw new Error(await apiError(response));
+      const data = (await response.json()) as { response: ResponseItem };
+      setAllResponses((previous) => [data.response, ...previous]);
+      setAllRequests((previous) =>
+        previous.map((item) =>
+          item.id === selectedRequest.id
+            ? { ...item, responses: item.responses + 1 }
+            : item,
+        ),
+      );
+      setModal(null);
+      notify(`Отклик отправлен к заявке #${selectedRequest.id}`);
+    } catch (error) {
+      notify(
+        error instanceof Error ? error.message : 'Не удалось отправить отклик',
+      );
+    } finally {
+      setSubmitting(null);
+    }
   };
-  const addRecycleLot = (e: SubmitFormEvent) => {
+  const addRecycleLot = async (e: SubmitFormEvent) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    const item: RequestItem = {
-      id: Date.now(),
-      title: `${fieldText(f, 'amount')} ${fieldText(f, 'unit')} · ${fieldText(f, 'material')} — кто заберёт дороже?`,
-      place: fieldText(f, 'place'),
-      when: fieldText(f, 'when'),
-      budget: 'Приёмщики делают ставки',
-      responses: 0,
-      kind: 'recycle',
-      region: fieldText(f, 'region'),
-      owner: 'Азамат',
-    };
-    setAllRequests((p) => [item, ...p]);
-    setModal(null);
-    notify('Партия добавлена в рабочую версию биржи');
+    setSubmitting('recycle');
+    try {
+      const response = await fetch('/api/requests', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          title: `${fieldText(f, 'amount')} ${fieldText(f, 'unit')} · ${fieldText(f, 'material')} — кто заберёт дороже?`,
+          place: fieldText(f, 'place'),
+          when: fieldText(f, 'when'),
+          budget: 'Приёмщики делают ставки',
+          kind: 'recycle',
+          region: fieldText(f, 'region'),
+        }),
+      });
+      if (!response.ok) throw new Error(await apiError(response));
+      const data = (await response.json()) as { request: RequestItem };
+      setAllRequests((previous) => [data.request, ...previous]);
+      setModal(null);
+      notify('Партия опубликована на бирже вторсырья');
+    } catch (error) {
+      notify(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось опубликовать партию',
+      );
+    } finally {
+      setSubmitting(null);
+    }
+  };
+  const submitBooking = async (e: SubmitFormEvent) => {
+    e.preventDefault();
+    if (!selectedListing) return;
+    const data = new FormData(e.currentTarget);
+    if (fieldText(data, 'dateTo') < fieldText(data, 'dateFrom')) {
+      notify('Дата возврата не может быть раньше даты начала');
+      return;
+    }
+    setSubmitting('booking');
+    try {
+      const response = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          listingId: selectedListing.id,
+          dateFrom: fieldText(data, 'dateFrom'),
+          dateTo: fieldText(data, 'dateTo'),
+          customerPhone: fieldText(data, 'customerPhone'),
+          delivery: data.get('delivery') === 'on',
+          comment: fieldText(data, 'comment'),
+        }),
+      });
+      if (!response.ok) throw new Error(await apiError(response));
+      setModal(null);
+      notify('Запрос на бронирование отправлен владельцу');
+    } catch (error) {
+      notify(
+        error instanceof Error ? error.message : 'Не удалось отправить запрос',
+      );
+    } finally {
+      setSubmitting(null);
+    }
   };
   return (
     <main>
@@ -896,8 +1073,8 @@ export default function Home() {
             className="profile hide-mobile"
             onClick={() => setModal('profile')}
           >
-            <span>АК</span>
-            <b>Азамат</b>
+            <span>{viewerInitials || 'Q'}</span>
+            <b>{viewerName}</b>
             <ChevronDown size={15} />
           </button>
           <button className="primary-button" onClick={openAddListing}>
@@ -1342,14 +1519,16 @@ export default function Home() {
                     )}
                     <button
                       className={
-                        favorites.includes(item.id) ? 'heart active' : 'heart'
+                        favorites.includes(String(item.id))
+                          ? 'heart active'
+                          : 'heart'
                       }
                       onClick={(e) => {
                         e.stopPropagation();
-                        toggleFavorite(item.id);
+                        void toggleFavorite(item.id);
                       }}
                       aria-label={
-                        favorites.includes(item.id)
+                        favorites.includes(String(item.id))
                           ? 'Удалить из избранного'
                           : 'Добавить в избранное'
                       }
@@ -1357,7 +1536,9 @@ export default function Home() {
                       <Heart
                         size={19}
                         fill={
-                          favorites.includes(item.id) ? 'currentColor' : 'none'
+                          favorites.includes(String(item.id))
+                            ? 'currentColor'
+                            : 'none'
                         }
                       />
                     </button>
@@ -1869,8 +2050,8 @@ export default function Home() {
                     <small>НОВОЕ ПРЕДЛОЖЕНИЕ</small>
                     <h2>Подать объявление</h2>
                     <p>
-                      В рабочем MVP предложение появится в выбранном регионе и
-                      сохранится на этом устройстве.
+                      Предложение появится в выбранном регионе и будет доступно
+                      в вашем профиле на других устройствах.
                     </p>
                   </div>
                 </div>
@@ -2019,8 +2200,15 @@ export default function Home() {
                       placeholder="Расскажите о состоянии, условиях и радиусе выезда"
                     />
                   </label>
-                  <button className="submit-button" type="submit">
-                    Сохранить объявление <ArrowRight />
+                  <button
+                    className="submit-button"
+                    type="submit"
+                    disabled={submitting === 'listing'}
+                  >
+                    {submitting === 'listing'
+                      ? 'Публикуем…'
+                      : 'Опубликовать объявление'}{' '}
+                    <ArrowRight />
                   </button>
                 </form>
               </>
@@ -2035,8 +2223,8 @@ export default function Home() {
                     <small>МНЕ НУЖНО</small>
                     <h2>Создать заявку</h2>
                     <p>
-                      Опишите задачу. В рабочем MVP заявка сохранится на этом
-                      устройстве.
+                      Опишите задачу — исполнители увидят её и смогут предложить
+                      цену.
                     </p>
                   </div>
                 </div>
@@ -2102,8 +2290,15 @@ export default function Home() {
                       placeholder="Завтра или точная дата"
                     />
                   </label>
-                  <button className="submit-button" type="submit">
-                    Сохранить заявку <ArrowRight />
+                  <button
+                    className="submit-button"
+                    type="submit"
+                    disabled={submitting === 'request'}
+                  >
+                    {submitting === 'request'
+                      ? 'Публикуем…'
+                      : 'Опубликовать заявку'}{' '}
+                    <ArrowRight />
                   </button>
                 </form>
               </>
@@ -2122,64 +2317,38 @@ export default function Home() {
                     </p>
                   </div>
                 </div>
-                {selectedRequest.responses > 0 && (
+                {selectedResponses.length > 0 ? (
                   <div className="bid-list">
-                    <div>
-                      <span>Р</span>
-                      <b>Руслан</b>
-                      <em>
-                        {selectedRequest.kind === 'recycle'
-                          ? '63 ₸/кг'
-                          : '55 000 ₸'}
-                      </em>
-                      <small>Готов выполнить завтра</small>
-                      <button
-                        onClick={() => {
-                          setModal(null);
-                          notify('Предложение Руслана выбрано');
-                        }}
-                      >
-                        Выбрать
-                      </button>
-                    </div>
-                    <div>
-                      <span>А</span>
-                      <b>Арман</b>
-                      <em>
-                        {selectedRequest.kind === 'recycle'
-                          ? '60 ₸/кг'
-                          : '48 000 ₸'}
-                      </em>
-                      <small>Рейтинг 4.9 · 31 заказ</small>
-                      <button
-                        onClick={() => {
-                          setModal(null);
-                          notify('Предложение Армана выбрано');
-                        }}
-                      >
-                        Выбрать
-                      </button>
-                    </div>
-                    <div>
-                      <span>Д</span>
-                      <b>Даурен</b>
-                      <em>
-                        {selectedRequest.kind === 'recycle'
-                          ? '58 ₸/кг'
-                          : '50 000 ₸'}
-                      </em>
-                      <small>Выезд по области</small>
-                      <button
-                        onClick={() => {
-                          setModal(null);
-                          notify('Предложение Даурена выбрано');
-                        }}
-                      >
-                        Выбрать
-                      </button>
-                    </div>
+                    {selectedResponses.map((response) => (
+                      <div key={response.id}>
+                        <span>{response.owner.slice(0, 1).toUpperCase()}</span>
+                        <b>{response.owner}</b>
+                        <em>{response.price}</em>
+                        <small>
+                          {response.message || 'Готов обсудить детали заказа'}
+                        </small>
+                        {selectedRequest.mine && (
+                          <button
+                            onClick={() => {
+                              setModal(null);
+                              notify(`Предложение ${response.owner} выбрано`);
+                            }}
+                          >
+                            Выбрать
+                          </button>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                )}
+                ) : selectedRequest.responses > 0 && !selectedRequest.mine ? (
+                  <div className="demo-contact">
+                    <b>{selectedRequest.responses} откликов уже получено</b>
+                    <span>
+                      Их детали доступны автору заявки. Добавьте своё
+                      предложение ниже.
+                    </span>
+                  </div>
+                ) : null}
                 <form
                   className="product-form response-form"
                   onSubmit={sendResponse}
@@ -2205,8 +2374,15 @@ export default function Home() {
                       placeholder="Когда сможете выполнить и что входит в цену"
                     />
                   </label>
-                  <button className="submit-button" type="submit">
-                    Добавить отклик <ArrowRight />
+                  <button
+                    className="submit-button"
+                    type="submit"
+                    disabled={submitting === 'response'}
+                  >
+                    {submitting === 'response'
+                      ? 'Отправляем…'
+                      : 'Добавить отклик'}{' '}
+                    <ArrowRight />
                   </button>
                 </form>
               </>
@@ -2279,7 +2455,7 @@ export default function Home() {
                     )}
                   </div>
                   <div className="contact-actions">
-                    {selectedListing.id < 1000 ||
+                    {isDemoListing(selectedListing.id) ||
                     !selectedListing.phone ||
                     selectedListing.phone.replace(/\D/g, '') ===
                       '77000000000' ? (
@@ -2350,21 +2526,7 @@ export default function Home() {
                     </p>
                   </div>
                 </div>
-                <form
-                  className="product-form"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const data = new FormData(e.currentTarget);
-                    if (
-                      fieldText(data, 'dateTo') < fieldText(data, 'dateFrom')
-                    ) {
-                      notify('Дата возврата не может быть раньше даты начала');
-                      return;
-                    }
-                    setModal(null);
-                    notify('Запрос на бронирование сохранён в рабочей версии');
-                  }}
-                >
+                <form className="product-form" onSubmit={submitBooking}>
                   <label>
                     Дата начала
                     <input
@@ -2394,15 +2556,26 @@ export default function Home() {
                     />
                   </label>
                   <label className="wide check-line">
-                    <input type="checkbox" /> Нужна доставка по городу{' '}
-                    {selectedListing.location}
+                    <input name="delivery" type="checkbox" /> Нужна доставка по
+                    городу {selectedListing.location}
                   </label>
                   <label className="wide">
                     Комментарий
-                    <textarea rows={2} placeholder="Удобное время и адрес" />
+                    <textarea
+                      name="comment"
+                      rows={2}
+                      placeholder="Удобное время и адрес"
+                    />
                   </label>
-                  <button className="submit-button" type="submit">
-                    Сохранить запрос <ArrowRight />
+                  <button
+                    className="submit-button"
+                    type="submit"
+                    disabled={submitting === 'booking'}
+                  >
+                    {submitting === 'booking'
+                      ? 'Отправляем…'
+                      : 'Отправить владельцу'}{' '}
+                    <ArrowRight />
                   </button>
                 </form>
               </>
@@ -2516,8 +2689,15 @@ export default function Home() {
                       placeholder="Алматы, Алатауский район"
                     />
                   </label>
-                  <button className="submit-button" type="submit">
-                    Сохранить партию <ArrowRight />
+                  <button
+                    className="submit-button"
+                    type="submit"
+                    disabled={submitting === 'recycle'}
+                  >
+                    {submitting === 'recycle'
+                      ? 'Публикуем…'
+                      : 'Опубликовать партию'}{' '}
+                    <ArrowRight />
                   </button>
                 </form>
               </>
@@ -2525,25 +2705,26 @@ export default function Home() {
             {modal === 'profile' && (
               <>
                 <div className="profile-cover">
-                  <span>АК</span>
+                  <span>{viewerInitials || 'Q'}</span>
                   <div>
-                    <h2>Азамат К.</h2>
+                    <h2>{viewerName}</h2>
                     <p>
-                      <MapPin /> Рабочий профиль · Талдыкорган
+                      <MapPin />{' '}
+                      {serverConnected
+                        ? 'Профиль синхронизирован'
+                        : storageReady
+                          ? 'Демонстрационный режим'
+                          : 'Подключаем профиль…'}
                     </p>
                   </div>
                 </div>
                 <div className="profile-stats">
                   <div>
-                    <b>
-                      {allListings.filter((x) => x.owner === 'Азамат').length}
-                    </b>
+                    <b>{allListings.filter((x) => x.mine).length}</b>
                     <span>объявлений</span>
                   </div>
                   <div>
-                    <b>
-                      {allRequests.filter((x) => x.owner === 'Азамат').length}
-                    </b>
+                    <b>{allRequests.filter((x) => x.mine).length}</b>
                     <span>заявок</span>
                   </div>
                   <div>
