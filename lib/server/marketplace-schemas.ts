@@ -8,21 +8,30 @@ const listingStatuses = ['active', 'paused'] as const;
 const requestStatuses = ['open', 'closed'] as const;
 const bookingStatuses = ['accepted', 'declined'] as const;
 
-export const listingInput = z.object({
-  title: shortText.min(4),
-  price: z.string().trim().min(1).max(40),
-  unit: z.string().trim().max(30).optional().default(''),
-  location: shortText,
-  region: shortText,
-  category: shortText,
-  type: z.enum(offerTypes),
-  imageUrl: z.string().trim().min(1).max(500),
-  phone: z.string().trim().min(7).max(32),
-  available: z.string().trim().max(160).optional().default(''),
-  description: z.string().trim().max(1200).optional().default(''),
-  sellerType: z.enum(sellerTypes),
-  delivery: z.boolean().optional().default(false),
-});
+export const listingInput = z
+  .object({
+    title: shortText.min(4),
+    price: z.string().trim().min(1).max(40),
+    unit: z.string().trim().max(30).optional().default(''),
+    location: shortText,
+    region: shortText,
+    category: shortText,
+    type: z.enum(offerTypes),
+    imageUrl: z.string().trim().min(1).max(500),
+    phone: z.string().trim().min(7).max(32),
+    available: z.string().trim().max(160).optional().default(''),
+    description: z.string().trim().max(1200).optional().default(''),
+    sellerType: z.enum(sellerTypes),
+    delivery: z.boolean().optional().default(false),
+    latitude: z.number().min(40).max(56).optional(),
+    longitude: z.number().min(45).max(88).optional(),
+  })
+  .refine(
+    (data) =>
+      (data.latitude === undefined && data.longitude === undefined) ||
+      (data.latitude !== undefined && data.longitude !== undefined),
+    { message: 'Передайте обе координаты', path: ['latitude'] },
+  );
 
 export const requestInput = z.object({
   title: shortText.min(4),

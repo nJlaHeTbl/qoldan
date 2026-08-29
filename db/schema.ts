@@ -2,6 +2,7 @@ import {
   index,
   integer,
   primaryKey,
+  real,
   sqliteTable,
   text,
 } from 'drizzle-orm/sqlite-core';
@@ -48,6 +49,15 @@ export const listings = sqliteTable(
     ),
   ],
 );
+
+export const listingLocations = sqliteTable('listing_locations', {
+  listingId: text('listing_id')
+    .primaryKey()
+    .references(() => listings.id, { onDelete: 'cascade' }),
+  latitude: real('latitude').notNull(),
+  longitude: real('longitude').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
 
 export const requests = sqliteTable(
   'requests',

@@ -25,6 +25,15 @@ import {
   Navigation,
   Phone,
 } from 'lucide-react';
+import {
+  MarketplaceMap,
+  type MarketplaceMapMarker,
+} from '@/components/MarketplaceMap';
+import {
+  getRegionCenter,
+  resolveCoordinates,
+  type Coordinates,
+} from '@/lib/geo';
 type Listing = {
   id: number | string;
   title: string;
@@ -46,6 +55,8 @@ type Listing = {
   sellerType?: 'Частное лицо' | 'Компания' | 'Магазин';
   delivery?: boolean;
   status?: 'active' | 'paused';
+  latitude?: number;
+  longitude?: number;
   mine?: boolean;
 };
 type RequestItem = {
@@ -625,6 +636,7 @@ export default function Home() {
   const [deliveryOnly, setDeliveryOnly] = useState(false);
   const [companyOnly, setCompanyOnly] = useState(false);
   const [listingImage, setListingImage] = useState('');
+  const [listingCoords, setListingCoords] = useState<Coordinates | null>(null);
   const [requestKind, setRequestKind] = useState<'all' | RequestItem['kind']>(
     'all',
   );
@@ -791,6 +803,7 @@ export default function Home() {
   };
   const openAddListing = () => {
     setListingImage('');
+    setListingCoords(null);
     setModal('listing');
   };
   const openRequestForm = (seed = '', kind: RequestItem['kind'] = 'agro') => {
@@ -842,16 +855,59 @@ export default function Home() {
     };
     reader.readAsDataURL(file);
   };
+  const captureListingLocation = () => {
+    if (!navigator.geolocation) {
+      notify('Геопозиция не поддерживается этим устройством');
+      return;
+    }
+    setSubmitting('geolocation');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const latitude = Number(position.coords.latitude.toFixed(6));
+        const longitude = Number(position.coords.longitude.toFixed(6));
+        if (
+          latitude < 40 ||
+          latitude > 56 ||
+          longitude < 45 ||
+          longitude > 88
+        ) {
+          notify('Точка находится за пределами Казахстана');
+          setSubmitting(null);
+          return;
+        }
+        setListingCoords({ latitude, longitude });
+        setSubmitting(null);
+        notify('Точная точка сохранится вместе с объявлением');
+      },
+      () => {
+        setSubmitting(null);
+        notify('Не удалось получить геопозицию — укажите город вручную');
+      },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+    );
+  };
   const openListing = (item: Listing) => {
     setSelectedListing(item);
     setModal('detail');
   };
-  const formatMapPrice = (price: string) => {
-    const amount = Number(price.replace(/[^\d]/g, ''));
-    if (!amount) return price;
-    return amount >= 1000
-      ? `${(amount / 1000).toLocaleString('ru-RU', { maximumFractionDigits: 1 })} тыс.`
-      : `${amount} ₸`;
+  const mapMarkers = useMemo<MarketplaceMapMarker[]>(
+    () =>
+      filtered.slice(0, 100).map((item) => {
+        const coordinates = resolveCoordinates(item);
+        return {
+          id: String(item.id),
+          title: item.title,
+          price: `${item.price}${item.unit ? ` ${item.unit}` : ''}`,
+          type: item.type,
+          latitude: coordinates.latitude,
+          longitude: coordinates.longitude,
+        };
+      }),
+    [filtered],
+  );
+  const selectMapListing = (id: string) => {
+    const item = filtered.find((listing) => String(listing.id) === id);
+    if (item) openListing(item);
   };
   const exploreDirection = (label: string) => {
     setQuery('');
@@ -919,6 +975,8 @@ export default function Home() {
           ),
           sellerType: fieldText(f, 'sellerType'),
           delivery: f.get('delivery') === 'on',
+          latitude: listingCoords?.latitude,
+          longitude: listingCoords?.longitude,
         }),
       });
       if (!response.ok) throw new Error(await apiError(response));
@@ -1633,23 +1691,11 @@ export default function Home() {
             </div>
           )}
           {mapOpen ? (
-            <div
-              className={`map-panel ${selectedRegion === 'Весь Казахстан' ? 'national-map' : ''}`}
-            >
-              <div className="map-label">
-                <Navigation size={18} /> {selectedRegion}
-              </div>
-              {filtered.slice(0, 9).map((x, i) => (
-                <button
-                  key={x.id}
-                  className={`map-pin pin-${(i % 5) + 1} national-pin-${i + 1}`}
-                  onClick={() => openListing(x)}
-                >
-                  <small>{x.location}</small>
-                  {formatMapPrice(x.price)}
-                </button>
-              ))}
-            </div>
+            <MarketplaceMap
+              markers={mapMarkers}
+              fallbackCenter={getRegionCenter(selectedRegion)}
+              onSelect={selectMapListing}
+            />
           ) : (
             <div className="listing-grid">
               {filtered.map((item) => (
@@ -2323,6 +2369,29 @@ export default function Home() {
                       }
                     />
                   </label>
+                  <button
+                    className={`geolocation-picker wide ${listingCoords ? 'captured' : ''}`}
+                    type="button"
+                    onClick={captureListingLocation}
+                    disabled={submitting === 'geolocation'}
+                  >
+                    <Navigation />
+                    <span>
+                      <b>
+                        {submitting === 'geolocation'
+                          ? 'Определяем точку…'
+                          : listingCoords
+                            ? 'Точная точка добавлена'
+                            : 'Добавить точку с устройства'}
+                      </b>
+                      <small>
+                        {listingCoords
+                          ? `${listingCoords.latitude.toFixed(4)}, ${listingCoords.longitude.toFixed(4)} · нажмите, чтобы обновить`
+                          : 'Необязательно — город и регион всё равно останутся видны'}
+                      </small>
+                    </span>
+                    {listingCoords && <CheckCircle2 />}
+                  </button>
                   <label>
                     Телефон для связи
                     <input
@@ -2620,6 +2689,12 @@ export default function Home() {
                         <Construction /> Доставка или выезд доступны
                       </span>
                     )}
+                    {selectedListing.latitude !== undefined &&
+                      selectedListing.longitude !== undefined && (
+                        <span>
+                          <Navigation /> Точная точка добавлена владельцем
+                        </span>
+                      )}
                   </div>
                   <div className="owner-card">
                     <span>

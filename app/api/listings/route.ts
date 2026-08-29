@@ -21,7 +21,8 @@ export async function POST(request: Request) {
     await upsertViewer(viewer);
     const id = crypto.randomUUID();
     const now = Date.now();
-    await getMarketplaceDb()
+    const db = getMarketplaceDb();
+    const listingStatement = db
       .prepare(
         `INSERT INTO listings
          (id, owner_id, title, price, unit, location, region, category,
@@ -47,8 +48,21 @@ export async function POST(request: Request) {
         input.delivery ? 1 : 0,
         now,
         now,
-      )
-      .run();
+      );
+    if (input.latitude !== undefined && input.longitude !== undefined) {
+      await db.batch([
+        listingStatement,
+        db
+          .prepare(
+            `INSERT INTO listing_locations
+             (listing_id, latitude, longitude, updated_at)
+             VALUES (?, ?, ?, ?)`,
+          )
+          .bind(id, input.latitude, input.longitude, now),
+      ]);
+    } else {
+      await listingStatement.run();
+    }
     return Response.json(
       {
         listing: {
@@ -69,6 +83,8 @@ export async function POST(request: Request) {
           sellerType: input.sellerType,
           delivery: input.delivery,
           status: 'active',
+          latitude: input.latitude,
+          longitude: input.longitude,
           mine: true,
         },
       },

@@ -8,6 +8,13 @@
       "when": 1787998477585,
       "tag": "0000_silky_wrecker",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1788021708959,
+      "tag": "0001_common_puma",
+      "breakpoints": true
     }
   ]
 }

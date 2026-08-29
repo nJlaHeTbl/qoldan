@@ -60,9 +60,11 @@ export async function GET(request: Request) {
                     listings.available, listings.description,
                     listings.seller_type, listings.delivery, listings.owner_id,
                     listings.status,
+                    listing_locations.latitude, listing_locations.longitude,
                     users.display_name AS owner_name
              FROM listings
              JOIN users ON users.id = listings.owner_id
+             LEFT JOIN listing_locations ON listing_locations.listing_id = listings.id
              WHERE listings.status = 'active' OR listings.owner_id = ?
              ORDER BY listings.created_at DESC
              LIMIT 250`,
@@ -217,6 +219,9 @@ export async function GET(request: Request) {
         sellerType: row.seller_type,
         delivery: Boolean(row.delivery),
         status: row.status,
+        latitude: typeof row.latitude === 'number' ? row.latitude : undefined,
+        longitude:
+          typeof row.longitude === 'number' ? row.longitude : undefined,
         mine: row.owner_id === viewer.id,
       })),
       requests: requestResult.results.map((row) => ({

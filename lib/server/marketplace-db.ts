@@ -99,6 +99,12 @@ export async function ensureMarketplaceSchema() {
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       )`),
+      db.prepare(`CREATE TABLE IF NOT EXISTS listing_locations (
+        listing_id TEXT PRIMARY KEY NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+        latitude REAL NOT NULL,
+        longitude REAL NOT NULL,
+        updated_at INTEGER NOT NULL
+      )`),
       db.prepare(`CREATE TABLE IF NOT EXISTS requests (
         id TEXT PRIMARY KEY NOT NULL,
         owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
