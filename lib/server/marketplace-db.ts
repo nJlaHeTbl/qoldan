@@ -10,6 +10,7 @@ type MarketplaceBindings = Cloudflare.Env & {
   DB: D1Database;
   IMAGES: R2Bucket;
   QOLDAN_ADMIN_USER_IDS?: string;
+  QOLDAN_ADMIN_EMAILS?: string;
 };
 
 let schemaPromise: Promise<void> | undefined;
@@ -70,12 +71,20 @@ export function getViewer(request: Request): Viewer | null {
 
 export function canModerate(viewer: Viewer) {
   if (viewer.id === 'local-qoldan-user') return true;
-  const configured = getMarketplaceBindings().QOLDAN_ADMIN_USER_IDS || '';
-  return configured
+  const bindings = getMarketplaceBindings();
+  const configuredIds = bindings.QOLDAN_ADMIN_USER_IDS || '';
+  const configuredEmails = bindings.QOLDAN_ADMIN_EMAILS || '';
+  const idMatches = configuredIds
     .split(',')
     .map((id) => id.trim())
     .filter(Boolean)
     .includes(viewer.id);
+  const emailMatches = configuredEmails
+    .split(',')
+    .map((email) => email.trim().toLocaleLowerCase())
+    .filter(Boolean)
+    .includes(viewer.email.toLocaleLowerCase());
+  return idMatches || emailMatches;
 }
 
 export async function ensureMarketplaceSchema() {
