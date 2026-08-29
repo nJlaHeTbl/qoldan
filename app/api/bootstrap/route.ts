@@ -49,26 +49,30 @@ export async function GET(request: Request) {
                     listings.offer_type, listings.image_url, listings.phone,
                     listings.available, listings.description,
                     listings.seller_type, listings.delivery, listings.owner_id,
+                    listings.status,
                     users.display_name AS owner_name
              FROM listings
              JOIN users ON users.id = listings.owner_id
-             WHERE listings.status = 'active'
+             WHERE listings.status = 'active' OR listings.owner_id = ?
              ORDER BY listings.created_at DESC
              LIMIT 250`,
         )
+        .bind(viewer.id)
         .all<Record<string, unknown>>(),
       db
         .prepare(
           `SELECT requests.id, requests.title, requests.place,
                     requests.when_text, requests.budget, requests.kind,
                     requests.region, requests.response_count,
-                    requests.owner_id, users.display_name AS owner_name
+                    requests.owner_id, requests.status,
+                    users.display_name AS owner_name
              FROM requests
              JOIN users ON users.id = requests.owner_id
-             WHERE requests.status = 'open'
+             WHERE requests.status = 'open' OR requests.owner_id = ?
              ORDER BY requests.created_at DESC
              LIMIT 250`,
         )
+        .bind(viewer.id)
         .all<Record<string, unknown>>(),
       db
         .prepare(
@@ -158,6 +162,7 @@ export async function GET(request: Request) {
         description: row.description || undefined,
         sellerType: row.seller_type,
         delivery: Boolean(row.delivery),
+        status: row.status,
         mine: row.owner_id === viewer.id,
       })),
       requests: requestResult.results.map((row) => ({
@@ -170,6 +175,7 @@ export async function GET(request: Request) {
         kind: row.kind,
         region: row.region,
         owner: row.owner_name,
+        status: row.status,
         mine: row.owner_id === viewer.id,
       })),
       favorites: favoriteResult.results.map((row) => row.listing_id),

@@ -1669,6 +1669,55 @@ footer {
   font-size: 9px;
   line-height: 1.45;
 }
+.owner-management {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 14px;
+  margin-bottom: 14px;
+  border: 1px solid #d9e5da;
+  border-radius: 12px;
+  background: #f1f7f1;
+}
+.owner-management > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.owner-management b {
+  font-size: 10px;
+}
+.owner-management span {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
+.owner-management button {
+  flex-shrink: 0;
+  min-height: 36px;
+  border: 0;
+  border-radius: 9px;
+  padding: 0 12px;
+  background: var(--green);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+}
+.owner-management button:disabled {
+  opacity: 0.6;
+}
+.inline-status {
+  display: inline-flex;
+  margin-left: 7px;
+  padding: 3px 5px;
+  border-radius: 5px;
+  background: #fff0d2;
+  color: #7d5615;
+  font-size: 7px;
+  font-style: normal;
+  letter-spacing: 0;
+}
 .profile-cover {
   display: flex;
   align-items: center;
@@ -1970,6 +2019,20 @@ footer {
   border-radius: 6px;
   font-size: 8px;
   font-weight: 850;
+}
+.status-chip {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 3;
+  padding: 5px 8px;
+  border-radius: 7px;
+  font-size: 8px;
+  font-weight: 850;
+}
+.status-chip.paused {
+  background: #fff4dc;
+  color: #7d5615;
 }
 .delivery-tag {
   display: flex;
@@ -2626,6 +2689,13 @@ footer {
   }
   .contact-actions button {
     grid-column: 1;
+  }
+  .owner-management {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .owner-management button {
+    min-height: 39px;
   }
   .mobile-bottom .mobile-profile {
     display: flex;

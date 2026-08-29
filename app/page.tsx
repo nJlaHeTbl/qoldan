@@ -44,6 +44,7 @@ type Listing = {
   deposit?: string;
   sellerType?: 'Частное лицо' | 'Компания' | 'Магазин';
   delivery?: boolean;
+  status?: 'active' | 'paused';
   mine?: boolean;
 };
 type RequestItem = {
@@ -56,6 +57,7 @@ type RequestItem = {
   kind: 'agro' | 'build' | 'rent' | 'recycle';
   region?: string;
   owner?: string;
+  status?: 'open' | 'closed';
   mine?: boolean;
 };
 type ResponseItem = {
@@ -699,6 +701,7 @@ export default function Home() {
             parseFloat(i.distance.replace(',', '.')) <= maxDistance) &&
           (!favoriteOnly || favorites.includes(String(i.id))) &&
           (!myOnly || i.mine) &&
+          (myOnly || i.status !== 'paused') &&
           (!deliveryOnly || i.delivery) &&
           (!companyOnly ||
             i.sellerType === 'Компания' ||
@@ -726,7 +729,8 @@ export default function Home() {
           (requestOwnerOnly ||
             selectedRegion === 'Весь Казахстан' ||
             request.region === selectedRegion) &&
-          (!requestOwnerOnly || request.mine),
+          (!requestOwnerOnly || request.mine) &&
+          (requestOwnerOnly || request.status !== 'closed'),
       ),
     [allRequests, requestKind, requestOwnerOnly, selectedRegion],
   );
@@ -974,6 +978,76 @@ export default function Home() {
     } catch (error) {
       notify(
         error instanceof Error ? error.message : 'Не удалось отправить отклик',
+      );
+    } finally {
+      setSubmitting(null);
+    }
+  };
+  const updateListingStatus = async () => {
+    if (!selectedListing?.mine) return;
+    const status = selectedListing.status === 'paused' ? 'active' : 'paused';
+    setSubmitting('listing-status');
+    try {
+      const response = await fetch('/api/listings/status', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ listingId: selectedListing.id, status }),
+      });
+      if (!response.ok) throw new Error(await apiError(response));
+      setAllListings((previous) =>
+        previous.map((item) =>
+          String(item.id) === String(selectedListing.id)
+            ? { ...item, status }
+            : item,
+        ),
+      );
+      setSelectedListing((previous) =>
+        previous ? { ...previous, status } : previous,
+      );
+      notify(
+        status === 'paused'
+          ? 'Объявление поставлено на паузу и скрыто из общего каталога'
+          : 'Объявление снова видно в общем каталоге',
+      );
+    } catch (error) {
+      notify(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось изменить объявление',
+      );
+    } finally {
+      setSubmitting(null);
+    }
+  };
+  const updateRequestStatus = async () => {
+    if (!selectedRequest?.mine) return;
+    const status = selectedRequest.status === 'closed' ? 'open' : 'closed';
+    setSubmitting('request-status');
+    try {
+      const response = await fetch('/api/requests/status', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ requestId: selectedRequest.id, status }),
+      });
+      if (!response.ok) throw new Error(await apiError(response));
+      setAllRequests((previous) =>
+        previous.map((item) =>
+          String(item.id) === String(selectedRequest.id)
+            ? { ...item, status }
+            : item,
+        ),
+      );
+      setSelectedRequest((previous) =>
+        previous ? { ...previous, status } : previous,
+      );
+      notify(
+        status === 'closed'
+          ? 'Заявка закрыта — новые отклики больше не принимаются'
+          : 'Заявка снова открыта для предложений',
+      );
+    } catch (error) {
+      notify(
+        error instanceof Error ? error.message : 'Не удалось изменить заявку',
       );
     } finally {
       setSubmitting(null);
@@ -1538,6 +1612,9 @@ export default function Home() {
                     {item.sellerType && (
                       <span className="seller-type">{item.sellerType}</span>
                     )}
+                    {item.mine && item.status === 'paused' && (
+                      <span className="status-chip paused">На паузе</span>
+                    )}
                     <button
                       className={
                         favorites.includes(String(item.id))
@@ -1702,7 +1779,12 @@ export default function Home() {
                   <Icon />
                 </span>
                 <div className="request-main">
-                  <span>ЗАЯВКА #{r.id}</span>
+                  <span>
+                    ЗАЯВКА #{r.id}
+                    {r.mine && r.status === 'closed' && (
+                      <em className="inline-status">Закрыта</em>
+                    )}
+                  </span>
                   <h4>{r.title}</h4>
                   <div>
                     <small>
@@ -2371,12 +2453,30 @@ export default function Home() {
                   </div>
                 ) : null}
                 {selectedRequest.mine ? (
-                  <div className="demo-contact">
-                    <b>Это ваша заявка</b>
-                    <span>
-                      Здесь появятся цены и комментарии исполнителей. Новые
-                      отклики также попадут в уведомления.
-                    </span>
+                  <div className="owner-management">
+                    <div>
+                      <b>
+                        {selectedRequest.status === 'closed'
+                          ? 'Заявка закрыта'
+                          : 'Это ваша активная заявка'}
+                      </b>
+                      <span>
+                        {selectedRequest.status === 'closed'
+                          ? 'Она скрыта из общей ленты, но сохранена в разделе «Мои заявки».'
+                          : 'Здесь появятся цены исполнителей, а новые отклики придут в уведомления.'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void updateRequestStatus()}
+                      disabled={submitting === 'request-status'}
+                    >
+                      {submitting === 'request-status'
+                        ? 'Сохраняем…'
+                        : selectedRequest.status === 'closed'
+                          ? 'Открыть снова'
+                          : 'Закрыть заявку'}
+                    </button>
                   </div>
                 ) : (
                   <form
@@ -2485,61 +2585,89 @@ export default function Home() {
                       </em>
                     )}
                   </div>
-                  <div className="contact-actions">
-                    {isDemoListing(selectedListing.id) ||
-                    !selectedListing.phone ||
-                    selectedListing.phone.replace(/\D/g, '') ===
-                      '77000000000' ? (
-                      <div className="demo-contact">
-                        <b>Демонстрационное объявление</b>
+                  {selectedListing.mine && (
+                    <div className="owner-management">
+                      <div>
+                        <b>
+                          {selectedListing.status === 'paused'
+                            ? 'Объявление на паузе'
+                            : 'Объявление активно'}
+                        </b>
                         <span>
-                          Контакты скрыты: карточка показывает сценарий сервиса
-                          и не ведёт к случайному номеру.
+                          {selectedListing.status === 'paused'
+                            ? 'Его видите только вы в разделе «Мои объявления».'
+                            : 'Оно доступно покупателям и заказчикам в общем каталоге.'}
                         </span>
                       </div>
-                    ) : (
-                      <>
-                        <a
-                          className="call-button"
-                          href={`tel:${selectedListing.phone}`}
-                        >
-                          Позвонить
-                        </a>
-                        <a
-                          className="whatsapp-button"
-                          target="_blank"
-                          rel="noreferrer"
-                          href={`https://wa.me/${(selectedListing.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(`Здравствуйте! Пишу по объявлению Qoldan: ${selectedListing.title}`)}`}
-                        >
-                          <MessageCircle /> WhatsApp
-                        </a>
-                      </>
-                    )}
-                    {selectedListing.type === 'Сдам' &&
-                      !selectedListing.mine && (
+                      <button
+                        type="button"
+                        onClick={() => void updateListingStatus()}
+                        disabled={submitting === 'listing-status'}
+                      >
+                        {submitting === 'listing-status'
+                          ? 'Сохраняем…'
+                          : selectedListing.status === 'paused'
+                            ? 'Возобновить'
+                            : 'Поставить на паузу'}
+                      </button>
+                    </div>
+                  )}
+                  {!selectedListing.mine && (
+                    <div className="contact-actions">
+                      {isDemoListing(selectedListing.id) ||
+                      !selectedListing.phone ||
+                      selectedListing.phone.replace(/\D/g, '') ===
+                        '77000000000' ? (
+                        <div className="demo-contact">
+                          <b>Демонстрационное объявление</b>
+                          <span>
+                            Контакты скрыты: карточка показывает сценарий
+                            сервиса и не ведёт к случайному номеру.
+                          </span>
+                        </div>
+                      ) : (
+                        <>
+                          <a
+                            className="call-button"
+                            href={`tel:${selectedListing.phone}`}
+                          >
+                            Позвонить
+                          </a>
+                          <a
+                            className="whatsapp-button"
+                            target="_blank"
+                            rel="noreferrer"
+                            href={`https://wa.me/${(selectedListing.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(`Здравствуйте! Пишу по объявлению Qoldan: ${selectedListing.title}`)}`}
+                          >
+                            <MessageCircle /> WhatsApp
+                          </a>
+                        </>
+                      )}
+                      {selectedListing.type === 'Сдам' && (
                         <button onClick={() => setModal('booking')}>
                           Забронировать
                         </button>
                       )}
-                    <button
-                      className="related-request"
-                      onClick={() => {
-                        const relatedKind: RequestItem['kind'] =
-                          selectedListing.type === 'Сдам'
-                            ? 'rent'
-                            : selectedListing.category === 'Стройматериалы' ||
-                                selectedListing.category === 'Остатки партий'
-                              ? 'build'
-                              : 'agro';
-                        openRequestForm(
-                          `Нужно: ${selectedListing.title}`,
-                          relatedKind,
-                        );
-                      }}
-                    >
-                      <MessageCircle /> Оставить встречную заявку
-                    </button>
-                  </div>
+                      <button
+                        className="related-request"
+                        onClick={() => {
+                          const relatedKind: RequestItem['kind'] =
+                            selectedListing.type === 'Сдам'
+                              ? 'rent'
+                              : selectedListing.category === 'Стройматериалы' ||
+                                  selectedListing.category === 'Остатки партий'
+                                ? 'build'
+                                : 'agro';
+                          openRequestForm(
+                            `Нужно: ${selectedListing.title}`,
+                            relatedKind,
+                          );
+                        }}
+                      >
+                        <MessageCircle /> Оставить встречную заявку
+                      </button>
+                    </div>
+                  )}
                 </div>
               </>
             )}

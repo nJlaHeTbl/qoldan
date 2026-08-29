@@ -4,6 +4,8 @@ const shortText = z.string().trim().min(1).max(160);
 const offerTypes = ['Продам', 'Сдам', 'Окажу услугу'] as const;
 const sellerTypes = ['Частное лицо', 'Компания', 'Магазин'] as const;
 const requestKinds = ['agro', 'build', 'rent', 'recycle'] as const;
+const listingStatuses = ['active', 'paused'] as const;
+const requestStatuses = ['open', 'closed'] as const;
 
 export const listingInput = z.object({
   title: shortText.min(4),
@@ -28,6 +30,16 @@ export const requestInput = z.object({
   budget: z.string().trim().min(1).max(80),
   kind: z.enum(requestKinds),
   region: shortText,
+});
+
+export const listingStatusInput = z.object({
+  listingId: z.union([z.string(), z.number()]).transform(String),
+  status: z.enum(listingStatuses),
+});
+
+export const requestStatusInput = z.object({
+  requestId: z.union([z.string(), z.number()]).transform(String),
+  status: z.enum(requestStatuses),
 });
 
 export const responseInput = z.object({

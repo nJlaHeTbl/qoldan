@@ -68,6 +68,7 @@ export async function POST(request: Request) {
           description: input.description || undefined,
           sellerType: input.sellerType,
           delivery: input.delivery,
+          status: 'active',
           mine: true,
         },
       },

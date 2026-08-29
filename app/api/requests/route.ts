@@ -53,6 +53,7 @@ export async function POST(request: Request) {
           kind: input.kind,
           region: input.region,
           owner: viewer.displayName,
+          status: 'open',
           mine: true,
         },
       },
