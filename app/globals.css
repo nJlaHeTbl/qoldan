@@ -490,11 +490,24 @@ a {
   gap: 17px;
 }
 .listing-card {
+  position: relative;
   background: #fff;
   border: 1px solid #e5e8e3;
   border-radius: 17px;
   overflow: hidden;
   transition: 0.2s;
+}
+.listing-open {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border: 0;
+  background: transparent;
+  border-radius: inherit;
+}
+.listing-open:focus-visible {
+  outline: 3px solid var(--green);
+  outline-offset: 3px;
 }
 .listing-card:hover {
   transform: translateY(-3px);
@@ -544,6 +557,7 @@ a {
   border-radius: 10px;
   display: grid;
   place-items: center;
+  z-index: 3;
 }
 .heart.active {
   color: #e44f4f;
@@ -749,6 +763,67 @@ a {
 }
 .request-list-head h3 {
   font-size: 16px;
+  margin: 1em 0 4px;
+}
+.request-list-head > div > button {
+  border: 0;
+  background: transparent;
+  color: var(--green);
+  padding: 0;
+  font-size: 9px;
+  font-weight: 800;
+}
+.request-filters {
+  display: flex;
+  gap: 6px;
+  padding-bottom: 10px;
+  overflow-x: auto;
+}
+.request-filters button {
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 9px;
+  font-weight: 750;
+}
+.request-filters button.active {
+  border-color: var(--green);
+  background: var(--green2);
+  color: var(--green);
+}
+.request-empty {
+  min-height: 230px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  color: var(--muted);
+}
+.request-empty > svg {
+  width: 30px;
+  color: var(--green);
+}
+.request-empty b {
+  color: var(--ink);
+  font-size: 12px;
+}
+.request-empty span {
+  font-size: 9px;
+}
+.request-empty button {
+  border: 0;
+  border-radius: 9px;
+  background: var(--green);
+  color: #fff;
+  padding: 8px 12px;
+  font-size: 10px;
+  font-weight: 800;
 }
 .request-card {
   display: grid;
@@ -1281,6 +1356,8 @@ footer {
 }
 .app-modal {
   position: relative;
+  margin: 0;
+  border: 0;
   width: min(680px, 100%);
   max-height: min(88vh, 820px);
   overflow: auto;

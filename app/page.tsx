@@ -1,11 +1,6 @@
 'use client';
-import {
-  useEffect,
-  useMemo,
-  useState,
-  type ChangeEvent,
-  type FormEvent,
-} from 'react';
+/* oxlint-disable next(no-img-element), react(react-compiler) -- marketplace photos can be remote or local data URLs; browser storage hydration intentionally runs after mount */
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import {
   ArrowRight,
   Bell,
@@ -58,6 +53,16 @@ type RequestItem = {
   budget: string;
   responses: number;
   kind: 'agro' | 'build' | 'rent' | 'recycle';
+  region?: string;
+  owner?: string;
+};
+type SubmitFormEvent = {
+  preventDefault: () => void;
+  currentTarget: HTMLFormElement;
+};
+const fieldText = (data: FormData, key: string, fallback = '') => {
+  const value = data.get(key);
+  return typeof value === 'string' ? value : fallback;
 };
 const listings: Listing[] = [
   {
@@ -367,6 +372,7 @@ const initialRequests: RequestItem[] = [
     budget: 'Договорная',
     responses: 4,
     kind: 'agro',
+    region: 'Область Жетісу',
   },
   {
     id: 1429,
@@ -376,6 +382,7 @@ const initialRequests: RequestItem[] = [
     budget: 'до 35 000 ₸',
     responses: 7,
     kind: 'build',
+    region: 'Область Жетісу',
   },
   {
     id: 1430,
@@ -385,6 +392,7 @@ const initialRequests: RequestItem[] = [
     budget: 'до 18 000 ₸',
     responses: 2,
     kind: 'rent',
+    region: 'Область Жетісу',
   },
   {
     id: 1431,
@@ -394,6 +402,7 @@ const initialRequests: RequestItem[] = [
     budget: 'Предлагайте цену',
     responses: 6,
     kind: 'recycle',
+    region: 'Алматы',
   },
 ];
 const recyclePrices = [
@@ -547,10 +556,18 @@ export default function Home() {
   const [categoryFilter, setCategoryFilter] = useState('Все категории');
   const [maxDistance, setMaxDistance] = useState(100);
   const [favoriteOnly, setFavoriteOnly] = useState(false);
+  const [myOnly, setMyOnly] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState('Весь Казахстан');
   const [deliveryOnly, setDeliveryOnly] = useState(false);
   const [companyOnly, setCompanyOnly] = useState(false);
   const [listingImage, setListingImage] = useState('');
+  const [requestKind, setRequestKind] = useState<'all' | RequestItem['kind']>(
+    'all',
+  );
+  const [requestOwnerOnly, setRequestOwnerOnly] = useState(false);
+  const [requestSeed, setRequestSeed] = useState('');
+  const [requestSeedKind, setRequestSeedKind] =
+    useState<RequestItem['kind']>('agro');
   const about = aboutContent[aboutLang];
   const aboutIcons = [Tractor, Wrench, PackageOpen];
   const activeFilterCount = [
@@ -558,6 +575,7 @@ export default function Home() {
     maxDistance < 100 && selectedRegion !== 'Весь Казахстан',
     deliveryOnly,
     companyOnly,
+    myOnly,
   ].filter(Boolean).length;
   useEffect(() => {
     try {
@@ -584,17 +602,37 @@ export default function Home() {
   }, []);
   useEffect(() => {
     if (!storageReady) return;
-    localStorage.setItem('qoldan-listings', JSON.stringify(allListings));
-    localStorage.setItem('qoldan-requests', JSON.stringify(allRequests));
-    localStorage.setItem('qoldan-favorites', JSON.stringify(favorites));
+    try {
+      localStorage.setItem('qoldan-listings', JSON.stringify(allListings));
+      localStorage.setItem('qoldan-requests', JSON.stringify(allRequests));
+      localStorage.setItem('qoldan-favorites', JSON.stringify(favorites));
+    } catch {
+      setToast('Память браузера заполнена — удалите тяжёлые фотографии');
+      setTimeout(() => setToast(''), 3200);
+    }
   }, [storageReady, allListings, allRequests, favorites]);
+  useEffect(() => {
+    if (!modal) return;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setModal(null);
+    };
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [modal]);
   const filtered = useMemo(
     () =>
       allListings.filter(
         (i) =>
           (i.title.toLowerCase().includes(query.toLowerCase()) ||
             i.category.toLowerCase().includes(query.toLowerCase()) ||
-            i.location.toLowerCase().includes(query.toLowerCase())) &&
+            i.location.toLowerCase().includes(query.toLowerCase()) ||
+            i.region?.toLowerCase().includes(query.toLowerCase()) ||
+            i.description?.toLowerCase().includes(query.toLowerCase())) &&
           (type === 'Все' || i.type === type) &&
           (categoryFilter === 'Все категории' ||
             i.category === categoryFilter) &&
@@ -603,6 +641,7 @@ export default function Home() {
           (selectedRegion === 'Весь Казахстан' ||
             parseFloat(i.distance.replace(',', '.')) <= maxDistance) &&
           (!favoriteOnly || favorites.includes(i.id)) &&
+          (!myOnly || i.owner === 'Азамат') &&
           (!deliveryOnly || i.delivery) &&
           (!companyOnly ||
             i.sellerType === 'Компания' ||
@@ -615,11 +654,24 @@ export default function Home() {
       categoryFilter,
       maxDistance,
       favoriteOnly,
+      myOnly,
       favorites,
       selectedRegion,
       deliveryOnly,
       companyOnly,
     ],
+  );
+  const visibleRequests = useMemo(
+    () =>
+      allRequests.filter(
+        (request) =>
+          (requestKind === 'all' || request.kind === requestKind) &&
+          (requestOwnerOnly ||
+            selectedRegion === 'Весь Казахстан' ||
+            request.region === selectedRegion) &&
+          (!requestOwnerOnly || request.owner === 'Азамат'),
+      ),
+    [allRequests, requestKind, requestOwnerOnly, selectedRegion],
   );
   const toggleFavorite = (id: number) =>
     setFavorites((p) =>
@@ -633,24 +685,54 @@ export default function Home() {
     setListingImage('');
     setModal('listing');
   };
+  const openRequestForm = (seed = '', kind: RequestItem['kind'] = 'agro') => {
+    setRequestSeed(seed);
+    setRequestSeedKind(kind);
+    setModal('request');
+  };
   const handleListingImage = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) {
       setListingImage('');
       return;
     }
-    if (file.size > 1_500_000) {
+    if (file.size > 5_000_000) {
       e.target.value = '';
-      notify('Фото слишком большое — выберите файл до 1,5 МБ');
+      notify('Фото слишком большое — выберите файл до 5 МБ');
       return;
     }
     const reader = new FileReader();
-    reader.onload = () => setListingImage(String(reader.result || ''));
+    reader.onload = () => {
+      const source = new Image();
+      source.onload = () => {
+        const maxSide = 1280;
+        const scale = Math.min(
+          1,
+          maxSide / Math.max(source.width, source.height),
+        );
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(source.width * scale);
+        canvas.height = Math.round(source.height * scale);
+        const context = canvas.getContext('2d');
+        if (!context) return;
+        context.drawImage(source, 0, 0, canvas.width, canvas.height);
+        setListingImage(canvas.toDataURL('image/jpeg', 0.8));
+      };
+      source.onerror = () => notify('Не удалось открыть фотографию');
+      source.src = typeof reader.result === 'string' ? reader.result : '';
+    };
     reader.readAsDataURL(file);
   };
   const openListing = (item: Listing) => {
     setSelectedListing(item);
     setModal('detail');
+  };
+  const formatMapPrice = (price: string) => {
+    const amount = Number(price.replace(/[^\d]/g, ''));
+    if (!amount) return price;
+    return amount >= 1000
+      ? `${(amount / 1000).toLocaleString('ru-RU', { maximumFractionDigits: 1 })} тыс.`
+      : `${amount} ₸`;
   };
   const exploreDirection = (label: string) => {
     setQuery('');
@@ -659,6 +741,7 @@ export default function Home() {
     setDeliveryOnly(false);
     setCompanyOnly(false);
     setFavoriteOnly(false);
+    setMyOnly(false);
     if (label === 'Услуги' || label === 'Рабочие услуги') {
       setType('Окажу услугу');
     } else if (label === 'Аренда техники') {
@@ -678,10 +761,10 @@ export default function Home() {
     }
     document.querySelector('#catalog')?.scrollIntoView({ behavior: 'smooth' });
   };
-  const addListing = (e: FormEvent<HTMLFormElement>) => {
+  const addListing = (e: SubmitFormEvent) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    const category = String(f.get('category'));
+    const category = fieldText(f, 'category');
     const images: Record<string, string> = {
       Сельхозуслуги: listings[0].image,
       Инструменты: listings[1].image,
@@ -691,46 +774,50 @@ export default function Home() {
     };
     const item: Listing = {
       id: Date.now(),
-      title: String(f.get('title')),
-      price: `${f.get('price')} ₸`,
-      unit: String(f.get('unit') || ''),
-      location: String(f.get('location')),
-      region: String(f.get('region')),
+      title: fieldText(f, 'title'),
+      price: `${fieldText(f, 'price')} ₸`,
+      unit: fieldText(f, 'unit'),
+      location: fieldText(f, 'location'),
+      region: fieldText(f, 'region'),
       distance: '0,8 км',
       category,
-      type: String(f.get('type')) as Listing['type'],
+      type: fieldText(f, 'type') as Listing['type'],
       image: listingImage || images[category] || listings[2].image,
       owner: 'Азамат',
-      phone: String(f.get('phone')),
-      available: String(f.get('available') || 'Доступно по договорённости'),
-      description: String(
-        f.get('description') || 'Новое предложение от пользователя Qoldan.',
+      phone: fieldText(f, 'phone'),
+      available: fieldText(f, 'available', 'Доступно по договорённости'),
+      description: fieldText(
+        f,
+        'description',
+        'Новое предложение от пользователя Qoldan.',
       ),
-      sellerType: String(f.get('sellerType')) as Listing['sellerType'],
+      sellerType: fieldText(f, 'sellerType') as Listing['sellerType'],
       delivery: f.get('delivery') === 'on',
     };
     setAllListings((p) => [item, ...p]);
     setListingImage('');
     setModal(null);
-    notify('Объявление опубликовано по всему Казахстану');
+    notify('Объявление сохранено в рабочей версии на этом устройстве');
   };
-  const addRequest = (e: FormEvent<HTMLFormElement>) => {
+  const addRequest = (e: SubmitFormEvent) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     const item: RequestItem = {
       id: Date.now(),
-      title: String(f.get('title')),
-      place: String(f.get('place')),
-      when: String(f.get('when')),
-      budget: String(f.get('budget') || 'Договорная'),
+      title: fieldText(f, 'title'),
+      place: fieldText(f, 'place'),
+      when: fieldText(f, 'when'),
+      budget: fieldText(f, 'budget', 'Договорная'),
       responses: 0,
-      kind: String(f.get('kind')) as RequestItem['kind'],
+      kind: fieldText(f, 'kind') as RequestItem['kind'],
+      region: fieldText(f, 'region'),
+      owner: 'Азамат',
     };
     setAllRequests((p) => [item, ...p]);
     setModal(null);
-    notify('Заявка опубликована — исполнители уже могут откликаться');
+    notify('Заявка сохранена в рабочей версии на этом устройстве');
   };
-  const sendResponse = (e: FormEvent<HTMLFormElement>) => {
+  const sendResponse = (e: SubmitFormEvent) => {
     e.preventDefault();
     if (!selectedRequest) return;
     setAllRequests((p) =>
@@ -739,23 +826,25 @@ export default function Home() {
       ),
     );
     setModal(null);
-    notify(`Ваше предложение отправлено на заявку #${selectedRequest.id}`);
+    notify(`Отклик добавлен к заявке #${selectedRequest.id} в рабочей версии`);
   };
-  const addRecycleLot = (e: FormEvent<HTMLFormElement>) => {
+  const addRecycleLot = (e: SubmitFormEvent) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     const item: RequestItem = {
       id: Date.now(),
-      title: `${f.get('amount')} ${f.get('unit')} · ${f.get('material')} — кто заберёт дороже?`,
-      place: String(f.get('place')),
-      when: String(f.get('when')),
+      title: `${fieldText(f, 'amount')} ${fieldText(f, 'unit')} · ${fieldText(f, 'material')} — кто заберёт дороже?`,
+      place: fieldText(f, 'place'),
+      when: fieldText(f, 'when'),
       budget: 'Приёмщики делают ставки',
       responses: 0,
       kind: 'recycle',
+      region: fieldText(f, 'region'),
+      owner: 'Азамат',
     };
     setAllRequests((p) => [item, ...p]);
     setModal(null);
-    notify('Партия выставлена — приёмщики могут делать ставки');
+    notify('Партия добавлена в рабочую версию биржи');
   };
   return (
     <main>
@@ -768,10 +857,31 @@ export default function Home() {
           <em>КАЗАХСТАН</em>
         </a>
         <nav className={menuOpen ? 'nav open' : 'nav'}>
-          <a href="#catalog">Объявления</a>
-          <a href="#requests">Мне нужно</a>
-          <a href="#recycle">Вторсырьё</a>
-          <a href="#about">О приложении</a>
+          <a
+            href="#catalog"
+            onClick={() => {
+              setMenuOpen(false);
+              setFavoriteOnly(false);
+              setMyOnly(false);
+            }}
+          >
+            Объявления
+          </a>
+          <a
+            href="#requests"
+            onClick={() => {
+              setMenuOpen(false);
+              setRequestOwnerOnly(false);
+            }}
+          >
+            Мне нужно
+          </a>
+          <a href="#recycle" onClick={() => setMenuOpen(false)}>
+            Вторсырьё
+          </a>
+          <a href="#about" onClick={() => setMenuOpen(false)}>
+            О приложении
+          </a>
         </nav>
         <div className="header-actions">
           <button
@@ -796,6 +906,8 @@ export default function Home() {
           <button
             className="icon-button mobile-menu"
             onClick={() => setMenuOpen(!menuOpen)}
+            aria-label={menuOpen ? 'Закрыть меню' : 'Открыть меню'}
+            aria-expanded={menuOpen}
           >
             {menuOpen ? <X /> : <Menu />}
           </button>
@@ -825,11 +937,13 @@ export default function Home() {
             </button>
             <button
               className="search-button"
-              onClick={() =>
+              onClick={() => {
+                setFavoriteOnly(false);
+                setMyOnly(false);
                 document
                   .querySelector('#catalog')
-                  ?.scrollIntoView({ behavior: 'smooth' })
-              }
+                  ?.scrollIntoView({ behavior: 'smooth' });
+              }}
             >
               Найти
             </button>
@@ -842,6 +956,8 @@ export default function Home() {
                   key={x}
                   onClick={() => {
                     setQuery(x);
+                    setFavoriteOnly(false);
+                    setMyOnly(false);
                     document
                       .querySelector('#catalog')
                       ?.scrollIntoView({ behavior: 'smooth' });
@@ -895,7 +1011,7 @@ export default function Home() {
               Tractor,
               'Сельхозтехника|и услуги',
               'Вспашка, уборка, перевозка, аренда техники',
-              '127',
+              'Открыть раздел',
               'Сельхоз',
             ],
             [
@@ -903,7 +1019,7 @@ export default function Home() {
               Wrench,
               'Аренда инструментов|и оборудования',
               'От дрели до генератора — берите на нужный срок',
-              '84',
+              'Открыть раздел',
               'Инструменты',
             ],
             [
@@ -911,7 +1027,7 @@ export default function Home() {
               PackageOpen,
               'Остатки и|стройматериалы',
               'Кирпич, плитка, смеси и другие остатки рядом',
-              '96',
+              'Открыть раздел',
               'Стройматериалы',
             ],
           ].map((c, i) => {
@@ -919,7 +1035,7 @@ export default function Home() {
             return (
               <button
                 key={i}
-                className={`category-card ${c[0]}`}
+                className={'category-card ' + (c[0] as string)}
                 onClick={() => {
                   setQuery(c[5] as string);
                   document
@@ -941,7 +1057,7 @@ export default function Home() {
                   </h3>
                   <p>{c[3] as string}</p>
                   <b>
-                    {c[4] as string} объявлений <ArrowRight size={16} />
+                    {c[4] as string} <ArrowRight size={16} />
                   </b>
                 </div>
                 <span className="cat-number">0{i + 1}</span>
@@ -1008,16 +1124,7 @@ export default function Home() {
                 'Пастбища',
                 'Перевозка скота',
               ].map((x) => (
-                <button
-                  key={x}
-                  onClick={() => {
-                    setQuery(x);
-                    setSelectedRegion('Весь Казахстан');
-                    document
-                      .querySelector('#catalog')
-                      ?.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                >
+                <button key={x} onClick={() => exploreDirection(x)}>
                   {x}
                   <ArrowRight />
                 </button>
@@ -1038,15 +1145,7 @@ export default function Home() {
                 'Рабочие услуги',
                 'Доставка',
               ].map((x) => (
-                <button
-                  key={x}
-                  onClick={() => {
-                    setQuery(x === 'Остатки партий' ? 'Стройматериалы' : x);
-                    document
-                      .querySelector('#catalog')
-                      ?.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                >
+                <button key={x} onClick={() => exploreDirection(x)}>
                   {x}
                   <ArrowRight />
                 </button>
@@ -1067,15 +1166,7 @@ export default function Home() {
                 'Для мероприятий',
                 'Генераторы',
               ].map((x) => (
-                <button
-                  key={x}
-                  onClick={() => {
-                    setQuery(x);
-                    document
-                      .querySelector('#catalog')
-                      ?.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                >
+                <button key={x} onClick={() => exploreDirection(x)}>
                   {x}
                   <ArrowRight />
                 </button>
@@ -1089,14 +1180,20 @@ export default function Home() {
           <div className="section-head catalog-head">
             <div>
               <span className="kicker">
-                {favoriteOnly
-                  ? 'ВАШЕ ИЗБРАННОЕ'
-                  : selectedRegion === 'Весь Казахстан'
-                    ? 'ПРЕДЛОЖЕНИЯ ПО СТРАНЕ'
-                    : 'ПРЕДЛОЖЕНИЯ В РЕГИОНЕ'}
+                {myOnly
+                  ? 'ВАШИ ПРЕДЛОЖЕНИЯ'
+                  : favoriteOnly
+                    ? 'ВАШЕ ИЗБРАННОЕ'
+                    : selectedRegion === 'Весь Казахстан'
+                      ? 'ПРЕДЛОЖЕНИЯ ПО СТРАНЕ'
+                      : 'ПРЕДЛОЖЕНИЯ В РЕГИОНЕ'}
               </span>
               <h2>
-                {favoriteOnly ? 'Сохранённые объявления' : selectedRegion}
+                {myOnly
+                  ? 'Мои объявления'
+                  : favoriteOnly
+                    ? 'Сохранённые объявления'
+                    : selectedRegion}
               </h2>
             </div>
             <div className="view-controls">
@@ -1131,6 +1228,14 @@ export default function Home() {
                 <button
                   className="clear-favorite"
                   onClick={() => setFavoriteOnly(false)}
+                >
+                  <X size={14} /> Все объявления
+                </button>
+              )}
+              {myOnly && (
+                <button
+                  className="clear-favorite"
+                  onClick={() => setMyOnly(false)}
                 >
                   <X size={14} /> Все объявления
                 </button>
@@ -1191,6 +1296,7 @@ export default function Home() {
                   setMaxDistance(100);
                   setDeliveryOnly(false);
                   setCompanyOnly(false);
+                  setMyOnly(false);
                 }}
               >
                 Сбросить
@@ -1211,20 +1317,19 @@ export default function Home() {
                   onClick={() => openListing(x)}
                 >
                   <small>{x.location}</small>
-                  {x.price.split(' ')[0]}к
+                  {formatMapPrice(x.price)}
                 </button>
               ))}
             </div>
           ) : (
             <div className="listing-grid">
               {filtered.map((item) => (
-                <article
-                  className="listing-card"
-                  key={item.id}
-                  onClick={() => openListing(item)}
-                  role="button"
-                  tabIndex={0}
-                >
+                <article className="listing-card" key={item.id}>
+                  <button
+                    className="listing-open"
+                    onClick={() => openListing(item)}
+                    aria-label={`Открыть объявление: ${item.title}`}
+                  />
                   <div className="listing-image">
                     <img src={item.image} alt={item.title} />
                     <span
@@ -1243,7 +1348,11 @@ export default function Home() {
                         e.stopPropagation();
                         toggleFavorite(item.id);
                       }}
-                      aria-label="Добавить в избранное"
+                      aria-label={
+                        favorites.includes(item.id)
+                          ? 'Удалить из избранного'
+                          : 'Добавить в избранное'
+                      }
                     >
                       <Heart
                         size={19}
@@ -1290,9 +1399,11 @@ export default function Home() {
               <Search />
               <h3>Ничего не нашли</h3>
               <p>
-                {favoriteOnly
-                  ? 'Добавляйте объявления сердечком — они появятся здесь.'
-                  : 'Попробуйте другой регион или сбросьте фильтры.'}
+                {myOnly
+                  ? 'Ваши новые объявления появятся здесь после публикации.'
+                  : favoriteOnly
+                    ? 'Добавляйте объявления сердечком — они появятся здесь.'
+                    : 'Попробуйте другой регион или сбросьте фильтры.'}
               </p>
               <button
                 onClick={() => {
@@ -1301,6 +1412,7 @@ export default function Home() {
                   setCategoryFilter('Все категории');
                   setMaxDistance(100);
                   setFavoriteOnly(false);
+                  setMyOnly(false);
                   setDeliveryOnly(false);
                   setCompanyOnly(false);
                   setSelectedRegion('Весь Казахстан');
@@ -1330,24 +1442,50 @@ export default function Home() {
             Оставьте заявку — владельцы техники и продавцы сами предложат цену.
             Это бесплатно.
           </p>
-          <button className="dark-button" onClick={() => setModal('request')}>
+          <button className="dark-button" onClick={() => openRequestForm()}>
             <Plus size={18} /> Создать заявку
           </button>
           <div className="intro-stat">
-            <b>23</b>
+            <b>{allRequests.length}</b>
             <span>
-              заявки получили отклики
+              примеров заявок и ваших публикаций
               <br />
-              за последние 24 часа
+              в текущей рабочей версии
             </span>
           </div>
         </div>
         <div className="request-list">
           <div className="request-list-head">
-            <h3>Актуальные заявки</h3>
-            <span className="live-dot">Обновляются сейчас</span>
+            <div>
+              <h3>{requestOwnerOnly ? 'Мои заявки' : 'Актуальные заявки'}</h3>
+              {requestOwnerOnly && (
+                <button onClick={() => setRequestOwnerOnly(false)}>
+                  Показать все
+                </button>
+              )}
+            </div>
+            <span className="live-dot">Живая лента MVP</span>
           </div>
-          {allRequests.map((r) => {
+          <div className="request-filters" aria-label="Фильтр заявок">
+            {(
+              [
+                ['all', 'Все'],
+                ['agro', 'Сельхоз'],
+                ['rent', 'Аренда'],
+                ['build', 'Стройка'],
+                ['recycle', 'Вторсырьё'],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                className={requestKind === value ? 'active' : ''}
+                onClick={() => setRequestKind(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {visibleRequests.map((r) => {
             const Icon =
               r.kind === 'agro'
                 ? Tractor
@@ -1390,13 +1528,21 @@ export default function Home() {
               </article>
             );
           })}
+          {visibleRequests.length === 0 && (
+            <div className="request-empty">
+              <MessageCircle />
+              <b>Пока нет подходящих заявок</b>
+              <span>Измените направление или создайте новую заявку.</span>
+              <button onClick={() => openRequestForm()}>Создать заявку</button>
+            </div>
+          )}
         </div>
       </section>
       <section className="recycle-section" id="recycle">
         <div className="wrap">
           <div className="recycle-head">
             <div>
-              <span className="kicker">B2B · НОВОЕ НАПРАВЛЕНИЕ</span>
+              <span className="kicker">B2B · ДЕМО НАПРАВЛЕНИЯ</span>
               <h2>Биржа вторсырья Казахстана</h2>
               <p>
                 Карта цен и обратный аукцион для картона, пластика, металла,
@@ -1413,7 +1559,7 @@ export default function Home() {
               <article key={x.name}>
                 <span>{x.icon}</span>
                 <div>
-                  <small>СРЕДНЯЯ ЦЕНА ПО РК</small>
+                  <small>ПРИМЕР ОТОБРАЖЕНИЯ ЦЕНЫ</small>
                   <h3>{x.name}</h3>
                   <b>{x.price}</b>
                 </div>
@@ -1434,7 +1580,7 @@ export default function Home() {
           </div>
           <div className="auction-card">
             <div className="auction-main">
-              <span>АКТИВНЫЙ АУКЦИОН</span>
+              <span>ДЕМО АУКЦИОНА</span>
               <h3>600 кг картона · Алматы</h3>
               <p>Самовывоз из Алатауского района до 4 сентября</p>
             </div>
@@ -1609,8 +1755,18 @@ export default function Home() {
           </div>
           <div>
             <b>Площадка</b>
-            <a href="#catalog">Объявления</a>
-            <a href="#requests">Заявки</a>
+            <a
+              href="#catalog"
+              onClick={() => {
+                setFavoriteOnly(false);
+                setMyOnly(false);
+              }}
+            >
+              Объявления
+            </a>
+            <a href="#requests" onClick={() => setRequestOwnerOnly(false)}>
+              Заявки
+            </a>
             <a href="#recycle">Биржа вторсырья</a>
             <a href="#about">О приложении</a>
           </div>
@@ -1651,18 +1807,30 @@ export default function Home() {
         </div>
       </footer>
       <nav className="mobile-bottom">
-        <a href="#catalog" onClick={() => setFavoriteOnly(false)}>
+        <a
+          href="#catalog"
+          onClick={() => {
+            setFavoriteOnly(false);
+            setMyOnly(false);
+          }}
+        >
           <Search />
           <span>Поиск</span>
         </a>
-        <a href="#requests">
+        <a href="#requests" onClick={() => setRequestOwnerOnly(false)}>
           <MessageCircle />
           <span>Заявки</span>
         </a>
         <button onClick={openAddListing} aria-label="Подать объявление">
           <Plus />
         </button>
-        <a href="#catalog" onClick={() => setFavoriteOnly(true)}>
+        <a
+          href="#catalog"
+          onClick={() => {
+            setFavoriteOnly(true);
+            setMyOnly(false);
+          }}
+        >
           <Heart />
           <span>Избранное</span>
         </a>
@@ -1679,10 +1847,10 @@ export default function Home() {
             if (e.target === e.currentTarget) setModal(null);
           }}
         >
-          <section
+          <dialog
+            open
             className={`app-modal ${modal === 'detail' ? 'detail-modal' : ''}`}
-            role="dialog"
-            aria-modal="true"
+            aria-label="Окно Qoldan"
           >
             <button
               className="modal-close"
@@ -1701,8 +1869,8 @@ export default function Home() {
                     <small>НОВОЕ ПРЕДЛОЖЕНИЕ</small>
                     <h2>Подать объявление</h2>
                     <p>
-                      Предложение увидят пользователи выбранного региона
-                      Казахстана.
+                      В рабочем MVP предложение появится в выбранном регионе и
+                      сохранится на этом устройстве.
                     </p>
                   </div>
                 </div>
@@ -1753,7 +1921,7 @@ export default function Home() {
                     <span>
                       <Plus />
                       <b>Выбрать реальное фото</b>
-                      <small>JPG, PNG или WebP · до 1,5 МБ</small>
+                      <small>JPG, PNG или WebP · до 5 МБ, сожмём сами</small>
                     </span>
                     {listingImage && (
                       <img src={listingImage} alt="Предпросмотр объявления" />
@@ -1852,7 +2020,7 @@ export default function Home() {
                     />
                   </label>
                   <button className="submit-button" type="submit">
-                    Опубликовать по Казахстану <ArrowRight />
+                    Сохранить объявление <ArrowRight />
                   </button>
                 </form>
               </>
@@ -1866,13 +2034,16 @@ export default function Home() {
                   <div>
                     <small>МНЕ НУЖНО</small>
                     <h2>Создать заявку</h2>
-                    <p>Опишите задачу — владельцы сами предложат цену.</p>
+                    <p>
+                      Опишите задачу. В рабочем MVP заявка сохранится на этом
+                      устройстве.
+                    </p>
                   </div>
                 </div>
                 <form className="product-form" onSubmit={addRequest}>
                   <label>
                     Направление
-                    <select name="kind">
+                    <select name="kind" defaultValue={requestSeedKind}>
                       <option value="agro">Сельхозтехника и услуги</option>
                       <option value="rent">Аренда</option>
                       <option value="build">Материалы и стройка</option>
@@ -1891,8 +2062,25 @@ export default function Home() {
                     <input
                       name="title"
                       required
+                      defaultValue={requestSeed}
                       placeholder="Например, убрать 70 га пшеницы"
                     />
+                  </label>
+                  <label>
+                    Регион
+                    <select
+                      name="region"
+                      required
+                      defaultValue={
+                        selectedRegion === 'Весь Казахстан'
+                          ? 'Область Жетісу'
+                          : selectedRegion
+                      }
+                    >
+                      {kzRegions.slice(1).map((region) => (
+                        <option key={region}>{region}</option>
+                      ))}
+                    </select>
                   </label>
                   <label>
                     Где?
@@ -1915,7 +2103,7 @@ export default function Home() {
                     />
                   </label>
                   <button className="submit-button" type="submit">
-                    Опубликовать заявку <ArrowRight />
+                    Сохранить заявку <ArrowRight />
                   </button>
                 </form>
               </>
@@ -2018,7 +2206,7 @@ export default function Home() {
                     />
                   </label>
                   <button className="submit-button" type="submit">
-                    Отправить отклик <ArrowRight />
+                    Добавить отклик <ArrowRight />
                   </button>
                 </form>
               </>
@@ -2125,6 +2313,24 @@ export default function Home() {
                         Забронировать
                       </button>
                     )}
+                    <button
+                      className="related-request"
+                      onClick={() => {
+                        const relatedKind: RequestItem['kind'] =
+                          selectedListing.type === 'Сдам'
+                            ? 'rent'
+                            : selectedListing.category === 'Стройматериалы' ||
+                                selectedListing.category === 'Остатки партий'
+                              ? 'build'
+                              : 'agro';
+                        openRequestForm(
+                          `Нужно: ${selectedListing.title}`,
+                          relatedKind,
+                        );
+                      }}
+                    >
+                      <MessageCircle /> Оставить встречную заявку
+                    </button>
                   </div>
                 </div>
               </>
@@ -2148,17 +2354,44 @@ export default function Home() {
                   className="product-form"
                   onSubmit={(e) => {
                     e.preventDefault();
+                    const data = new FormData(e.currentTarget);
+                    if (
+                      fieldText(data, 'dateTo') < fieldText(data, 'dateFrom')
+                    ) {
+                      notify('Дата возврата не может быть раньше даты начала');
+                      return;
+                    }
                     setModal(null);
-                    notify('Запрос на бронирование отправлен владельцу');
+                    notify('Запрос на бронирование сохранён в рабочей версии');
                   }}
                 >
                   <label>
                     Дата начала
-                    <input type="date" required />
+                    <input
+                      name="dateFrom"
+                      type="date"
+                      min={new Date().toISOString().slice(0, 10)}
+                      required
+                    />
                   </label>
                   <label>
                     Дата возврата
-                    <input type="date" required />
+                    <input
+                      name="dateTo"
+                      type="date"
+                      min={new Date().toISOString().slice(0, 10)}
+                      required
+                    />
+                  </label>
+                  <label className="wide">
+                    Телефон для ответа владельца
+                    <input
+                      name="customerPhone"
+                      type="tel"
+                      inputMode="tel"
+                      required
+                      placeholder="+7 700 123 45 67"
+                    />
                   </label>
                   <label className="wide check-line">
                     <input type="checkbox" /> Нужна доставка по городу{' '}
@@ -2169,7 +2402,7 @@ export default function Home() {
                     <textarea rows={2} placeholder="Удобное время и адрес" />
                   </label>
                   <button className="submit-button" type="submit">
-                    Отправить запрос <ArrowRight />
+                    Сохранить запрос <ArrowRight />
                   </button>
                 </form>
               </>
@@ -2221,7 +2454,9 @@ export default function Home() {
                   <div>
                     <small>ОБРАТНЫЙ АУКЦИОН</small>
                     <h2>Выставить партию вторсырья</h2>
-                    <p>Приёмщики увидят объём и предложат цену с вывозом.</p>
+                    <p>
+                      В рабочем MVP партия сохранится локально как новая заявка.
+                    </p>
                   </div>
                 </div>
                 <form className="product-form" onSubmit={addRecycleLot}>
@@ -2257,6 +2492,22 @@ export default function Home() {
                     Когда забрать
                     <input name="when" required placeholder="До 5 сентября" />
                   </label>
+                  <label>
+                    Регион
+                    <select
+                      name="region"
+                      required
+                      defaultValue={
+                        selectedRegion === 'Весь Казахстан'
+                          ? 'Алматы'
+                          : selectedRegion
+                      }
+                    >
+                      {kzRegions.slice(1).map((region) => (
+                        <option key={region}>{region}</option>
+                      ))}
+                    </select>
+                  </label>
                   <label className="wide">
                     Адрес или район
                     <input
@@ -2266,7 +2517,7 @@ export default function Home() {
                     />
                   </label>
                   <button className="submit-button" type="submit">
-                    Запустить аукцион <ArrowRight />
+                    Сохранить партию <ArrowRight />
                   </button>
                 </form>
               </>
@@ -2278,7 +2529,7 @@ export default function Home() {
                   <div>
                     <h2>Азамат К.</h2>
                     <p>
-                      <CheckCircle2 /> Номер подтверждён · Талдыкорган
+                      <MapPin /> Рабочий профиль · Талдыкорган
                     </p>
                   </div>
                 </div>
@@ -2290,12 +2541,14 @@ export default function Home() {
                     <span>объявлений</span>
                   </div>
                   <div>
-                    <b>{allRequests.length - initialRequests.length}</b>
+                    <b>
+                      {allRequests.filter((x) => x.owner === 'Азамат').length}
+                    </b>
                     <span>заявок</span>
                   </div>
                   <div>
-                    <b>4.9</b>
-                    <span>рейтинг</span>
+                    <b>—</b>
+                    <span>рейтинг после сделок</span>
                   </div>
                 </div>
                 <div className="profile-menu">
@@ -2303,6 +2556,7 @@ export default function Home() {
                     onClick={() => {
                       setModal(null);
                       setFavoriteOnly(true);
+                      setMyOnly(false);
                       document
                         .querySelector('#catalog')
                         ?.scrollIntoView({ behavior: 'smooth' });
@@ -2311,16 +2565,28 @@ export default function Home() {
                     <Heart /> Избранное <b>{favorites.length}</b>
                   </button>
                   <button
-                    onClick={() =>
-                      notify('Ваши объявления отображаются первыми в профиле')
-                    }
+                    onClick={() => {
+                      setModal(null);
+                      setFavoriteOnly(false);
+                      setMyOnly(true);
+                      document
+                        .querySelector('#catalog')
+                        ?.scrollIntoView({ behavior: 'smooth' });
+                    }}
                   >
                     <PackageOpen /> Мои объявления <ArrowRight />
                   </button>
                   <button
-                    onClick={() => notify('Профиль готов к редактированию')}
+                    onClick={() => {
+                      setModal(null);
+                      setRequestOwnerOnly(true);
+                      setRequestKind('all');
+                      document
+                        .querySelector('#requests')
+                        ?.scrollIntoView({ behavior: 'smooth' });
+                    }}
                   >
-                    <UserRound /> Редактировать профиль <ArrowRight />
+                    <MessageCircle /> Мои заявки <ArrowRight />
                   </button>
                 </div>
               </>
@@ -2334,7 +2600,7 @@ export default function Home() {
                   <div>
                     <small>УВЕДОМЛЕНИЯ</small>
                     <h2>Что нового</h2>
-                    <p>Новые отклики и предложения рядом.</p>
+                    <p>Пример будущих событий в рабочем профиле.</p>
                   </div>
                 </div>
                 <div className="notification-list">
@@ -2412,14 +2678,14 @@ export default function Home() {
                 </div>
               </>
             )}
-          </section>
+          </dialog>
         </div>
       )}
       {toast && (
-        <div className="toast">
+        <output className="toast" aria-live="polite">
           <CheckCircle2 size={18} />
           {toast}
-        </div>
+        </output>
       )}
     </main>
   );
