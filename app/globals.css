@@ -1788,6 +1788,32 @@ footer {
   font-size: 8px;
   color: #9ca49e;
 }
+.notification-empty {
+  min-height: 190px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  padding: 26px;
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  background: var(--soft);
+  text-align: center;
+}
+.notification-empty > svg {
+  width: 28px;
+  height: 28px;
+  color: var(--green);
+}
+.notification-empty b {
+  font-size: 13px;
+}
+.notification-empty span {
+  max-width: 310px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.55;
+}
 .info-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

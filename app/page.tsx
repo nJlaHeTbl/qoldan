@@ -66,6 +66,13 @@ type ResponseItem = {
   owner: string;
   mine?: boolean;
 };
+type ActivityItem = {
+  id: string;
+  kind: 'response' | 'booking';
+  title: string;
+  description: string;
+  createdAt: number;
+};
 type SubmitFormEvent = {
   preventDefault: () => void;
   currentTarget: HTMLFormElement;
@@ -86,6 +93,13 @@ const isDemoListing = (id: Listing['id']) => {
   const numericId = Number(id);
   return Number.isFinite(numericId) && numericId < 1000;
 };
+const formatActivityDate = (timestamp: number) =>
+  new Intl.DateTimeFormat('ru-RU', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(timestamp));
 const listings: Listing[] = [
   {
     id: 1,
@@ -557,6 +571,7 @@ export default function Home() {
   const [allRequests, setAllRequests] =
     useState<RequestItem[]>(initialRequests);
   const [allResponses, setAllResponses] = useState<ResponseItem[]>([]);
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [viewerName, setViewerName] = useState('Пользователь Qoldan');
   const [serverConnected, setServerConnected] = useState(false);
   const [submitting, setSubmitting] = useState<string | null>(null);
@@ -627,12 +642,14 @@ export default function Home() {
           requests: RequestItem[];
           favorites: string[];
           responses: ResponseItem[];
+          activities: ActivityItem[];
         };
         if (!active) return;
         setAllListings([...data.listings, ...defaultListings]);
         setAllRequests([...data.requests, ...initialRequests]);
         setFavorites(data.favorites.map(String));
         setAllResponses(data.responses);
+        setActivities(data.activities);
         setViewerName(data.viewer.displayName);
         setServerConnected(true);
       } catch {
@@ -643,8 +660,12 @@ export default function Home() {
       }
     };
     void loadMarketplace();
+    const refreshTimer = window.setInterval(() => {
+      void loadMarketplace();
+    }, 45_000);
     return () => {
       active = false;
+      window.clearInterval(refreshTimer);
     };
   }, []);
   useEffect(() => {
@@ -1067,7 +1088,7 @@ export default function Home() {
             aria-label="Уведомления"
           >
             <Bell size={19} />
-            <i />
+            {activities.length > 0 && <i />}
           </button>
           <button
             className="profile hide-mobile"
@@ -2349,42 +2370,52 @@ export default function Home() {
                     </span>
                   </div>
                 ) : null}
-                <form
-                  className="product-form response-form"
-                  onSubmit={sendResponse}
-                >
-                  <h3>Предложить свой вариант</h3>
-                  <label className="wide">
-                    Ваша цена
-                    <input
-                      name="price"
-                      required
-                      placeholder={
-                        selectedRequest.kind === 'recycle'
-                          ? 'Например, 64 ₸/кг'
-                          : 'Например, 48 000 ₸'
-                      }
-                    />
-                  </label>
-                  <label className="wide">
-                    Комментарий
-                    <textarea
-                      name="message"
-                      rows={2}
-                      placeholder="Когда сможете выполнить и что входит в цену"
-                    />
-                  </label>
-                  <button
-                    className="submit-button"
-                    type="submit"
-                    disabled={submitting === 'response'}
+                {selectedRequest.mine ? (
+                  <div className="demo-contact">
+                    <b>Это ваша заявка</b>
+                    <span>
+                      Здесь появятся цены и комментарии исполнителей. Новые
+                      отклики также попадут в уведомления.
+                    </span>
+                  </div>
+                ) : (
+                  <form
+                    className="product-form response-form"
+                    onSubmit={sendResponse}
                   >
-                    {submitting === 'response'
-                      ? 'Отправляем…'
-                      : 'Добавить отклик'}{' '}
-                    <ArrowRight />
-                  </button>
-                </form>
+                    <h3>Предложить свой вариант</h3>
+                    <label className="wide">
+                      Ваша цена
+                      <input
+                        name="price"
+                        required
+                        placeholder={
+                          selectedRequest.kind === 'recycle'
+                            ? 'Например, 64 ₸/кг'
+                            : 'Например, 48 000 ₸'
+                        }
+                      />
+                    </label>
+                    <label className="wide">
+                      Комментарий
+                      <textarea
+                        name="message"
+                        rows={2}
+                        placeholder="Когда сможете выполнить и что входит в цену"
+                      />
+                    </label>
+                    <button
+                      className="submit-button"
+                      type="submit"
+                      disabled={submitting === 'response'}
+                    >
+                      {submitting === 'response'
+                        ? 'Отправляем…'
+                        : 'Добавить отклик'}{' '}
+                      <ArrowRight />
+                    </button>
+                  </form>
+                )}
               </>
             )}
             {modal === 'detail' && selectedListing && (
@@ -2484,11 +2515,12 @@ export default function Home() {
                         </a>
                       </>
                     )}
-                    {selectedListing.type === 'Сдам' && (
-                      <button onClick={() => setModal('booking')}>
-                        Забронировать
-                      </button>
-                    )}
+                    {selectedListing.type === 'Сдам' &&
+                      !selectedListing.mine && (
+                        <button onClick={() => setModal('booking')}>
+                          Забронировать
+                        </button>
+                      )}
                     <button
                       className="related-request"
                       onClick={() => {
@@ -2781,41 +2813,40 @@ export default function Home() {
                   <div>
                     <small>УВЕДОМЛЕНИЯ</small>
                     <h2>Что нового</h2>
-                    <p>Пример будущих событий в рабочем профиле.</p>
+                    <p>Реальные отклики и запросы по вашим публикациям.</p>
                   </div>
                 </div>
-                <div className="notification-list">
-                  <article>
+                {activities.length > 0 ? (
+                  <div className="notification-list">
+                    {activities.map((activity) => (
+                      <article key={activity.id}>
+                        <span>
+                          {activity.kind === 'booking' ? (
+                            <Clock3 />
+                          ) : (
+                            <MessageCircle />
+                          )}
+                        </span>
+                        <div>
+                          <b>{activity.title}</b>
+                          <p>{activity.description}</p>
+                          <small>
+                            {formatActivityDate(activity.createdAt)}
+                          </small>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="notification-empty">
+                    <Bell />
+                    <b>Пока тихо</b>
                     <span>
-                      <MessageCircle />
+                      Когда кто-то откликнется или запросит аренду, событие
+                      появится здесь.
                     </span>
-                    <div>
-                      <b>4 новых отклика</b>
-                      <p>На заявку «Нужен комбайн убрать 70 га»</p>
-                      <small>12 минут назад</small>
-                    </div>
-                  </article>
-                  <article>
-                    <span>
-                      <MapPin />
-                    </span>
-                    <div>
-                      <b>Новое рядом с вами</b>
-                      <p>Бетономешалка появилась в 1,8 км</p>
-                      <small>1 час назад</small>
-                    </div>
-                  </article>
-                  <article>
-                    <span>
-                      <Heart />
-                    </span>
-                    <div>
-                      <b>Цена снизилась</b>
-                      <p>Перфоратор Bosch теперь 3 500 ₸/сутки</p>
-                      <small>сегодня</small>
-                    </div>
-                  </article>
-                </div>
+                  </div>
+                )}
               </>
             )}
             {modal === 'info' && (

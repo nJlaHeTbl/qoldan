@@ -19,8 +19,19 @@ export async function POST(request: Request) {
     const input = await parseJson(request, bookingInput);
     await ensureMarketplaceSchema();
     await upsertViewer(viewer);
+    const db = getMarketplaceDb();
+    const listing = await db
+      .prepare('SELECT owner_id FROM listings WHERE id = ?')
+      .bind(input.listingId)
+      .first<{ owner_id: string }>();
+    if (listing?.owner_id === viewer.id) {
+      return Response.json(
+        { error: 'Нельзя бронировать собственное объявление' },
+        { status: 409 },
+      );
+    }
     const id = crypto.randomUUID();
-    await getMarketplaceDb()
+    await db
       .prepare(
         `INSERT INTO bookings
          (id, listing_id, owner_id, date_from, date_to, customer_phone,
