@@ -168,6 +168,7 @@ type AppealTarget = {
   targetTitle: string;
   action: 'warn' | 'restrict';
 };
+type ContentMode = 'all' | 'real' | 'demo';
 type SubmitFormEvent = {
   preventDefault: () => void;
   currentTarget: HTMLFormElement;
@@ -736,6 +737,8 @@ export default function Home() {
   const [maxDistance, setMaxDistance] = useState(100);
   const [favoriteOnly, setFavoriteOnly] = useState(false);
   const [myOnly, setMyOnly] = useState(false);
+  const [listingContentMode, setListingContentMode] =
+    useState<ContentMode>('all');
   const [selectedRegion, setSelectedRegion] = useState('Весь Казахстан');
   const [deliveryOnly, setDeliveryOnly] = useState(false);
   const [companyOnly, setCompanyOnly] = useState(false);
@@ -746,6 +749,8 @@ export default function Home() {
     'all',
   );
   const [requestOwnerOnly, setRequestOwnerOnly] = useState(false);
+  const [requestContentMode, setRequestContentMode] =
+    useState<ContentMode>('all');
   const [requestSeed, setRequestSeed] = useState('');
   const [requestSeedKind, setRequestSeedKind] =
     useState<RequestItem['kind']>('agro');
@@ -770,12 +775,21 @@ export default function Home() {
         ? false
         : report.status === moderationFilter,
   );
+  const realListingCount = allListings.filter(
+    (listing) => !isDemoListing(listing.id),
+  ).length;
+  const demoListingCount = allListings.length - realListingCount;
+  const realRequestCount = allRequests.filter(
+    (request) => !isDemoRequest(request.id),
+  ).length;
+  const demoRequestCount = allRequests.length - realRequestCount;
   const activeFilterCount = [
     categoryFilter !== 'Все категории',
     maxDistance < 100 && selectedRegion !== 'Весь Казахстан',
     deliveryOnly,
     companyOnly,
     myOnly,
+    listingContentMode !== 'all',
   ].filter(Boolean).length;
   useEffect(() => {
     let active = true;
@@ -853,6 +867,11 @@ export default function Home() {
             parseFloat(i.distance.replace(',', '.')) <= maxDistance) &&
           (!favoriteOnly || favorites.includes(String(i.id))) &&
           (!myOnly || i.mine) &&
+          (myOnly ||
+            listingContentMode === 'all' ||
+            (listingContentMode === 'real'
+              ? !isDemoListing(i.id)
+              : isDemoListing(i.id))) &&
           (myOnly || i.status !== 'paused') &&
           (!deliveryOnly || i.delivery) &&
           (!companyOnly ||
@@ -871,6 +890,7 @@ export default function Home() {
       selectedRegion,
       deliveryOnly,
       companyOnly,
+      listingContentMode,
     ],
   );
   const visibleRequests = useMemo(
@@ -882,9 +902,20 @@ export default function Home() {
             selectedRegion === 'Весь Казахстан' ||
             request.region === selectedRegion) &&
           (!requestOwnerOnly || request.mine) &&
+          (requestOwnerOnly ||
+            requestContentMode === 'all' ||
+            (requestContentMode === 'real'
+              ? !isDemoRequest(request.id)
+              : isDemoRequest(request.id))) &&
           (requestOwnerOnly || request.status !== 'closed'),
       ),
-    [allRequests, requestKind, requestOwnerOnly, selectedRegion],
+    [
+      allRequests,
+      requestKind,
+      requestOwnerOnly,
+      requestContentMode,
+      selectedRegion,
+    ],
   );
   const toggleFavorite = async (id: Listing['id']) => {
     const listingId = String(id);
@@ -1994,6 +2025,39 @@ export default function Home() {
               </button>
             </div>
           </div>
+          {!myOnly && !favoriteOnly && (
+            <div className="data-source-bar">
+              <div>
+                <CheckCircle2 />
+                <span>
+                  <b>Прозрачная лента</b>
+                  Настоящие публикации хранятся в общей базе. Примеры всегда
+                  отмечены словом «ДЕМО».
+                </span>
+              </div>
+              <div
+                className="data-source-switch"
+                aria-label="Источник объявлений"
+              >
+                {(
+                  [
+                    ['all', `Все · ${allListings.length}`],
+                    ['real', `Реальные · ${realListingCount}`],
+                    ['demo', `Демо · ${demoListingCount}`],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={listingContentMode === value ? 'active' : ''}
+                    onClick={() => setListingContentMode(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="filter-row">
             <div className="pills">
               {['Все', 'Продам', 'Сдам', 'Окажу услугу'].map((x) => (
@@ -2080,6 +2144,7 @@ export default function Home() {
                   setDeliveryOnly(false);
                   setCompanyOnly(false);
                   setMyOnly(false);
+                  setListingContentMode('all');
                 }}
               >
                 Сбросить
@@ -2108,6 +2173,9 @@ export default function Home() {
                     >
                       {item.type}
                     </span>
+                    {isDemoListing(item.id) && (
+                      <span className="source-chip demo">ДЕМО · ПРИМЕР</span>
+                    )}
                     {item.sellerType && (
                       <span className="seller-type">{item.sellerType}</span>
                     )}
@@ -2151,7 +2219,7 @@ export default function Home() {
                         <MapPin size={14} />
                         {item.location} · {item.distance}
                       </span>
-                      {item.rating && (
+                      {item.rating && !isDemoListing(item.id) && (
                         <span className="rating">
                           <Star size={14} fill="currentColor" /> {item.rating}
                         </span>
@@ -2162,7 +2230,7 @@ export default function Home() {
                         <Construction /> Есть доставка
                       </div>
                     )}
-                    {item.verified && (
+                    {item.verified && !isDemoListing(item.id) && (
                       <div className="verified">
                         <CheckCircle2 size={14} /> Проверенный исполнитель
                       </div>
@@ -2194,6 +2262,7 @@ export default function Home() {
                   setDeliveryOnly(false);
                   setCompanyOnly(false);
                   setSelectedRegion('Весь Казахстан');
+                  setListingContentMode('all');
                 }}
               >
                 Сбросить фильтры
@@ -2224,11 +2293,11 @@ export default function Home() {
             <Plus size={18} /> Создать заявку
           </button>
           <div className="intro-stat">
-            <b>{allRequests.length}</b>
+            <b>{realRequestCount}</b>
             <span>
-              примеров заявок и ваших публикаций
+              реальных заявок в общей базе
               <br />
-              в текущей рабочей версии
+              демо-примеров рядом: {demoRequestCount}
             </span>
           </div>
         </div>
@@ -2242,8 +2311,37 @@ export default function Home() {
                 </button>
               )}
             </div>
-            <span className="live-dot">Живая лента MVP</span>
+            <span className="live-dot">Обновляется автоматически</span>
           </div>
+          {!requestOwnerOnly && (
+            <div className="data-source-bar compact request-source-bar">
+              <div>
+                <CheckCircle2 />
+                <span>
+                  <b>Источник заявки виден сразу</b>
+                  Демо-примеры не принадлежат реальным заказчикам.
+                </span>
+              </div>
+              <div className="data-source-switch" aria-label="Источник заявок">
+                {(
+                  [
+                    ['all', `Все · ${allRequests.length}`],
+                    ['real', `Реальные · ${realRequestCount}`],
+                    ['demo', `Демо · ${demoRequestCount}`],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={requestContentMode === value ? 'active' : ''}
+                    onClick={() => setRequestContentMode(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="request-filters" aria-label="Фильтр заявок">
             {(
               [
@@ -2280,6 +2378,11 @@ export default function Home() {
                 <div className="request-main">
                   <span>
                     ЗАЯВКА #{r.id}
+                    <em
+                      className={`request-source-badge ${isDemoRequest(r.id) ? 'demo' : 'real'}`}
+                    >
+                      {isDemoRequest(r.id) ? 'ДЕМО-ПРИМЕР' : 'РЕАЛЬНАЯ'}
+                    </em>
                     {r.mine && r.status === 'closed' && (
                       <em className="inline-status">Закрыта</em>
                     )}
@@ -2942,7 +3045,32 @@ export default function Home() {
                     </p>
                   </div>
                 </div>
-                {selectedResponses.length > 0 ? (
+                {isDemoRequest(selectedRequest.id) && (
+                  <div className="demo-flow-note">
+                    <CircleAlert />
+                    <div>
+                      <b>Это демонстрационный сценарий</b>
+                      <span>
+                        Такой заявки нет в общей базе и за ней не стоит реальный
+                        заказчик. Цифра откликов показана только как пример
+                        будущего мини-тендера.
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          openRequestForm(
+                            selectedRequest.title,
+                            selectedRequest.kind,
+                          )
+                        }
+                      >
+                        Создать похожую настоящую заявку <ArrowRight />
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {!isDemoRequest(selectedRequest.id) &&
+                selectedResponses.length > 0 ? (
                   <div className="bid-list">
                     {selectedResponses.map((response) => (
                       <div key={response.id}>
@@ -2965,7 +3093,9 @@ export default function Home() {
                       </div>
                     ))}
                   </div>
-                ) : selectedRequest.responses > 0 && !selectedRequest.mine ? (
+                ) : !isDemoRequest(selectedRequest.id) &&
+                  selectedRequest.responses > 0 &&
+                  !selectedRequest.mine ? (
                   <div className="demo-contact">
                     <b>{selectedRequest.responses} откликов уже получено</b>
                     <span>
@@ -3000,7 +3130,7 @@ export default function Home() {
                           : 'Закрыть заявку'}
                     </button>
                   </div>
-                ) : (
+                ) : isDemoRequest(selectedRequest.id) ? null : (
                   <form
                     className="product-form response-form"
                     onSubmit={sendResponse}
@@ -3068,6 +3198,11 @@ export default function Home() {
                   >
                     {selectedListing.type}
                   </span>
+                  {isDemoListing(selectedListing.id) && (
+                    <span className="source-chip demo detail-source-chip">
+                      ДЕМО · ПРИМЕР
+                    </span>
+                  )}
                 </div>
                 <div className="detail-content">
                   <small className="kicker">
@@ -3110,24 +3245,30 @@ export default function Home() {
                   </div>
                   <div className="owner-card">
                     <span>
-                      {(selectedListing.owner || 'АК')
-                        .slice(0, 2)
-                        .toUpperCase()}
+                      {isDemoListing(selectedListing.id)
+                        ? 'Q'
+                        : (selectedListing.owner || 'АК')
+                            .slice(0, 2)
+                            .toUpperCase()}
                     </span>
                     <div>
-                      <b>{selectedListing.owner || 'Пользователь Qoldan'}</b>
+                      <b>
+                        {isDemoListing(selectedListing.id)
+                          ? 'Демонстрация Qoldan'
+                          : selectedListing.owner || 'Пользователь Qoldan'}
+                      </b>
                       <small>
-                        {selectedListing.sellerType || 'Частное лицо'} ·{' '}
-                        {selectedListing.verified
-                          ? 'профиль подтверждён'
-                          : 'участник площадки'}
+                        {isDemoListing(selectedListing.id)
+                          ? 'Пример интерфейса · не реальный продавец'
+                          : `${selectedListing.sellerType || 'Частное лицо'} · ${selectedListing.verified ? 'профиль подтверждён' : 'участник площадки'}`}
                       </small>
                     </div>
-                    {selectedListing.rating && (
-                      <em>
-                        <Star fill="currentColor" /> {selectedListing.rating}
-                      </em>
-                    )}
+                    {selectedListing.rating &&
+                      !isDemoListing(selectedListing.id) && (
+                        <em>
+                          <Star fill="currentColor" /> {selectedListing.rating}
+                        </em>
+                      )}
                   </div>
                   {selectedListing.mine && (
                     <div className="owner-management">
@@ -3166,8 +3307,29 @@ export default function Home() {
                           <b>Демонстрационное объявление</b>
                           <span>
                             Контакты скрыты: карточка показывает сценарий
-                            сервиса и не ведёт к случайному номеру.
+                            сервиса, не принадлежит реальному продавцу и не
+                            ведёт к случайному номеру.
                           </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const relatedKind: RequestItem['kind'] =
+                                selectedListing.type === 'Сдам'
+                                  ? 'rent'
+                                  : selectedListing.category ===
+                                        'Стройматериалы' ||
+                                      selectedListing.category ===
+                                        'Остатки партий'
+                                    ? 'build'
+                                    : 'agro';
+                              openRequestForm(
+                                `Нужно: ${selectedListing.title}`,
+                                relatedKind,
+                              );
+                            }}
+                          >
+                            Создать похожую реальную заявку <ArrowRight />
+                          </button>
                         </div>
                       ) : (
                         <>
@@ -3187,29 +3349,34 @@ export default function Home() {
                           </a>
                         </>
                       )}
-                      {selectedListing.type === 'Сдам' && (
-                        <button onClick={() => setModal('booking')}>
-                          Забронировать
+                      {!isDemoListing(selectedListing.id) &&
+                        selectedListing.type === 'Сдам' && (
+                          <button onClick={() => setModal('booking')}>
+                            Забронировать
+                          </button>
+                        )}
+                      {!isDemoListing(selectedListing.id) && (
+                        <button
+                          className="related-request"
+                          onClick={() => {
+                            const relatedKind: RequestItem['kind'] =
+                              selectedListing.type === 'Сдам'
+                                ? 'rent'
+                                : selectedListing.category ===
+                                      'Стройматериалы' ||
+                                    selectedListing.category ===
+                                      'Остатки партий'
+                                  ? 'build'
+                                  : 'agro';
+                            openRequestForm(
+                              `Нужно: ${selectedListing.title}`,
+                              relatedKind,
+                            );
+                          }}
+                        >
+                          <MessageCircle /> Оставить встречную заявку
                         </button>
                       )}
-                      <button
-                        className="related-request"
-                        onClick={() => {
-                          const relatedKind: RequestItem['kind'] =
-                            selectedListing.type === 'Сдам'
-                              ? 'rent'
-                              : selectedListing.category === 'Стройматериалы' ||
-                                  selectedListing.category === 'Остатки партий'
-                                ? 'build'
-                                : 'agro';
-                          openRequestForm(
-                            `Нужно: ${selectedListing.title}`,
-                            relatedKind,
-                          );
-                        }}
-                      >
-                        <MessageCircle /> Оставить встречную заявку
-                      </button>
                       {!isDemoListing(selectedListing.id) && (
                         <button
                           className="report-action"
