@@ -1,4 +1,5 @@
 import {
+  canModerate,
   ensureMarketplaceSchema,
   getMarketplaceDb,
   getViewer,
@@ -42,6 +43,7 @@ export async function GET(request: Request) {
     await ensureMarketplaceSchema();
     await upsertViewer(viewer);
     const db = getMarketplaceDb();
+    const viewerCanModerate = canModerate(viewer);
     const [
       listingResult,
       requestResult,
@@ -199,8 +201,20 @@ export async function GET(request: Request) {
       .sort((a, b) => b.createdAt - a.createdAt)
       .slice(0, 50);
 
+    const moderationCount = viewerCanModerate
+      ? await db
+          .prepare(
+            "SELECT COUNT(*) AS count FROM reports WHERE status IN ('new', 'reviewing')",
+          )
+          .first<{ count: number }>()
+      : null;
+
     return Response.json({
       viewer,
+      moderation: {
+        canModerate: viewerCanModerate,
+        pendingCount: Number(moderationCount?.count || 0),
+      },
       listings: listingResult.results.map((row) => ({
         id: String(row.id),
         title: row.title,

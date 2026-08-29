@@ -38,7 +38,7 @@ export async function POST(request: Request) {
       .prepare(
         `SELECT id FROM reports
          WHERE owner_id = ? AND target_type = ? AND target_id = ?
-           AND status = 'new'
+           AND status IN ('new', 'reviewing')
          LIMIT 1`,
       )
       .bind(viewer.id, input.targetType, input.targetId)

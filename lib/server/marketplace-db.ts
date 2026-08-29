@@ -9,6 +9,7 @@ export type Viewer = {
 type MarketplaceBindings = Cloudflare.Env & {
   DB: D1Database;
   IMAGES: R2Bucket;
+  QOLDAN_ADMIN_USER_IDS?: string;
 };
 
 let schemaPromise: Promise<void> | undefined;
@@ -65,6 +66,16 @@ export function getViewer(request: Request): Viewer | null {
     };
   }
   return null;
+}
+
+export function canModerate(viewer: Viewer) {
+  if (viewer.id === 'local-qoldan-user') return true;
+  const configured = getMarketplaceBindings().QOLDAN_ADMIN_USER_IDS || '';
+  return configured
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean)
+    .includes(viewer.id);
 }
 
 export async function ensureMarketplaceSchema() {
@@ -160,6 +171,9 @@ export async function ensureMarketplaceSchema() {
         reason TEXT NOT NULL,
         description TEXT,
         status TEXT DEFAULT 'new' NOT NULL,
+        review_note TEXT,
+        reviewed_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        reviewed_at INTEGER,
         created_at INTEGER NOT NULL
       )`),
     ]);
@@ -234,6 +248,13 @@ export function unauthorized() {
   return Response.json(
     { error: 'Войдите в Qoldan, чтобы продолжить' },
     { status: 401 },
+  );
+}
+
+export function forbidden() {
+  return Response.json(
+    { error: 'Этот раздел доступен только команде модерации' },
+    { status: 403 },
   );
 }
 

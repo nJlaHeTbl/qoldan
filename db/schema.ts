@@ -170,6 +170,11 @@ export const reports = sqliteTable(
     reason: text('reason').notNull(),
     description: text('description'),
     status: text('status').notNull().default('new'),
+    reviewNote: text('review_note'),
+    reviewedBy: text('reviewed_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    reviewedAt: integer('reviewed_at'),
     createdAt: integer('created_at').notNull(),
   },
   (table) => [

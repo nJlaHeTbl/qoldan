@@ -96,6 +96,12 @@ export const reportInput = z.object({
   description: z.string().trim().max(800).optional().default(''),
 });
 
+export const moderationReportInput = z.object({
+  reportId: z.string().trim().min(1).max(100),
+  status: z.enum(['reviewing', 'closed']),
+  reviewNote: z.string().trim().max(800).optional().default(''),
+});
+
 export async function parseJson<T extends z.ZodType>(
   request: Request,
   schema: T,

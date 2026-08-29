@@ -25,6 +25,8 @@ import {
   Navigation,
   Phone,
   Flag,
+  ShieldCheck,
+  CircleAlert,
 } from 'lucide-react';
 import {
   MarketplaceMap,
@@ -106,6 +108,24 @@ type ReportTarget = {
   id: string;
   title: string;
 };
+type ModerationReport = {
+  id: string;
+  targetType: 'listing' | 'request';
+  targetId: string;
+  targetTitle: string;
+  targetPlace: string;
+  targetRegion: string;
+  targetOwner: string;
+  targetStatus: string;
+  reason: 'fraud' | 'spam' | 'wrong_info' | 'unsafe' | 'other';
+  description: string;
+  status: 'new' | 'reviewing' | 'closed';
+  reviewNote: string;
+  reporterName: string;
+  reviewerName: string;
+  createdAt: number;
+  reviewedAt: number | null;
+};
 type SubmitFormEvent = {
   preventDefault: () => void;
   currentTarget: HTMLFormElement;
@@ -129,6 +149,13 @@ const isDemoListing = (id: Listing['id']) => {
 const isDemoRequest = (id: RequestItem['id']) => {
   const numericId = Number(id);
   return Number.isFinite(numericId) && numericId < 10_000;
+};
+const reportReasonLabels: Record<ModerationReport['reason'], string> = {
+  fraud: 'Подозрение на обман',
+  spam: 'Спам или повтор',
+  wrong_info: 'Неверная информация',
+  unsafe: 'Опасный товар или услуга',
+  other: 'Другая причина',
 };
 const formatActivityDate = (timestamp: number) =>
   new Intl.DateTimeFormat('ru-RU', {
@@ -615,6 +642,18 @@ export default function Home() {
   const [allResponses, setAllResponses] = useState<ResponseItem[]>([]);
   const [bookings, setBookings] = useState<BookingItem[]>([]);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [moderationReports, setModerationReports] = useState<
+    ModerationReport[]
+  >([]);
+  const [moderationNotes, setModerationNotes] = useState<
+    Record<string, string>
+  >({});
+  const [moderationFilter, setModerationFilter] = useState<
+    'active' | ModerationReport['status']
+  >('active');
+  const [moderationLoading, setModerationLoading] = useState(false);
+  const [canModerate, setCanModerate] = useState(false);
+  const [moderationPendingCount, setModerationPendingCount] = useState(0);
   const [viewerName, setViewerName] = useState('Пользователь Qoldan');
   const [serverConnected, setServerConnected] = useState(false);
   const [submitting, setSubmitting] = useState<string | null>(null);
@@ -630,6 +669,7 @@ export default function Home() {
     | 'booking'
     | 'bookings'
     | 'report'
+    | 'moderation'
     | 'regions'
     | 'recycle'
     | null
@@ -670,6 +710,11 @@ export default function Home() {
         (response) => response.requestId === String(selectedRequest.id),
       )
     : [];
+  const visibleModerationReports = moderationReports.filter((report) =>
+    moderationFilter === 'active'
+      ? report.status !== 'closed'
+      : report.status === moderationFilter,
+  );
   const activeFilterCount = [
     categoryFilter !== 'Все категории',
     maxDistance < 100 && selectedRegion !== 'Весь Казахстан',
@@ -691,6 +736,7 @@ export default function Home() {
           responses: ResponseItem[];
           bookings: BookingItem[];
           activities: ActivityItem[];
+          moderation: { canModerate: boolean; pendingCount: number };
         };
         if (!active) return;
         setAllListings([...data.listings, ...defaultListings]);
@@ -699,6 +745,8 @@ export default function Home() {
         setAllResponses(data.responses);
         setBookings(data.bookings);
         setActivities(data.activities);
+        setCanModerate(data.moderation.canModerate);
+        setModerationPendingCount(data.moderation.pendingCount);
         setViewerName(data.viewer.displayName);
         setServerConnected(true);
       } catch {
@@ -905,6 +953,75 @@ export default function Home() {
   const openReport = (target: ReportTarget) => {
     setReportTarget(target);
     setModal('report');
+  };
+  const openModeration = async () => {
+    setModal('moderation');
+    setModerationLoading(true);
+    try {
+      const response = await fetch('/api/moderation/reports', {
+        cache: 'no-store',
+      });
+      if (!response.ok) throw new Error(await apiError(response));
+      const data = (await response.json()) as { reports: ModerationReport[] };
+      setModerationReports(data.reports);
+      setModerationNotes(
+        Object.fromEntries(
+          data.reports.map((report) => [report.id, report.reviewNote]),
+        ),
+      );
+    } catch (error) {
+      notify(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось загрузить очередь модерации',
+      );
+    } finally {
+      setModerationLoading(false);
+    }
+  };
+  const updateModerationReport = async (
+    reportId: string,
+    status: 'reviewing' | 'closed',
+  ) => {
+    setSubmitting(`moderation-${reportId}`);
+    try {
+      const response = await fetch('/api/moderation/reports', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          reportId,
+          status,
+          reviewNote: moderationNotes[reportId] || '',
+        }),
+      });
+      if (!response.ok) throw new Error(await apiError(response));
+      const data = (await response.json()) as {
+        report: Pick<
+          ModerationReport,
+          'id' | 'status' | 'reviewNote' | 'reviewerName' | 'reviewedAt'
+        >;
+      };
+      setModerationReports((current) => {
+        const next = current.map((report) =>
+          report.id === data.report.id ? { ...report, ...data.report } : report,
+        );
+        setModerationPendingCount(
+          next.filter((report) => report.status !== 'closed').length,
+        );
+        return next;
+      });
+      notify(
+        status === 'closed'
+          ? 'Жалоба закрыта и сохранена в истории'
+          : 'Жалоба взята на проверку',
+      );
+    } catch (error) {
+      notify(
+        error instanceof Error ? error.message : 'Не удалось обновить жалобу',
+      );
+    } finally {
+      setSubmitting(null);
+    }
   };
   const mapMarkers = useMemo<MarketplaceMapMarker[]>(
     () =>
@@ -2280,7 +2397,7 @@ export default function Home() {
         >
           <dialog
             open
-            className={`app-modal ${modal === 'detail' ? 'detail-modal' : ''}`}
+            className={`app-modal ${modal === 'detail' ? 'detail-modal' : ''} ${modal === 'moderation' ? 'moderation-modal' : ''}`}
             aria-label="Окно Qoldan"
           >
             <button
@@ -3161,6 +3278,15 @@ export default function Home() {
                   </div>
                 </div>
                 <div className="profile-menu">
+                  {canModerate && (
+                    <button
+                      className="moderation-entry"
+                      onClick={() => void openModeration()}
+                    >
+                      <ShieldCheck /> Модерация
+                      <b>{moderationPendingCount}</b>
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       setModal(null);
@@ -3201,6 +3327,158 @@ export default function Home() {
                     <MessageCircle /> Мои заявки <ArrowRight />
                   </button>
                 </div>
+              </>
+            )}
+            {modal === 'moderation' && canModerate && (
+              <>
+                <div className="modal-title moderation-title">
+                  <span>
+                    <ShieldCheck />
+                  </span>
+                  <div>
+                    <small>ЦЕНТР БЕЗОПАСНОСТИ</small>
+                    <h2>Очередь модерации</h2>
+                    <p>
+                      Проверяйте сигналы пользователей и фиксируйте решение без
+                      автоматического удаления публикаций.
+                    </p>
+                  </div>
+                </div>
+                <div className="moderation-filters">
+                  {(
+                    [
+                      ['active', 'В работе'],
+                      ['new', 'Новые'],
+                      ['reviewing', 'Проверяются'],
+                      ['closed', 'История'],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={moderationFilter === value ? 'active' : ''}
+                      onClick={() => setModerationFilter(value)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {moderationLoading ? (
+                  <div className="notification-empty moderation-empty">
+                    <ShieldCheck />
+                    <b>Загружаем обращения…</b>
+                    <span>Проверяем актуальные статусы в общей базе.</span>
+                  </div>
+                ) : visibleModerationReports.length > 0 ? (
+                  <div className="moderation-list">
+                    {visibleModerationReports.map((report) => (
+                      <article key={report.id}>
+                        <div className="moderation-card-head">
+                          <div>
+                            <small>
+                              {report.targetType === 'listing'
+                                ? 'ОБЪЯВЛЕНИЕ'
+                                : 'ЗАЯВКА'}{' '}
+                              · {report.targetRegion || 'Регион не указан'}
+                            </small>
+                            <h3>{report.targetTitle}</h3>
+                          </div>
+                          <span
+                            className={`moderation-status ${report.status}`}
+                          >
+                            {report.status === 'new'
+                              ? 'Новая'
+                              : report.status === 'reviewing'
+                                ? 'На проверке'
+                                : 'Закрыта'}
+                          </span>
+                        </div>
+                        <div className="moderation-reason">
+                          <CircleAlert />
+                          <div>
+                            <b>{reportReasonLabels[report.reason]}</b>
+                            {report.description && <p>{report.description}</p>}
+                          </div>
+                        </div>
+                        <div className="moderation-meta">
+                          <span>Автор: {report.targetOwner}</span>
+                          <span>Сигнал: {report.reporterName}</span>
+                          {report.targetPlace && (
+                            <span>{report.targetPlace}</span>
+                          )}
+                          <span>{formatActivityDate(report.createdAt)}</span>
+                        </div>
+                        <label>
+                          Заметка модератора
+                          <textarea
+                            rows={2}
+                            maxLength={800}
+                            value={moderationNotes[report.id] ?? ''}
+                            disabled={report.status === 'closed'}
+                            placeholder="Что проверили и какое решение приняли"
+                            onChange={(event) =>
+                              setModerationNotes((current) => ({
+                                ...current,
+                                [report.id]: event.target.value,
+                              }))
+                            }
+                          />
+                        </label>
+                        {report.status === 'closed' ? (
+                          <div className="moderation-resolution">
+                            <CheckCircle2 />
+                            <span>
+                              Закрыл: {report.reviewerName || 'модератор'}
+                              {report.reviewedAt
+                                ? ` · ${formatActivityDate(report.reviewedAt)}`
+                                : ''}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="moderation-actions">
+                            {report.status === 'new' && (
+                              <button
+                                type="button"
+                                className="review"
+                                disabled={
+                                  submitting === `moderation-${report.id}`
+                                }
+                                onClick={() =>
+                                  void updateModerationReport(
+                                    report.id,
+                                    'reviewing',
+                                  )
+                                }
+                              >
+                                Взять на проверку
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              disabled={
+                                submitting === `moderation-${report.id}`
+                              }
+                              onClick={() =>
+                                void updateModerationReport(report.id, 'closed')
+                              }
+                            >
+                              Закрыть обращение
+                            </button>
+                          </div>
+                        )}
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="notification-empty moderation-empty">
+                    <ShieldCheck />
+                    <b>Здесь пока пусто</b>
+                    <span>
+                      Для выбранного статуса обращений нет. Новые жалобы
+                      появятся здесь автоматически.
+                    </span>
+                  </div>
+                )}
               </>
             )}
             {modal === 'bookings' && (
