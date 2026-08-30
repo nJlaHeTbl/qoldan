@@ -61,6 +61,7 @@ type Listing = {
   rating?: string;
   reviewCount?: number;
   verified?: boolean;
+  businessType?: BusinessProfileType;
   description?: string;
   owner?: string;
   phone?: string;
@@ -222,6 +223,27 @@ type ModerationAppeal = AppealItem & {
   ownerName: string;
   reviewerName: string;
 };
+type BusinessProfileType = 'farm' | 'company' | 'store' | 'service_company';
+type BusinessVerification = {
+  id: string;
+  profileType: BusinessProfileType;
+  organizationName: string;
+  maskedBin: string;
+  phone: string;
+  region: string;
+  referenceUrl: string;
+  note: string;
+  status: 'pending' | 'verified' | 'rejected';
+  reviewNote: string;
+  createdAt: number;
+  reviewedAt: number | null;
+};
+type ModerationVerification = Omit<BusinessVerification, 'maskedBin'> & {
+  ownerId: string;
+  ownerName: string;
+  bin: string;
+  reviewerName: string;
+};
 type AppealTarget = {
   moderationActionId: string;
   targetTitle: string;
@@ -264,6 +286,12 @@ const depositResultLabels: Record<DepositResult, string> = {
   returned: 'Возвращён полностью',
   partially_withheld: 'Частично удержан',
   withheld: 'Удержан полностью',
+};
+const businessProfileLabels: Record<BusinessProfileType, string> = {
+  farm: 'Фермерское хозяйство',
+  company: 'Компания',
+  store: 'Магазин или склад',
+  service_company: 'Сервисная компания',
 };
 const formatActivityDate = (timestamp: number) =>
   new Intl.DateTimeFormat('ru-RU', {
@@ -788,13 +816,25 @@ export default function Home() {
   const [moderationAppeals, setModerationAppeals] = useState<
     ModerationAppeal[]
   >([]);
+  const [businessVerification, setBusinessVerification] =
+    useState<BusinessVerification | null>(null);
+  const [moderationVerifications, setModerationVerifications] = useState<
+    ModerationVerification[]
+  >([]);
   const [appealTarget, setAppealTarget] = useState<AppealTarget | null>(null);
   const [appealNotes, setAppealNotes] = useState<Record<string, string>>({});
   const [moderationNotes, setModerationNotes] = useState<
     Record<string, string>
   >({});
+  const [verificationNotes, setVerificationNotes] = useState<
+    Record<string, string>
+  >({});
   const [moderationFilter, setModerationFilter] = useState<
-    'active' | 'appeals' | 'journal' | ModerationReport['status']
+    | 'active'
+    | 'appeals'
+    | 'verifications'
+    | 'journal'
+    | ModerationReport['status']
   >('active');
   const [moderationLoading, setModerationLoading] = useState(false);
   const [canModerate, setCanModerate] = useState(false);
@@ -809,6 +849,7 @@ export default function Home() {
     | 'detail'
     | 'response'
     | 'profile'
+    | 'verification'
     | 'notifications'
     | 'messages'
     | 'info'
@@ -919,6 +960,7 @@ export default function Home() {
           responses: ResponseItem[];
           bookings: BookingItem[];
           reviews: ReviewItem[];
+          verification: BusinessVerification | null;
           appeals: AppealItem[];
           activities: ActivityItem[];
           moderation: { canModerate: boolean; pendingCount: number };
@@ -931,6 +973,7 @@ export default function Home() {
         setAllResponses(data.responses);
         setBookings(data.bookings);
         setReviews(data.reviews);
+        setBusinessVerification(data.verification);
         setAppeals(data.appeals);
         setActivities(data.activities);
         setCanModerate(data.moderation.canModerate);
@@ -1414,10 +1457,12 @@ export default function Home() {
         reports: ModerationReport[];
         actions: ModerationAction[];
         appeals: ModerationAppeal[];
+        verifications: ModerationVerification[];
       };
       setModerationReports(data.reports);
       setModerationActions(data.actions);
       setModerationAppeals(data.appeals);
+      setModerationVerifications(data.verifications);
       setModerationNotes(
         Object.fromEntries(
           data.reports.map((report) => [report.id, report.reviewNote]),
@@ -1428,6 +1473,14 @@ export default function Home() {
           data.appeals.map((appeal) => [appeal.id, appeal.resolutionNote]),
         ),
       );
+      setVerificationNotes(
+        Object.fromEntries(
+          data.verifications.map((verification) => [
+            verification.id,
+            verification.reviewNote,
+          ]),
+        ),
+      );
     } catch (error) {
       notify(
         error instanceof Error
@@ -1436,6 +1489,91 @@ export default function Home() {
       );
     } finally {
       setModerationLoading(false);
+    }
+  };
+  const submitBusinessVerification = async (event: SubmitFormEvent) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const fields = new FormData(form);
+    setSubmitting('business-verification');
+    try {
+      const response = await fetch('/api/verifications', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          profileType: fieldText(fields, 'profileType'),
+          organizationName: fieldText(fields, 'organizationName'),
+          bin: fieldText(fields, 'bin').replace(/\D/g, ''),
+          phone: fieldText(fields, 'phone'),
+          region: fieldText(fields, 'region'),
+          referenceUrl: fieldText(fields, 'referenceUrl'),
+          note: fieldText(fields, 'note'),
+        }),
+      });
+      if (!response.ok) throw new Error(await apiError(response));
+      const data = (await response.json()) as {
+        verification: BusinessVerification;
+      };
+      setBusinessVerification(data.verification);
+      if (canModerate) {
+        setModerationPendingCount((current) => current + 1);
+      }
+      setModal('profile');
+      notify('Заявка на подтверждение бизнеса отправлена');
+    } catch (error) {
+      notify(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось отправить данные на проверку',
+      );
+    } finally {
+      setSubmitting(null);
+    }
+  };
+  const updateBusinessVerification = async (
+    verificationId: string,
+    status: 'verified' | 'rejected',
+  ) => {
+    const reviewNote = (verificationNotes[verificationId] || '').trim();
+    if (reviewNote.length < 5) {
+      notify('Добавьте короткое объяснение решения');
+      return;
+    }
+    setSubmitting(`business-verification-${verificationId}`);
+    try {
+      const response = await fetch('/api/moderation/verifications', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ verificationId, status, reviewNote }),
+      });
+      if (!response.ok) throw new Error(await apiError(response));
+      const data = (await response.json()) as {
+        verification: Pick<
+          ModerationVerification,
+          'id' | 'status' | 'reviewNote' | 'reviewerName' | 'reviewedAt'
+        >;
+      };
+      setModerationVerifications((current) =>
+        current.map((verification) =>
+          verification.id === data.verification.id
+            ? { ...verification, ...data.verification }
+            : verification,
+        ),
+      );
+      setModerationPendingCount((current) => Math.max(0, current - 1));
+      notify(
+        status === 'verified'
+          ? 'Бизнес-профиль подтверждён'
+          : 'Запрос на уточнение сохранён',
+      );
+    } catch (error) {
+      notify(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось сохранить решение по бизнес-профилю',
+      );
+    } finally {
+      setSubmitting(null);
     }
   };
   const updateModerationAppeal = async (
@@ -2716,7 +2854,7 @@ export default function Home() {
                     )}
                     {item.verified && !isDemoListing(item.id) && (
                       <div className="verified">
-                        <CheckCircle2 size={14} /> Проверенный исполнитель
+                        <ShieldCheck size={14} /> Бизнес подтверждён Qoldan
                       </div>
                     )}
                   </div>
@@ -3767,7 +3905,7 @@ export default function Home() {
                       <small>
                         {isDemoListing(selectedListing.id)
                           ? 'Пример интерфейса · не реальный продавец'
-                          : `${selectedListing.sellerType || 'Частное лицо'} · ${selectedListing.verified ? 'профиль подтверждён' : 'участник площадки'}`}
+                          : `${selectedListing.sellerType || 'Частное лицо'} · ${selectedListing.verified ? 'бизнес подтверждён Qoldan' : 'участник площадки'}`}
                       </small>
                     </div>
                     {selectedListing.rating &&
@@ -4425,6 +4563,52 @@ export default function Home() {
                     <span>броней ожидают</span>
                   </div>
                 </div>
+                <section
+                  className={`business-verification-card ${businessVerification?.status || 'empty'}`}
+                >
+                  <span className="business-verification-icon">
+                    {businessVerification?.status === 'rejected' ? (
+                      <CircleAlert />
+                    ) : (
+                      <ShieldCheck />
+                    )}
+                  </span>
+                  <div>
+                    <small>
+                      {businessVerification?.status === 'verified'
+                        ? 'БИЗНЕС ПОДТВЕРЖДЁН QOLDAN'
+                        : businessVerification?.status === 'pending'
+                          ? 'ЗАЯВКА НА ПРОВЕРКЕ'
+                          : businessVerification?.status === 'rejected'
+                            ? 'НУЖНО УТОЧНИТЬ ДАННЫЕ'
+                            : 'ДЛЯ ФЕРМ, КОМПАНИЙ И МАГАЗИНОВ'}
+                    </small>
+                    <b>
+                      {businessVerification?.organizationName ||
+                        'Подтвердите бизнес-профиль'}
+                    </b>
+                    <p>
+                      {businessVerification?.status === 'verified'
+                        ? 'Значок доверия и название организации уже показываются на ваших объявлениях.'
+                        : businessVerification?.status === 'pending'
+                          ? `${businessProfileLabels[businessVerification.profileType]} · БИН ${businessVerification.maskedBin}`
+                          : businessVerification?.status === 'rejected'
+                            ? businessVerification.reviewNote ||
+                              'Исправьте данные и отправьте заявку повторно.'
+                            : 'Публично покажем только название организации, тип профиля и значок — без БИН и документов.'}
+                    </p>
+                  </div>
+                  {(!businessVerification ||
+                    businessVerification.status === 'rejected') && (
+                    <button
+                      type="button"
+                      onClick={() => setModal('verification')}
+                    >
+                      {businessVerification ? 'Подать снова' : 'Подтвердить'}
+                      <ArrowRight />
+                    </button>
+                  )}
+                </section>
                 <div className="profile-menu">
                   {canModerate && (
                     <button
@@ -4482,6 +4666,146 @@ export default function Home() {
                     <MessageCircle /> Мои заявки <ArrowRight />
                   </button>
                 </div>
+              </>
+            )}
+            {modal === 'verification' && (
+              <>
+                <div className="modal-title verification-title">
+                  <span>
+                    <ShieldCheck />
+                  </span>
+                  <div>
+                    <small>ПРОВЕРЕННЫЙ БИЗНЕС</small>
+                    <h2>Подтвердить организацию</h2>
+                    <p>
+                      Ручная проверка для ферм, компаний, сервисов, магазинов и
+                      складов Казахстана.
+                    </p>
+                  </div>
+                </div>
+                <div className="verification-safety-note">
+                  <ShieldCheck />
+                  <div>
+                    <b>Без удостоверений и ИИН</b>
+                    <span>
+                      Мы не просим сканы документов. БИН полностью видит только
+                      команда проверки; покупателям он не показывается.
+                    </span>
+                  </div>
+                </div>
+                <form
+                  className="product-form verification-form"
+                  onSubmit={submitBusinessVerification}
+                >
+                  <label>
+                    Тип профиля
+                    <select
+                      name="profileType"
+                      required
+                      defaultValue={businessVerification?.profileType || 'farm'}
+                    >
+                      {(
+                        Object.entries(businessProfileLabels) as [
+                          BusinessProfileType,
+                          string,
+                        ][]
+                      ).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Регион работы
+                    <select
+                      name="region"
+                      required
+                      defaultValue={
+                        businessVerification?.region ||
+                        (selectedRegion === 'Весь Казахстан'
+                          ? 'Область Жетісу'
+                          : selectedRegion)
+                      }
+                    >
+                      {kzRegions.slice(1).map((region) => (
+                        <option key={region}>{region}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="wide">
+                    Название организации
+                    <input
+                      name="organizationName"
+                      minLength={3}
+                      maxLength={180}
+                      required
+                      defaultValue={
+                        businessVerification?.organizationName || ''
+                      }
+                      placeholder="Например, КХ Береке или ТОО Жетісу Агро"
+                    />
+                  </label>
+                  <label>
+                    БИН — 12 цифр
+                    <input
+                      name="bin"
+                      inputMode="numeric"
+                      pattern="[0-9]{12}"
+                      minLength={12}
+                      maxLength={12}
+                      required
+                      placeholder="123456789012"
+                    />
+                  </label>
+                  <label>
+                    Рабочий телефон
+                    <input
+                      name="phone"
+                      type="tel"
+                      minLength={7}
+                      maxLength={32}
+                      required
+                      defaultValue={businessVerification?.phone || ''}
+                      placeholder="+7 700 000 00 00"
+                    />
+                  </label>
+                  <label className="wide">
+                    Сайт или публичная страница — необязательно
+                    <input
+                      name="referenceUrl"
+                      type="url"
+                      maxLength={300}
+                      defaultValue={businessVerification?.referenceUrl || ''}
+                      placeholder="https://example.kz"
+                    />
+                  </label>
+                  <label className="wide">
+                    Комментарий для проверки — необязательно
+                    <textarea
+                      name="note"
+                      rows={3}
+                      maxLength={800}
+                      defaultValue={businessVerification?.note || ''}
+                      placeholder="Чем занимается организация и что можно проверить в открытых источниках"
+                    />
+                  </label>
+                  <p className="verification-terms wide">
+                    Значок означает, что команда Qoldan вручную сверила данные
+                    заявки. Это не государственная гарантия сделки — перед
+                    оплатой всё равно проверяйте товар и условия.
+                  </p>
+                  <button
+                    className="submit-button"
+                    type="submit"
+                    disabled={submitting === 'business-verification'}
+                  >
+                    {submitting === 'business-verification'
+                      ? 'Отправляем…'
+                      : 'Отправить на проверку'}{' '}
+                    <ArrowRight />
+                  </button>
+                </form>
               </>
             )}
             {modal === 'messages' && (
@@ -4677,6 +5001,7 @@ export default function Home() {
                       ['new', 'Новые'],
                       ['reviewing', 'Проверяются'],
                       ['appeals', 'Апелляции'],
+                      ['verifications', 'Бизнес'],
                       ['closed', 'История'],
                       ['journal', 'Журнал действий'],
                     ] as const
@@ -4697,6 +5022,145 @@ export default function Home() {
                     <b>Загружаем обращения…</b>
                     <span>Проверяем актуальные статусы в общей базе.</span>
                   </div>
+                ) : moderationFilter === 'verifications' ? (
+                  moderationVerifications.length > 0 ? (
+                    <div className="moderation-list business-moderation-list">
+                      {moderationVerifications.map((verification) => (
+                        <article key={verification.id}>
+                          <div className="moderation-card-head">
+                            <div>
+                              <small>
+                                {
+                                  businessProfileLabels[
+                                    verification.profileType
+                                  ]
+                                }
+                                {' · '}
+                                {verification.region}
+                              </small>
+                              <h3>{verification.organizationName}</h3>
+                            </div>
+                            <span
+                              className={`moderation-status ${verification.status}`}
+                            >
+                              {verification.status === 'pending'
+                                ? 'На проверке'
+                                : verification.status === 'verified'
+                                  ? 'Подтверждён'
+                                  : 'Нужно уточнить'}
+                            </span>
+                          </div>
+                          <div className="business-verification-data">
+                            <div>
+                              <small>АВТОР ПРОФИЛЯ</small>
+                              <b>{verification.ownerName}</b>
+                            </div>
+                            <div>
+                              <small>БИН · ТОЛЬКО ДЛЯ МОДЕРАЦИИ</small>
+                              <b>{verification.bin}</b>
+                            </div>
+                            <div>
+                              <small>РАБОЧИЙ ТЕЛЕФОН</small>
+                              <b>{verification.phone}</b>
+                            </div>
+                            <div>
+                              <small>ПОДАНО</small>
+                              <b>
+                                {formatActivityDate(verification.createdAt)}
+                              </b>
+                            </div>
+                          </div>
+                          {(verification.referenceUrl || verification.note) && (
+                            <div className="business-verification-reference">
+                              {verification.referenceUrl && (
+                                <a
+                                  href={verification.referenceUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  Открыть публичный источник <ArrowRight />
+                                </a>
+                              )}
+                              {verification.note && <p>{verification.note}</p>}
+                            </div>
+                          )}
+                          <label>
+                            Комментарий проверки
+                            <textarea
+                              rows={2}
+                              minLength={5}
+                              maxLength={800}
+                              value={verificationNotes[verification.id] ?? ''}
+                              disabled={verification.status !== 'pending'}
+                              placeholder="Что сверили и почему приняли решение"
+                              onChange={(event) =>
+                                setVerificationNotes((current) => ({
+                                  ...current,
+                                  [verification.id]: event.target.value,
+                                }))
+                              }
+                            />
+                          </label>
+                          {verification.status === 'pending' ? (
+                            <div className="moderation-actions">
+                              <button
+                                type="button"
+                                className="approve"
+                                disabled={
+                                  submitting ===
+                                  `business-verification-${verification.id}`
+                                }
+                                onClick={() =>
+                                  void updateBusinessVerification(
+                                    verification.id,
+                                    'verified',
+                                  )
+                                }
+                              >
+                                <ShieldCheck /> Подтвердить
+                              </button>
+                              <button
+                                type="button"
+                                className="reject"
+                                disabled={
+                                  submitting ===
+                                  `business-verification-${verification.id}`
+                                }
+                                onClick={() =>
+                                  void updateBusinessVerification(
+                                    verification.id,
+                                    'rejected',
+                                  )
+                                }
+                              >
+                                <CircleAlert /> Уточнить данные
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="moderation-resolution">
+                              <CheckCircle2 />
+                              <span>
+                                Решил:{' '}
+                                {verification.reviewerName || 'модератор'}
+                                {verification.reviewedAt
+                                  ? ` · ${formatActivityDate(verification.reviewedAt)}`
+                                  : ''}
+                              </span>
+                            </div>
+                          )}
+                        </article>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="notification-empty moderation-empty">
+                      <ShieldCheck />
+                      <b>Заявок бизнеса пока нет</b>
+                      <span>
+                        Заявки ферм, компаний, сервисов, магазинов и складов
+                        появятся здесь.
+                      </span>
+                    </div>
+                  )
                 ) : moderationFilter === 'appeals' ? (
                   moderationAppeals.length > 0 ? (
                     <div className="moderation-list appeal-moderation-list">
