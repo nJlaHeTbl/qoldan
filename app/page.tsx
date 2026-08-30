@@ -86,6 +86,18 @@ type RequestItem = {
   owner?: string;
   status?: 'open' | 'closed';
   mine?: boolean;
+  selection?: RequestSelection | null;
+};
+type RequestSelection = {
+  requestId: string;
+  responseId: string;
+  providerName: string;
+  price: string;
+  status: 'selected' | 'cancelled' | 'completed';
+  conversationId: string;
+  selectedAt: number;
+  completedAt: number | null;
+  mineAsProvider: boolean;
 };
 type ResponseItem = {
   id: string;
@@ -94,6 +106,7 @@ type ResponseItem = {
   message: string;
   owner: string;
   mine?: boolean;
+  selectionStatus?: RequestSelection['status'] | null;
 };
 type ActivityItem = {
   id: string;
@@ -918,6 +931,11 @@ export default function Home() {
         (response) => response.requestId === String(selectedRequest.id),
       )
     : [];
+  const activeRequestSelection =
+    selectedRequest?.selection &&
+    selectedRequest.selection.status !== 'cancelled'
+      ? selectedRequest.selection
+      : null;
   const selectedListingReviews = selectedListing
     ? reviews.filter(
         (review) => review.listingId === String(selectedListing.id),
@@ -1899,6 +1917,72 @@ export default function Home() {
     } catch (error) {
       notify(
         error instanceof Error ? error.message : 'Не удалось отправить отклик',
+      );
+    } finally {
+      setSubmitting(null);
+    }
+  };
+  const updateRequestSelection = async (
+    action: 'select' | 'cancel' | 'complete',
+    responseId?: string,
+  ) => {
+    if (!selectedRequest) return;
+    setSubmitting(`request-selection-${action}`);
+    try {
+      const response = await fetch('/api/responses/selection', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          requestId: selectedRequest.id,
+          responseId,
+          action,
+        }),
+      });
+      if (!response.ok) throw new Error(await apiError(response));
+      const data = (await response.json()) as {
+        selection: RequestSelection;
+        requestStatus: RequestItem['status'];
+      };
+      const updateItem = (item: RequestItem) =>
+        String(item.id) === String(selectedRequest.id)
+          ? {
+              ...item,
+              status: data.requestStatus,
+              selection: data.selection,
+            }
+          : item;
+      setAllRequests((current) => current.map(updateItem));
+      setSelectedRequest((current) =>
+        current ? updateItem(current) : current,
+      );
+      setAllResponses((current) =>
+        current.map((item) =>
+          item.requestId === String(selectedRequest.id)
+            ? {
+                ...item,
+                selectionStatus:
+                  item.id === data.selection.responseId
+                    ? data.selection.status
+                    : null,
+              }
+            : item,
+        ),
+      );
+      if (action === 'select') {
+        notify(`${data.selection.providerName} выбран исполнителем`);
+        if (data.selection.conversationId) {
+          await openMessages(data.selection.conversationId);
+        }
+      } else if (action === 'cancel') {
+        notify('Выбор отменён — заявка снова принимает отклики');
+      } else {
+        notify('Работа отмечена выполненной');
+      }
+    } catch (error) {
+      notify(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось изменить выбор исполнителя',
       );
     } finally {
       setSubmitting(null);
@@ -3005,9 +3089,17 @@ export default function Home() {
                     >
                       {isDemoRequest(r.id) ? 'ДЕМО-ПРИМЕР' : 'РЕАЛЬНАЯ'}
                     </em>
-                    {r.mine && r.status === 'closed' && (
+                    {r.selection && r.selection.status !== 'cancelled' ? (
+                      <em className="inline-status selected-work">
+                        {r.selection.status === 'completed'
+                          ? 'Работа выполнена'
+                          : r.selection.mineAsProvider
+                            ? 'Вы выбраны'
+                            : 'Исполнитель выбран'}
+                      </em>
+                    ) : r.mine && r.status === 'closed' ? (
                       <em className="inline-status">Закрыта</em>
-                    )}
+                    ) : null}
                   </span>
                   <h4>{r.title}</h4>
                   <div>
@@ -3692,26 +3784,125 @@ export default function Home() {
                   </div>
                 )}
                 {!isDemoRequest(selectedRequest.id) &&
+                  activeRequestSelection && (
+                    <section
+                      className={`request-selection-card ${activeRequestSelection.status}`}
+                    >
+                      <span>
+                        {activeRequestSelection.status === 'completed' ? (
+                          <CheckCircle2 />
+                        ) : (
+                          <ShieldCheck />
+                        )}
+                      </span>
+                      <div className="request-selection-copy">
+                        <small>
+                          {activeRequestSelection.status === 'completed'
+                            ? 'РАБОТА ЗАВЕРШЕНА'
+                            : activeRequestSelection.mineAsProvider
+                              ? 'ВАС ВЫБРАЛИ ИСПОЛНИТЕЛЕМ'
+                              : 'ИСПОЛНИТЕЛЬ ВЫБРАН'}
+                        </small>
+                        <h3>{activeRequestSelection.providerName}</h3>
+                        <p>
+                          Предложение: <b>{activeRequestSelection.price}</b>
+                          {activeRequestSelection.status === 'completed' &&
+                          activeRequestSelection.completedAt
+                            ? ` · завершено ${formatActivityDate(activeRequestSelection.completedAt)}`
+                            : ' · заявка закрыта для новых откликов'}
+                        </p>
+                      </div>
+                      <div className="request-selection-actions">
+                        {activeRequestSelection.conversationId && (
+                          <button
+                            type="button"
+                            className="selection-chat"
+                            onClick={() =>
+                              void openMessages(
+                                activeRequestSelection.conversationId,
+                              )
+                            }
+                          >
+                            <MessageCircle /> Открыть диалог
+                          </button>
+                        )}
+                        {selectedRequest.mine &&
+                          activeRequestSelection.status === 'selected' && (
+                            <>
+                              <button
+                                type="button"
+                                className="selection-complete"
+                                disabled={
+                                  submitting === 'request-selection-complete'
+                                }
+                                onClick={() =>
+                                  void updateRequestSelection('complete')
+                                }
+                              >
+                                <CheckCircle2 /> Работа выполнена
+                              </button>
+                              <button
+                                type="button"
+                                className="selection-cancel"
+                                disabled={
+                                  submitting === 'request-selection-cancel'
+                                }
+                                onClick={() =>
+                                  void updateRequestSelection('cancel')
+                                }
+                              >
+                                Отменить выбор
+                              </button>
+                            </>
+                          )}
+                      </div>
+                    </section>
+                  )}
+                {!isDemoRequest(selectedRequest.id) &&
                 selectedResponses.length > 0 ? (
                   <div className="bid-list">
                     {selectedResponses.map((response) => (
-                      <div key={response.id}>
+                      <div
+                        key={response.id}
+                        className={
+                          activeRequestSelection?.responseId === response.id
+                            ? 'selected-bid'
+                            : ''
+                        }
+                      >
                         <span>{response.owner.slice(0, 1).toUpperCase()}</span>
                         <b>{response.owner}</b>
                         <em>{response.price}</em>
                         <small>
                           {response.message || 'Готов обсудить детали заказа'}
                         </small>
-                        {selectedRequest.mine && (
-                          <button
-                            onClick={() => {
-                              setModal(null);
-                              notify(`Предложение ${response.owner} выбрано`);
-                            }}
-                          >
-                            Выбрать
-                          </button>
+                        {activeRequestSelection?.responseId === response.id && (
+                          <strong className="bid-selected-label">
+                            <CheckCircle2 />
+                            {activeRequestSelection.status === 'completed'
+                              ? 'Работа завершена'
+                              : 'Выбран'}
+                          </strong>
                         )}
+                        {selectedRequest.mine &&
+                          !activeRequestSelection &&
+                          selectedRequest.status !== 'closed' && (
+                            <button
+                              disabled={
+                                submitting === 'request-selection-select'
+                              }
+                              onClick={() =>
+                                void updateRequestSelection(
+                                  'select',
+                                  response.id,
+                                )
+                              }
+                            >
+                              {submitting === 'request-selection-select'
+                                ? 'Выбираем…'
+                                : 'Выбрать исполнителя'}
+                            </button>
+                          )}
                       </div>
                     ))}
                   </div>
@@ -3727,7 +3918,9 @@ export default function Home() {
                   </div>
                 ) : null}
                 {!selectedRequest.mine &&
-                  !isDemoRequest(selectedRequest.id) && (
+                  !isDemoRequest(selectedRequest.id) &&
+                  selectedRequest.status !== 'closed' &&
+                  !activeRequestSelection && (
                     <button
                       className="chat-request-button"
                       type="button"
@@ -3749,7 +3942,7 @@ export default function Home() {
                         : 'Написать заказчику в Qoldan'}
                     </button>
                   )}
-                {selectedRequest.mine ? (
+                {selectedRequest.mine && !activeRequestSelection ? (
                   <div className="owner-management">
                     <div>
                       <b>
@@ -3775,7 +3968,22 @@ export default function Home() {
                           : 'Закрыть заявку'}
                     </button>
                   </div>
-                ) : isDemoRequest(selectedRequest.id) ? null : (
+                ) : isDemoRequest(selectedRequest.id) ||
+                  selectedRequest.mine ||
+                  activeRequestSelection ? null : selectedResponses.some(
+                    (response) => response.mine,
+                  ) ? (
+                  <div className="response-already-sent">
+                    <CheckCircle2 />
+                    <div>
+                      <b>Ваш отклик уже отправлен</b>
+                      <span>
+                        Заказчик видит вашу цену и комментарий. Повторный отклик
+                        не нужен — детали можно обсудить в сообщениях.
+                      </span>
+                    </div>
+                  </div>
+                ) : selectedRequest.status === 'closed' ? null : (
                   <form
                     className="product-form response-form"
                     onSubmit={sendResponse}
