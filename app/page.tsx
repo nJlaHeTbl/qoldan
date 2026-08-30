@@ -135,6 +135,22 @@ type ReviewItem = {
   reviewer: string;
   createdAt: number;
 };
+type DepositResult =
+  | 'not_applicable'
+  | 'returned'
+  | 'partially_withheld'
+  | 'withheld';
+type RentalHandoff = {
+  depositAmount: number;
+  depositReceived: boolean;
+  conditionOut: string;
+  equipmentList: string;
+  handedOverAt: number;
+  conditionIn: string;
+  depositResult: DepositResult | null;
+  returnNote: string;
+  returnedAt: number | null;
+};
 type BookingItem = {
   id: string;
   listingId: string;
@@ -150,6 +166,7 @@ type BookingItem = {
   incoming: boolean;
   canReview: boolean;
   review: ReviewItem | null;
+  handoff: RentalHandoff | null;
 };
 type AvailabilityRange = {
   dateFrom: string;
@@ -242,6 +259,12 @@ const reportReasonLabels: Record<ModerationReport['reason'], string> = {
   unsafe: 'Опасный товар или услуга',
   other: 'Другая причина',
 };
+const depositResultLabels: Record<DepositResult, string> = {
+  not_applicable: 'Залога не было',
+  returned: 'Возвращён полностью',
+  partially_withheld: 'Частично удержан',
+  withheld: 'Удержан полностью',
+};
 const formatActivityDate = (timestamp: number) =>
   new Intl.DateTimeFormat('ru-RU', {
     day: 'numeric',
@@ -254,6 +277,7 @@ const formatBookingDate = (date: string) =>
     day: 'numeric',
     month: 'short',
   }).format(new Date(`${date}T12:00:00`));
+const formatTenge = (amount: number) => `${amount.toLocaleString('ru-RU')} ₸`;
 const parseCalendarDate = (value: string) => {
   const [year, month, day] = value.split('-').map(Number);
   return new Date(year, month - 1, day, 12);
@@ -739,6 +763,7 @@ export default function Home() {
   const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [reviewTarget, setReviewTarget] = useState<BookingItem | null>(null);
   const [reviewRating, setReviewRating] = useState(5);
+  const [handoffTarget, setHandoffTarget] = useState<BookingItem | null>(null);
   const [bookingRange, setBookingRange] = useState<DateRange | undefined>();
   const [availabilityRanges, setAvailabilityRanges] = useState<
     AvailabilityRange[]
@@ -790,6 +815,7 @@ export default function Home() {
     | 'booking'
     | 'bookings'
     | 'review'
+    | 'handover'
     | 'report'
     | 'appeal'
     | 'appeals'
@@ -1913,7 +1939,7 @@ export default function Home() {
   };
   const updateBookingStatus = async (
     bookingId: string,
-    status: 'accepted' | 'declined' | 'completed',
+    status: 'accepted' | 'declined',
   ) => {
     setSubmitting(`booking-status-${bookingId}`);
     try {
@@ -1924,7 +1950,6 @@ export default function Home() {
       });
       if (!response.ok) throw new Error(await apiError(response));
       const result = (await response.json()) as {
-        completedAt?: number;
         autoDeclinedIds: string[];
       };
       setBookings((previous) =>
@@ -1933,10 +1958,6 @@ export default function Home() {
             ? {
                 ...booking,
                 status,
-                completedAt:
-                  status === 'completed'
-                    ? result.completedAt || Date.now()
-                    : booking.completedAt,
               }
             : result.autoDeclinedIds.includes(booking.id)
               ? { ...booking, status: 'declined' }
@@ -1944,19 +1965,82 @@ export default function Home() {
         ),
       );
       notify(
-        status === 'completed'
-          ? 'Аренда завершена — арендатор сможет оставить проверенный отзыв'
-          : status === 'accepted'
-            ? result.autoDeclinedIds.length > 0
-              ? `Бронирование подтверждено, пересекающихся запросов отклонено: ${result.autoDeclinedIds.length}`
-              : 'Бронирование подтверждено — даты теперь заняты'
-            : 'Запрос на бронирование отклонён',
+        status === 'accepted'
+          ? result.autoDeclinedIds.length > 0
+            ? `Бронирование подтверждено, пересекающихся запросов отклонено: ${result.autoDeclinedIds.length}`
+            : 'Бронирование подтверждено — даты теперь заняты'
+          : 'Запрос на бронирование отклонён',
       );
     } catch (error) {
       notify(
         error instanceof Error
           ? error.message
           : 'Не удалось изменить бронирование',
+      );
+    } finally {
+      setSubmitting(null);
+    }
+  };
+  const openHandover = (booking: BookingItem) => {
+    setHandoffTarget(booking);
+    setModal('handover');
+  };
+  const submitHandover = async (event: SubmitFormEvent) => {
+    event.preventDefault();
+    if (!handoffTarget) return;
+    const form = new FormData(event.currentTarget);
+    const returning = Boolean(handoffTarget.handoff?.handedOverAt);
+    setSubmitting('handover');
+    try {
+      const payload = returning
+        ? {
+            action: 'return',
+            bookingId: handoffTarget.id,
+            conditionIn: fieldText(form, 'conditionIn'),
+            depositResult: fieldText(form, 'depositResult'),
+            returnNote: fieldText(form, 'returnNote'),
+          }
+        : {
+            action: 'handover',
+            bookingId: handoffTarget.id,
+            depositAmount: Number(fieldText(form, 'depositAmount', '0')),
+            depositReceived: form.get('depositReceived') === 'on',
+            conditionOut: fieldText(form, 'conditionOut'),
+            equipmentList: fieldText(form, 'equipmentList'),
+          };
+      const response = await fetch('/api/bookings/handover', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw new Error(await apiError(response));
+      const result = (await response.json()) as {
+        status: BookingItem['status'];
+        completedAt?: number;
+        handoff: RentalHandoff;
+      };
+      setBookings((current) =>
+        current.map((booking) =>
+          booking.id === handoffTarget.id
+            ? {
+                ...booking,
+                status: result.status,
+                completedAt: result.completedAt || booking.completedAt,
+                handoff: result.handoff,
+              }
+            : booking,
+        ),
+      );
+      setHandoffTarget(null);
+      setModal('bookings');
+      notify(
+        returning
+          ? 'Возврат зафиксирован — аренда завершена'
+          : 'Передача зафиксирована и видна арендатору',
+      );
+    } catch (error) {
+      notify(
+        error instanceof Error ? error.message : 'Не удалось сохранить акт',
       );
     } finally {
       setSubmitting(null);
@@ -5014,6 +5098,79 @@ export default function Home() {
                           )}
                         </div>
                         {booking.comment && <p>{booking.comment}</p>}
+                        {booking.handoff && (
+                          <div
+                            className={`handoff-summary ${booking.handoff.returnedAt ? 'returned' : ''}`}
+                          >
+                            <div className="handoff-summary-head">
+                              <span>
+                                <ScrollText />
+                              </span>
+                              <div>
+                                <small>АКТ АРЕНДЫ</small>
+                                <b>
+                                  {booking.handoff.returnedAt
+                                    ? 'Передача и возврат зафиксированы'
+                                    : 'Передача зафиксирована'}
+                                </b>
+                              </div>
+                              <ShieldCheck />
+                            </div>
+                            <div className="handoff-steps">
+                              <span className="done">
+                                <CheckCircle2 /> Передано
+                              </span>
+                              <i />
+                              <span
+                                className={
+                                  booking.handoff.returnedAt ? 'done' : ''
+                                }
+                              >
+                                <CheckCircle2 /> Возвращено
+                              </span>
+                            </div>
+                            <div className="handoff-facts">
+                              <span>
+                                <b>Состояние при передаче</b>
+                                {booking.handoff.conditionOut}
+                              </span>
+                              <span>
+                                <b>Залог</b>
+                                {booking.handoff.depositAmount > 0
+                                  ? `${formatTenge(booking.handoff.depositAmount)} · получен`
+                                  : 'Без залога'}
+                              </span>
+                              {booking.handoff.equipmentList && (
+                                <span>
+                                  <b>Комплект</b>
+                                  {booking.handoff.equipmentList}
+                                </span>
+                              )}
+                              {booking.handoff.returnedAt && (
+                                <>
+                                  <span>
+                                    <b>Состояние при возврате</b>
+                                    {booking.handoff.conditionIn}
+                                  </span>
+                                  <span>
+                                    <b>Итог по залогу</b>
+                                    {booking.handoff.depositResult
+                                      ? depositResultLabels[
+                                          booking.handoff.depositResult
+                                        ]
+                                      : 'Не указан'}
+                                  </span>
+                                  {booking.handoff.returnNote && (
+                                    <span>
+                                      <b>Примечание</b>
+                                      {booking.handoff.returnNote}
+                                    </span>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )}
                         {booking.review && (
                           <div className="verified-review">
                             <div>
@@ -5037,15 +5194,28 @@ export default function Home() {
                             )}
                           </div>
                         )}
-                        {booking.incoming && booking.status === 'accepted' && (
+                        {booking.status === 'accepted' && !booking.handoff && (
                           <div className="booking-completion-note">
-                            <CheckCircle2 />
+                            <ScrollText />
                             <span>
-                              Отметьте завершение после возврата вещи. Тогда
-                              арендатор сможет оставить проверенный отзыв.
+                              {booking.incoming
+                                ? 'Перед выдачей зафиксируйте состояние, комплектность и фактически полученный залог.'
+                                : 'Владелец ещё не оформил передачу. После выдачи здесь появится общий чек-лист.'}
                             </span>
                           </div>
                         )}
+                        {booking.incoming &&
+                          booking.status === 'accepted' &&
+                          booking.handoff &&
+                          !booking.handoff.returnedAt && (
+                            <div className="booking-completion-note return">
+                              <CheckCircle2 />
+                              <span>
+                                Когда вещь вернут, зафиксируйте её состояние и
+                                итог по залогу. После этого аренда завершится.
+                              </span>
+                            </div>
+                          )}
                         <div className="booking-footer">
                           <a href={`tel:${booking.contactPhone}`}>
                             <Phone /> {booking.contactPhone}
@@ -5085,20 +5255,16 @@ export default function Home() {
                             booking.status === 'accepted' && (
                               <div>
                                 <button
-                                  className="complete"
+                                  className={
+                                    booking.handoff ? 'complete' : 'handover'
+                                  }
                                   type="button"
-                                  onClick={() =>
-                                    void updateBookingStatus(
-                                      booking.id,
-                                      'completed',
-                                    )
-                                  }
-                                  disabled={
-                                    submitting ===
-                                    `booking-status-${booking.id}`
-                                  }
+                                  onClick={() => openHandover(booking)}
                                 >
-                                  Аренда завершена
+                                  <ScrollText />
+                                  {booking.handoff
+                                    ? 'Оформить возврат'
+                                    : 'Оформить передачу'}
                                 </button>
                               </div>
                             )}
@@ -5126,6 +5292,163 @@ export default function Home() {
                     </span>
                   </div>
                 )}
+              </>
+            )}
+            {modal === 'handover' && handoffTarget && (
+              <>
+                <div className="modal-title handover-title">
+                  <span>
+                    {handoffTarget.handoff ? <CheckCircle2 /> : <ScrollText />}
+                  </span>
+                  <div>
+                    <small>
+                      {handoffTarget.handoff
+                        ? 'ВОЗВРАТ АРЕНДЫ'
+                        : 'ПЕРЕДАЧА АРЕНДЫ'}
+                    </small>
+                    <h2>
+                      {handoffTarget.handoff
+                        ? 'Зафиксировать возврат'
+                        : 'Чек-лист передачи'}
+                    </h2>
+                    <p>
+                      «{handoffTarget.listingTitle}» ·{' '}
+                      {formatBookingDate(handoffTarget.dateFrom)} —{' '}
+                      {formatBookingDate(handoffTarget.dateTo)}
+                    </p>
+                  </div>
+                </div>
+                <form className="handover-form" onSubmit={submitHandover}>
+                  {!handoffTarget.handoff ? (
+                    <>
+                      <div className="handover-party-card">
+                        <UserRound />
+                        <div>
+                          <small>АРЕНДАТОР</small>
+                          <b>{handoffTarget.counterparty}</b>
+                        </div>
+                        <span>{handoffTarget.contactPhone}</span>
+                      </div>
+                      <label>
+                        Состояние при передаче
+                        <textarea
+                          name="conditionOut"
+                          rows={3}
+                          minLength={5}
+                          maxLength={1200}
+                          required
+                          placeholder="Например: исправен, корпус без трещин, счётчик 148 часов…"
+                        />
+                      </label>
+                      <label>
+                        Комплектность <small>необязательно</small>
+                        <textarea
+                          name="equipmentList"
+                          rows={2}
+                          maxLength={800}
+                          placeholder="Кейс, зарядное устройство, два аккумулятора…"
+                        />
+                      </label>
+                      <label>
+                        Фактический залог, ₸
+                        <input
+                          name="depositAmount"
+                          type="number"
+                          inputMode="numeric"
+                          min="0"
+                          max="100000000"
+                          step="1000"
+                          defaultValue="0"
+                          required
+                        />
+                        <small>
+                          Укажите 0, если залога нет. Qoldan не принимает и не
+                          хранит эти деньги.
+                        </small>
+                      </label>
+                      <label className="handover-check">
+                        <input name="depositReceived" type="checkbox" />
+                        <span>
+                          Подтверждаю, что указанный залог фактически получен
+                        </span>
+                      </label>
+                    </>
+                  ) : (
+                    <>
+                      <div className="handover-original-state">
+                        <div>
+                          <small>ПРИ ПЕРЕДАЧЕ</small>
+                          <b>{handoffTarget.handoff.conditionOut}</b>
+                        </div>
+                        <span>
+                          {handoffTarget.handoff.depositAmount > 0
+                            ? `Залог ${formatTenge(handoffTarget.handoff.depositAmount)}`
+                            : 'Без залога'}
+                        </span>
+                      </div>
+                      <label>
+                        Состояние при возврате
+                        <textarea
+                          name="conditionIn"
+                          rows={3}
+                          minLength={5}
+                          maxLength={1200}
+                          required
+                          placeholder="Что изменилось, всё ли работает, есть ли новые повреждения…"
+                        />
+                      </label>
+                      {handoffTarget.handoff.depositReceived &&
+                      handoffTarget.handoff.depositAmount > 0 ? (
+                        <label>
+                          Итог по залогу
+                          <select name="depositResult" defaultValue="returned">
+                            <option value="returned">
+                              Возвращён полностью
+                            </option>
+                            <option value="partially_withheld">
+                              Частично удержан
+                            </option>
+                            <option value="withheld">Удержан полностью</option>
+                          </select>
+                        </label>
+                      ) : (
+                        <input
+                          name="depositResult"
+                          type="hidden"
+                          defaultValue="not_applicable"
+                        />
+                      )}
+                      <label>
+                        Итог и примечание <small>необязательно</small>
+                        <textarea
+                          name="returnNote"
+                          rows={3}
+                          maxLength={1200}
+                          placeholder="Если залог удержан, обязательно укажите причину и договорённость сторон"
+                        />
+                      </label>
+                    </>
+                  )}
+                  <div className="handover-trust-note">
+                    <ShieldCheck />
+                    <span>
+                      Запись увидят обе стороны. Она помогает сверить факты, но
+                      не заменяет юридический договор или акт с подписями.
+                    </span>
+                  </div>
+                  <button
+                    className="submit-button"
+                    type="submit"
+                    disabled={submitting === 'handover'}
+                  >
+                    {submitting === 'handover'
+                      ? 'Сохраняем…'
+                      : handoffTarget.handoff
+                        ? 'Подтвердить возврат'
+                        : 'Зафиксировать передачу'}{' '}
+                    <ArrowRight />
+                  </button>
+                </form>
               </>
             )}
             {modal === 'review' && reviewTarget && (
