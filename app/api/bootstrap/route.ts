@@ -7,6 +7,11 @@ import {
   unauthorized,
   upsertViewer,
 } from '@/lib/server/marketplace-db';
+import {
+  mapSavedSearch,
+  savedSearchSelect,
+  type SavedSearchRow,
+} from '@/lib/server/saved-searches';
 
 export const dynamic = 'force-dynamic';
 
@@ -132,6 +137,7 @@ export async function GET(request: Request) {
       listingResult,
       requestResult,
       favoriteResult,
+      savedSearchResult,
       responseResult,
       bookingResult,
       reviewResult,
@@ -231,6 +237,15 @@ export async function GET(request: Request) {
         )
         .bind(viewer.id)
         .all<{ listing_id: string }>(),
+      db
+        .prepare(
+          `${savedSearchSelect}
+           WHERE saved_searches.owner_id = ?
+           ORDER BY saved_searches.created_at DESC
+           LIMIT 20`,
+        )
+        .bind(viewer.id)
+        .all<SavedSearchRow>(),
       db
         .prepare(
           `SELECT responses.id, responses.request_id, responses.price,
@@ -485,6 +500,18 @@ export async function GET(request: Request) {
     ]);
 
     const activities = [
+      ...savedSearchResult.results
+        .filter((row) => Number(row.new_matches || 0) > 0)
+        .map((row) => ({
+          id: `saved-search-${String(row.id)}-${String(row.latest_match_at)}`,
+          kind: 'search',
+          title:
+            Number(row.new_matches) === 1
+              ? '1 новое предложение'
+              : `${Number(row.new_matches)} новых предложений`,
+          description: String(row.name),
+          createdAt: Number(row.latest_match_at || Date.now()),
+        })),
       ...responseActivityResult.results.map((row) => ({
         id: `response-${String(row.id)}`,
         kind: 'response',
@@ -703,6 +730,7 @@ export async function GET(request: Request) {
         };
       }),
       favorites: favoriteResult.results.map((row) => row.listing_id),
+      savedSearches: savedSearchResult.results.map(mapSavedSearch),
       responses: responseResult.results.map((row) => ({
         id: String(row.id),
         requestId: String(row.request_id),

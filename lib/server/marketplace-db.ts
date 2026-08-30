@@ -189,6 +189,19 @@ export async function ensureMarketplaceSchema() {
         created_at INTEGER NOT NULL,
         PRIMARY KEY (owner_id, listing_id)
       )`),
+      db.prepare(`CREATE TABLE IF NOT EXISTS saved_searches (
+        id TEXT PRIMARY KEY NOT NULL,
+        owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        search_query TEXT DEFAULT '' NOT NULL,
+        region TEXT DEFAULT 'Весь Казахстан' NOT NULL,
+        category TEXT DEFAULT 'Все категории' NOT NULL,
+        offer_type TEXT DEFAULT 'Все' NOT NULL,
+        delivery_only INTEGER DEFAULT 0 NOT NULL,
+        company_only INTEGER DEFAULT 0 NOT NULL,
+        created_at INTEGER NOT NULL,
+        last_viewed_at INTEGER NOT NULL
+      )`),
       db.prepare(`CREATE TABLE IF NOT EXISTS bookings (
         id TEXT PRIMARY KEY NOT NULL,
         listing_id TEXT NOT NULL,
@@ -339,6 +352,12 @@ export async function ensureMarketplaceSchema() {
       ),
       db.prepare(
         'CREATE INDEX IF NOT EXISTS request_reviews_provider_id_created_at_idx ON request_reviews (provider_id, created_at)',
+      ),
+      db.prepare(
+        'CREATE UNIQUE INDEX IF NOT EXISTS saved_searches_owner_filters_unique ON saved_searches (owner_id, search_query, region, category, offer_type, delivery_only, company_only)',
+      ),
+      db.prepare(
+        'CREATE INDEX IF NOT EXISTS saved_searches_owner_created_at_idx ON saved_searches (owner_id, created_at)',
       ),
       db.prepare(
         'CREATE INDEX IF NOT EXISTS bookings_listing_id_created_at_idx ON bookings (listing_id, created_at)',

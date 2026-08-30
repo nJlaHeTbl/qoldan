@@ -98,6 +98,36 @@ export const favoriteInput = z.object({
   active: z.boolean(),
 });
 
+const savedSearchCreate = z
+  .object({
+    action: z.literal('create'),
+    name: z.string().trim().min(1).max(120),
+    query: z.string().trim().max(160).optional().default(''),
+    region: shortText,
+    category: shortText,
+    offerType: z.enum(['Все', ...offerTypes]),
+    deliveryOnly: z.boolean().optional().default(false),
+    companyOnly: z.boolean().optional().default(false),
+  })
+  .refine(
+    (value) =>
+      Boolean(value.query) ||
+      value.region !== 'Весь Казахстан' ||
+      value.category !== 'Все категории' ||
+      value.offerType !== 'Все' ||
+      value.deliveryOnly ||
+      value.companyOnly,
+    { message: 'Сначала задайте хотя бы одно условие поиска' },
+  );
+
+export const savedSearchInput = z.discriminatedUnion('action', [
+  savedSearchCreate,
+  z.object({
+    action: z.enum(['delete', 'mark_seen']),
+    savedSearchId: z.string().trim().min(1).max(100),
+  }),
+]);
+
 export const bookingInput = z
   .object({
     listingId: z.union([z.string(), z.number()]).transform(String),

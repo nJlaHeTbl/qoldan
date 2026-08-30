@@ -203,6 +203,44 @@ export const favorites = sqliteTable(
   (table) => [primaryKey({ columns: [table.ownerId, table.listingId] })],
 );
 
+export const savedSearches = sqliteTable(
+  'saved_searches',
+  {
+    id: text('id').primaryKey(),
+    ownerId: text('owner_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    searchQuery: text('search_query').notNull().default(''),
+    region: text('region').notNull().default('Весь Казахстан'),
+    category: text('category').notNull().default('Все категории'),
+    offerType: text('offer_type').notNull().default('Все'),
+    deliveryOnly: integer('delivery_only', { mode: 'boolean' })
+      .notNull()
+      .default(false),
+    companyOnly: integer('company_only', { mode: 'boolean' })
+      .notNull()
+      .default(false),
+    createdAt: integer('created_at').notNull(),
+    lastViewedAt: integer('last_viewed_at').notNull(),
+  },
+  (table) => [
+    uniqueIndex('saved_searches_owner_filters_unique').on(
+      table.ownerId,
+      table.searchQuery,
+      table.region,
+      table.category,
+      table.offerType,
+      table.deliveryOnly,
+      table.companyOnly,
+    ),
+    index('saved_searches_owner_created_at_idx').on(
+      table.ownerId,
+      table.createdAt,
+    ),
+  ],
+);
+
 export const bookings = sqliteTable(
   'bookings',
   {
