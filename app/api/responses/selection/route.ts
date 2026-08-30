@@ -67,6 +67,7 @@ function mapSelection(row: SelectionRow, viewerId: string) {
     selectedAt: Number(row.selected_at),
     completedAt: row.completed_at ? Number(row.completed_at) : null,
     mineAsProvider: row.provider_id === viewerId,
+    review: null,
   };
 }
 

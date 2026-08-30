@@ -173,6 +173,16 @@ export async function ensureMarketplaceSchema() {
         updated_at INTEGER NOT NULL,
         completed_at INTEGER
       )`),
+      db.prepare(`CREATE TABLE IF NOT EXISTS request_reviews (
+        id TEXT PRIMARY KEY NOT NULL,
+        request_id TEXT NOT NULL UNIQUE REFERENCES requests(id) ON DELETE CASCADE,
+        response_id TEXT NOT NULL REFERENCES responses(id) ON DELETE CASCADE,
+        reviewer_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        provider_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        rating INTEGER NOT NULL,
+        comment TEXT,
+        created_at INTEGER NOT NULL
+      )`),
       db.prepare(`CREATE TABLE IF NOT EXISTS favorites (
         owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         listing_id TEXT NOT NULL,
@@ -323,6 +333,12 @@ export async function ensureMarketplaceSchema() {
       ),
       db.prepare(
         'CREATE UNIQUE INDEX IF NOT EXISTS request_selections_response_id_unique ON request_selections (response_id)',
+      ),
+      db.prepare(
+        'CREATE UNIQUE INDEX IF NOT EXISTS request_reviews_request_id_unique ON request_reviews (request_id)',
+      ),
+      db.prepare(
+        'CREATE INDEX IF NOT EXISTS request_reviews_provider_id_created_at_idx ON request_reviews (provider_id, created_at)',
       ),
       db.prepare(
         'CREATE INDEX IF NOT EXISTS bookings_listing_id_created_at_idx ON bookings (listing_id, created_at)',

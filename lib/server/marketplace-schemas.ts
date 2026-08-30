@@ -207,6 +207,16 @@ export const reviewInput = z.object({
   comment: z.string().trim().max(800).optional().default(''),
 });
 
+export const requestReviewInput = z.object({
+  requestId: z.union([z.string(), z.number()]).transform(String),
+  rating: z
+    .number()
+    .int()
+    .min(1, 'Выберите оценку от 1 до 5')
+    .max(5, 'Выберите оценку от 1 до 5'),
+  comment: z.string().trim().max(800).optional().default(''),
+});
+
 export const reportInput = z.object({
   targetType: z.enum(['listing', 'request']),
   targetId: z.union([z.string(), z.number()]).transform(String),

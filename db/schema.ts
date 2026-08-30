@@ -162,6 +162,35 @@ export const requestSelections = sqliteTable(
   ],
 );
 
+export const requestReviews = sqliteTable(
+  'request_reviews',
+  {
+    id: text('id').primaryKey(),
+    requestId: text('request_id')
+      .notNull()
+      .references(() => requests.id, { onDelete: 'cascade' }),
+    responseId: text('response_id')
+      .notNull()
+      .references(() => responses.id, { onDelete: 'cascade' }),
+    reviewerId: text('reviewer_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    providerId: text('provider_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    rating: integer('rating').notNull(),
+    comment: text('comment'),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => [
+    uniqueIndex('request_reviews_request_id_unique').on(table.requestId),
+    index('request_reviews_provider_id_created_at_idx').on(
+      table.providerId,
+      table.createdAt,
+    ),
+  ],
+);
+
 export const favorites = sqliteTable(
   'favorites',
   {

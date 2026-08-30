@@ -30,6 +30,15 @@ type SelectionActivityRow = {
   request_title: string;
 };
 
+type RequestReviewActivityRow = {
+  id: string;
+  rating: number;
+  comment: string | null;
+  created_at: number;
+  reviewer_name: string;
+  request_title: string;
+};
+
 type BookingActivityRow = {
   id: string;
   date_from: string;
@@ -129,6 +138,8 @@ export async function GET(request: Request) {
       verificationResult,
       responseActivityResult,
       selectionActivityResult,
+      requestReviewActivityResult,
+      serviceTrustResult,
       bookingActivityResult,
       bookingDecisionActivityResult,
       handoffActivityResult,
@@ -182,9 +193,14 @@ export async function GET(request: Request) {
                     request_selections.selected_at,
                     request_selections.completed_at,
                     selected_responses.owner_id AS selected_provider_id,
-                    selected_responses.price AS selected_price,
-                    selected_providers.display_name AS selected_provider_name,
-                    selection_conversations.id AS selection_conversation_id
+                     selected_responses.price AS selected_price,
+                     selected_providers.display_name AS selected_provider_name,
+                     selection_conversations.id AS selection_conversation_id,
+                     request_reviews.id AS service_review_id,
+                     request_reviews.rating AS service_review_rating,
+                     request_reviews.comment AS service_review_comment,
+                     request_reviews.created_at AS service_review_created_at,
+                     service_reviewers.display_name AS service_reviewer_name
              FROM requests
              JOIN users ON users.id = requests.owner_id
              LEFT JOIN request_selections
@@ -193,10 +209,14 @@ export async function GET(request: Request) {
                ON selected_responses.id = request_selections.response_id
              LEFT JOIN users selected_providers
                ON selected_providers.id = selected_responses.owner_id
-             LEFT JOIN conversations selection_conversations
+              LEFT JOIN conversations selection_conversations
                ON selection_conversations.context_type = 'request'
-              AND selection_conversations.context_id = requests.id
-              AND selection_conversations.participant_id = selected_responses.owner_id
+               AND selection_conversations.context_id = requests.id
+               AND selection_conversations.participant_id = selected_responses.owner_id
+              LEFT JOIN request_reviews
+                ON request_reviews.request_id = requests.id
+              LEFT JOIN users service_reviewers
+                ON service_reviewers.id = request_reviews.reviewer_id
              WHERE requests.status = 'open'
                 OR requests.owner_id = ?
                 OR selected_responses.owner_id = ?
@@ -214,15 +234,24 @@ export async function GET(request: Request) {
       db
         .prepare(
           `SELECT responses.id, responses.request_id, responses.price,
-                    responses.message, users.display_name AS owner_name,
-                    responses.owner_id,
-                    request_selections.status AS selection_status
+                     responses.message, users.display_name AS owner_name,
+                     responses.owner_id,
+                     request_selections.status AS selection_status,
+                     service_review_stats.rating_average AS provider_rating_average,
+                     service_review_stats.review_count AS provider_review_count
              FROM responses
              JOIN users ON users.id = responses.owner_id
              JOIN requests ON requests.id = responses.request_id
-             LEFT JOIN request_selections
-               ON request_selections.request_id = responses.request_id
-              AND request_selections.response_id = responses.id
+              LEFT JOIN request_selections
+                ON request_selections.request_id = responses.request_id
+               AND request_selections.response_id = responses.id
+              LEFT JOIN (
+                SELECT provider_id, AVG(rating) AS rating_average,
+                       COUNT(*) AS review_count
+                FROM request_reviews
+                GROUP BY provider_id
+              ) AS service_review_stats
+                ON service_review_stats.provider_id = responses.owner_id
              WHERE responses.owner_id = ? OR requests.owner_id = ?
              ORDER BY responses.created_at DESC
              LIMIT 250`,
@@ -323,6 +352,29 @@ export async function GET(request: Request) {
         )
         .bind(viewer.id)
         .all<SelectionActivityRow>(),
+      db
+        .prepare(
+          `SELECT request_reviews.id, request_reviews.rating,
+                  request_reviews.comment, request_reviews.created_at,
+                  reviewers.display_name AS reviewer_name,
+                  requests.title AS request_title
+           FROM request_reviews
+           JOIN requests ON requests.id = request_reviews.request_id
+           JOIN users reviewers ON reviewers.id = request_reviews.reviewer_id
+           WHERE request_reviews.provider_id = ?
+           ORDER BY request_reviews.created_at DESC
+           LIMIT 50`,
+        )
+        .bind(viewer.id)
+        .all<RequestReviewActivityRow>(),
+      db
+        .prepare(
+          `SELECT AVG(rating) AS rating_average, COUNT(*) AS review_count
+           FROM request_reviews
+           WHERE provider_id = ?`,
+        )
+        .bind(viewer.id)
+        .first<{ rating_average: number | null; review_count: number }>(),
       db
         .prepare(
           `SELECT bookings.id, bookings.date_from, bookings.date_to,
@@ -455,6 +507,13 @@ export async function GET(request: Request) {
             ? row.completed_at || row.updated_at
             : row.updated_at || row.selected_at,
         ),
+      })),
+      ...requestReviewActivityResult.results.map((row) => ({
+        id: `request-review-${String(row.id)}`,
+        kind: 'response',
+        title: `Новый проверенный отзыв от ${String(row.reviewer_name)}`,
+        description: `«${String(row.request_title)}» · ${Number(row.rating)}/5${row.comment ? ` · ${String(row.comment)}` : ''}`,
+        createdAt: Number(row.created_at),
       })),
       ...bookingActivityResult.results.map((row) => ({
         id: `booking-${String(row.id)}`,
@@ -625,6 +684,20 @@ export async function GET(request: Request) {
                     ? Number(row.completed_at)
                     : null,
                   mineAsProvider: row.selected_provider_id === viewer.id,
+                  review: row.service_review_id
+                    ? {
+                        id: row.service_review_id as string,
+                        requestId: String(row.id),
+                        responseId: row.selected_response_id as string,
+                        requestTitle: row.title as string,
+                        rating: Number(row.service_review_rating),
+                        comment: (row.service_review_comment as string) || '',
+                        reviewer: row.service_reviewer_name as string,
+                        providerId: row.selected_provider_id as string,
+                        providerName: row.selected_provider_name as string,
+                        createdAt: Number(row.service_review_created_at),
+                      }
+                    : null,
                 }
               : null,
         };
@@ -636,8 +709,14 @@ export async function GET(request: Request) {
         price: row.price,
         message: row.message || '',
         owner: row.owner_name,
+        ownerId: row.owner_id,
         mine: row.owner_id === viewer.id,
         selectionStatus: row.selection_status || null,
+        providerRating:
+          typeof row.provider_rating_average === 'number'
+            ? Number(row.provider_rating_average).toFixed(1)
+            : undefined,
+        providerReviewCount: Number(row.provider_review_count || 0),
       })),
       bookings: bookingResult.results.map((row) => {
         const incoming =
@@ -724,6 +803,13 @@ export async function GET(request: Request) {
       })),
       messaging: {
         unreadCount: Number(unreadMessageResult?.count || 0),
+      },
+      trust: {
+        serviceRating:
+          typeof serviceTrustResult?.rating_average === 'number'
+            ? Number(serviceTrustResult.rating_average).toFixed(1)
+            : undefined,
+        serviceReviewCount: Number(serviceTrustResult?.review_count || 0),
       },
       activities,
     });
