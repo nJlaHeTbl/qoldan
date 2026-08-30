@@ -59,6 +59,7 @@ type Listing = {
   type: 'Продам' | 'Сдам' | 'Окажу услугу';
   image: string;
   rating?: string;
+  reviewCount?: number;
   verified?: boolean;
   description?: string;
   owner?: string;
@@ -124,6 +125,16 @@ type ChatMessage = {
   createdAt: number;
   readAt: number | null;
 };
+type ReviewItem = {
+  id: string;
+  bookingId: string;
+  listingId: string;
+  listingTitle: string;
+  rating: number;
+  comment: string;
+  reviewer: string;
+  createdAt: number;
+};
 type BookingItem = {
   id: string;
   listingId: string;
@@ -134,8 +145,11 @@ type BookingItem = {
   counterparty: string;
   delivery: boolean;
   comment: string;
-  status: 'pending' | 'accepted' | 'declined';
+  status: 'pending' | 'accepted' | 'declined' | 'completed';
+  completedAt: number | null;
   incoming: boolean;
+  canReview: boolean;
+  review: ReviewItem | null;
 };
 type AvailabilityRange = {
   dateFrom: string;
@@ -722,6 +736,9 @@ export default function Home() {
     useState<RequestItem[]>(initialRequests);
   const [allResponses, setAllResponses] = useState<ResponseItem[]>([]);
   const [bookings, setBookings] = useState<BookingItem[]>([]);
+  const [reviews, setReviews] = useState<ReviewItem[]>([]);
+  const [reviewTarget, setReviewTarget] = useState<BookingItem | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
   const [bookingRange, setBookingRange] = useState<DateRange | undefined>();
   const [availabilityRanges, setAvailabilityRanges] = useState<
     AvailabilityRange[]
@@ -772,6 +789,7 @@ export default function Home() {
     | 'info'
     | 'booking'
     | 'bookings'
+    | 'review'
     | 'report'
     | 'appeal'
     | 'appeals'
@@ -833,6 +851,11 @@ export default function Home() {
         (response) => response.requestId === String(selectedRequest.id),
       )
     : [];
+  const selectedListingReviews = selectedListing
+    ? reviews.filter(
+        (review) => review.listingId === String(selectedListing.id),
+      )
+    : [];
   const visibleModerationReports = moderationReports.filter((report) =>
     moderationFilter === 'active'
       ? report.status !== 'closed'
@@ -869,6 +892,7 @@ export default function Home() {
           favorites: string[];
           responses: ResponseItem[];
           bookings: BookingItem[];
+          reviews: ReviewItem[];
           appeals: AppealItem[];
           activities: ActivityItem[];
           moderation: { canModerate: boolean; pendingCount: number };
@@ -880,6 +904,7 @@ export default function Home() {
         setFavorites(data.favorites.map(String));
         setAllResponses(data.responses);
         setBookings(data.bookings);
+        setReviews(data.reviews);
         setAppeals(data.appeals);
         setActivities(data.activities);
         setCanModerate(data.moderation.canModerate);
@@ -1888,7 +1913,7 @@ export default function Home() {
   };
   const updateBookingStatus = async (
     bookingId: string,
-    status: 'accepted' | 'declined',
+    status: 'accepted' | 'declined' | 'completed',
   ) => {
     setSubmitting(`booking-status-${bookingId}`);
     try {
@@ -1899,29 +1924,100 @@ export default function Home() {
       });
       if (!response.ok) throw new Error(await apiError(response));
       const result = (await response.json()) as {
+        completedAt?: number;
         autoDeclinedIds: string[];
       };
       setBookings((previous) =>
         previous.map((booking) =>
           booking.id === bookingId
-            ? { ...booking, status }
+            ? {
+                ...booking,
+                status,
+                completedAt:
+                  status === 'completed'
+                    ? result.completedAt || Date.now()
+                    : booking.completedAt,
+              }
             : result.autoDeclinedIds.includes(booking.id)
               ? { ...booking, status: 'declined' }
               : booking,
         ),
       );
       notify(
-        status === 'accepted'
-          ? result.autoDeclinedIds.length > 0
-            ? `Бронирование подтверждено, пересекающихся запросов отклонено: ${result.autoDeclinedIds.length}`
-            : 'Бронирование подтверждено — даты теперь заняты'
-          : 'Запрос на бронирование отклонён',
+        status === 'completed'
+          ? 'Аренда завершена — арендатор сможет оставить проверенный отзыв'
+          : status === 'accepted'
+            ? result.autoDeclinedIds.length > 0
+              ? `Бронирование подтверждено, пересекающихся запросов отклонено: ${result.autoDeclinedIds.length}`
+              : 'Бронирование подтверждено — даты теперь заняты'
+            : 'Запрос на бронирование отклонён',
       );
     } catch (error) {
       notify(
         error instanceof Error
           ? error.message
           : 'Не удалось изменить бронирование',
+      );
+    } finally {
+      setSubmitting(null);
+    }
+  };
+  const openReview = (booking: BookingItem) => {
+    setReviewTarget(booking);
+    setReviewRating(5);
+    setModal('review');
+  };
+  const submitReview = async (event: SubmitFormEvent) => {
+    event.preventDefault();
+    if (!reviewTarget) return;
+    const form = new FormData(event.currentTarget);
+    setSubmitting('review');
+    try {
+      const response = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          bookingId: reviewTarget.id,
+          rating: reviewRating,
+          comment: fieldText(form, 'comment').trim(),
+        }),
+      });
+      if (!response.ok) throw new Error(await apiError(response));
+      const data = (await response.json()) as { review: ReviewItem };
+      const nextReviews = [data.review, ...reviews];
+      const listingReviews = nextReviews.filter(
+        (review) => review.listingId === data.review.listingId,
+      );
+      const rating = (
+        listingReviews.reduce((sum, review) => sum + review.rating, 0) /
+        listingReviews.length
+      ).toFixed(1);
+      setReviews(nextReviews);
+      setBookings((current) =>
+        current.map((booking) =>
+          booking.id === reviewTarget.id
+            ? { ...booking, canReview: false, review: data.review }
+            : booking,
+        ),
+      );
+      setAllListings((current) =>
+        current.map((listing) =>
+          String(listing.id) === data.review.listingId
+            ? { ...listing, rating, reviewCount: listingReviews.length }
+            : listing,
+        ),
+      );
+      setSelectedListing((current) =>
+        current && String(current.id) === data.review.listingId
+          ? { ...current, rating, reviewCount: listingReviews.length }
+          : current,
+      );
+      setReviewTarget(null);
+      setModal('bookings');
+      notify('Спасибо! Отзыв подтверждён завершённой арендой');
+    } catch (error) {
+      notify(
+        error instanceof Error ? error.message : 'Не удалось отправить отзыв',
       );
     } finally {
       setSubmitting(null);
@@ -2525,6 +2621,7 @@ export default function Home() {
                       {item.rating && !isDemoListing(item.id) && (
                         <span className="rating">
                           <Star size={14} fill="currentColor" /> {item.rating}
+                          {item.reviewCount ? ` · ${item.reviewCount}` : ''}
                         </span>
                       )}
                     </div>
@@ -3593,9 +3690,55 @@ export default function Home() {
                       !isDemoListing(selectedListing.id) && (
                         <em>
                           <Star fill="currentColor" /> {selectedListing.rating}
+                          {selectedListing.reviewCount
+                            ? ` · ${selectedListing.reviewCount}`
+                            : ''}
                         </em>
                       )}
                   </div>
+                  {!isDemoListing(selectedListing.id) && (
+                    <section className="listing-reviews">
+                      <div className="listing-reviews-head">
+                        <div>
+                          <small>ПОДТВЕРЖДЕНО АРЕНДОЙ</small>
+                          <h3>Отзывы после реальных сделок</h3>
+                        </div>
+                        <ShieldCheck />
+                      </div>
+                      {selectedListingReviews.length > 0 ? (
+                        <div className="review-items">
+                          {selectedListingReviews.slice(0, 4).map((review) => (
+                            <article key={review.id}>
+                              <div>
+                                <b>{review.reviewer}</b>
+                                <span>
+                                  {Array.from({ length: 5 }, (_, index) => (
+                                    <Star
+                                      key={index}
+                                      fill={
+                                        index < review.rating
+                                          ? 'currentColor'
+                                          : 'none'
+                                      }
+                                    />
+                                  ))}
+                                </span>
+                              </div>
+                              {review.comment && <p>{review.comment}</p>}
+                              <small>
+                                {formatActivityDate(review.createdAt)}
+                              </small>
+                            </article>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="reviews-empty">
+                          Проверенных отзывов пока нет. Оставить первый сможет
+                          арендатор после завершения бронирования.
+                        </p>
+                      )}
+                    </section>
+                  )}
                   {selectedListing.mine && (
                     <div className="owner-management">
                       <div>
@@ -4847,11 +4990,13 @@ export default function Home() {
                             <h3>{booking.listingTitle}</h3>
                           </div>
                           <span className={`booking-status ${booking.status}`}>
-                            {booking.status === 'accepted'
-                              ? 'Подтверждено'
-                              : booking.status === 'declined'
-                                ? 'Отклонено'
-                                : 'Ожидает ответа'}
+                            {booking.status === 'completed'
+                              ? 'Завершено'
+                              : booking.status === 'accepted'
+                                ? 'Подтверждено'
+                                : booking.status === 'declined'
+                                  ? 'Отклонено'
+                                  : 'Ожидает ответа'}
                           </span>
                         </div>
                         <div className="booking-meta">
@@ -4869,6 +5014,38 @@ export default function Home() {
                           )}
                         </div>
                         {booking.comment && <p>{booking.comment}</p>}
+                        {booking.review && (
+                          <div className="verified-review">
+                            <div>
+                              <ShieldCheck />
+                              <b>Проверенный отзыв</b>
+                              <span>
+                                {Array.from({ length: 5 }, (_, index) => (
+                                  <Star
+                                    key={index}
+                                    fill={
+                                      index < booking.review!.rating
+                                        ? 'currentColor'
+                                        : 'none'
+                                    }
+                                  />
+                                ))}
+                              </span>
+                            </div>
+                            {booking.review.comment && (
+                              <p>{booking.review.comment}</p>
+                            )}
+                          </div>
+                        )}
+                        {booking.incoming && booking.status === 'accepted' && (
+                          <div className="booking-completion-note">
+                            <CheckCircle2 />
+                            <span>
+                              Отметьте завершение после возврата вещи. Тогда
+                              арендатор сможет оставить проверенный отзыв.
+                            </span>
+                          </div>
+                        )}
                         <div className="booking-footer">
                           <a href={`tel:${booking.contactPhone}`}>
                             <Phone /> {booking.contactPhone}
@@ -4904,6 +5081,38 @@ export default function Home() {
                               </button>
                             </div>
                           )}
+                          {booking.incoming &&
+                            booking.status === 'accepted' && (
+                              <div>
+                                <button
+                                  className="complete"
+                                  type="button"
+                                  onClick={() =>
+                                    void updateBookingStatus(
+                                      booking.id,
+                                      'completed',
+                                    )
+                                  }
+                                  disabled={
+                                    submitting ===
+                                    `booking-status-${booking.id}`
+                                  }
+                                >
+                                  Аренда завершена
+                                </button>
+                              </div>
+                            )}
+                          {!booking.incoming && booking.canReview && (
+                            <div>
+                              <button
+                                className="review"
+                                type="button"
+                                onClick={() => openReview(booking)}
+                              >
+                                <Star /> Оставить отзыв
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </article>
                     ))}
@@ -4917,6 +5126,72 @@ export default function Home() {
                     </span>
                   </div>
                 )}
+              </>
+            )}
+            {modal === 'review' && reviewTarget && (
+              <>
+                <div className="modal-title review-title">
+                  <span>
+                    <Star fill="currentColor" />
+                  </span>
+                  <div>
+                    <small>ПОДТВЕРЖДЕНО АРЕНДОЙ</small>
+                    <h2>Как всё прошло?</h2>
+                    <p>
+                      «{reviewTarget.listingTitle}». Отзыв появится в карточке и
+                      поможет другим выбрать надёжное предложение.
+                    </p>
+                  </div>
+                </div>
+                <form className="review-form" onSubmit={submitReview}>
+                  <fieldset>
+                    <legend>Ваша оценка</legend>
+                    <div className="review-star-picker">
+                      {Array.from({ length: 5 }, (_, index) => {
+                        const value = index + 1;
+                        return (
+                          <button
+                            key={value}
+                            type="button"
+                            className={value <= reviewRating ? 'active' : ''}
+                            onClick={() => setReviewRating(value)}
+                            aria-label={`Оценка ${value} из 5`}
+                            aria-pressed={value <= reviewRating}
+                          >
+                            <Star fill="currentColor" />
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <b>{reviewRating} из 5</b>
+                  </fieldset>
+                  <label>
+                    Расскажите подробнее <small>необязательно</small>
+                    <textarea
+                      name="comment"
+                      rows={4}
+                      maxLength={800}
+                      placeholder="Например: всё соответствовало описанию, владелец был на связи…"
+                    />
+                  </label>
+                  <div className="review-trust-note">
+                    <ShieldCheck />
+                    <span>
+                      Qoldan разрешает один отзыв только реальному арендатору
+                      после завершения бронирования.
+                    </span>
+                  </div>
+                  <button
+                    className="submit-button"
+                    type="submit"
+                    disabled={submitting === 'review'}
+                  >
+                    {submitting === 'review'
+                      ? 'Публикуем…'
+                      : 'Опубликовать отзыв'}{' '}
+                    <ArrowRight />
+                  </button>
+                </form>
               </>
             )}
             {modal === 'notifications' && (
