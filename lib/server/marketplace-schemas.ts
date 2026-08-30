@@ -13,6 +13,12 @@ const depositResults = [
   'partially_withheld',
   'withheld',
 ] as const;
+const businessProfileTypes = [
+  'farm',
+  'company',
+  'store',
+  'service_company',
+] as const;
 const reportReasons = [
   'fraud',
   'spam',
@@ -138,6 +144,42 @@ export const rentalHandoverInput = z
       });
     }
   });
+
+export const businessVerificationInput = z.object({
+  profileType: z.enum(businessProfileTypes),
+  organizationName: z
+    .string()
+    .trim()
+    .min(3, 'Укажите полное название организации')
+    .max(180),
+  bin: z
+    .string()
+    .trim()
+    .regex(/^\d{12}$/, 'БИН должен состоять из 12 цифр'),
+  phone: z.string().trim().min(7, 'Укажите рабочий телефон').max(32),
+  region: shortText,
+  referenceUrl: z
+    .string()
+    .trim()
+    .max(300)
+    .optional()
+    .default('')
+    .refine(
+      (value) => value === '' || /^https:\/\//i.test(value),
+      'Ссылка должна начинаться с https://',
+    ),
+  note: z.string().trim().max(800).optional().default(''),
+});
+
+export const moderationVerificationInput = z.object({
+  verificationId: z.string().trim().min(1).max(100),
+  status: z.enum(['verified', 'rejected']),
+  reviewNote: z
+    .string()
+    .trim()
+    .min(5, 'Добавьте короткое объяснение решения')
+    .max(800),
+});
 
 export const reviewInput = z.object({
   bookingId: z.string().trim().min(1).max(100),

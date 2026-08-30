@@ -99,6 +99,23 @@ export async function ensureMarketplaceSchema() {
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       )`),
+      db.prepare(`CREATE TABLE IF NOT EXISTS business_verifications (
+        id TEXT PRIMARY KEY NOT NULL,
+        owner_id TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+        profile_type TEXT NOT NULL,
+        organization_name TEXT NOT NULL,
+        bin TEXT NOT NULL,
+        phone TEXT NOT NULL,
+        region TEXT NOT NULL,
+        reference_url TEXT,
+        note TEXT,
+        status TEXT DEFAULT 'pending' NOT NULL,
+        review_note TEXT,
+        reviewed_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        reviewed_at INTEGER
+      )`),
       db.prepare(`CREATE TABLE IF NOT EXISTS listings (
         id TEXT PRIMARY KEY NOT NULL,
         owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -264,6 +281,12 @@ export async function ensureMarketplaceSchema() {
     await db.batch([
       db.prepare(
         'CREATE INDEX IF NOT EXISTS listings_status_created_at_idx ON listings (status, created_at)',
+      ),
+      db.prepare(
+        'CREATE UNIQUE INDEX IF NOT EXISTS business_verifications_owner_id_unique ON business_verifications (owner_id)',
+      ),
+      db.prepare(
+        'CREATE INDEX IF NOT EXISTS business_verifications_status_created_at_idx ON business_verifications (status, created_at)',
       ),
       db.prepare(
         'CREATE INDEX IF NOT EXISTS listings_region_status_idx ON listings (region, status)',

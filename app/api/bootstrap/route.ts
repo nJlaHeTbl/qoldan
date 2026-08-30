@@ -55,6 +55,21 @@ type ReviewRow = {
   created_at: number;
 };
 
+type OwnVerificationRow = {
+  id: string;
+  profile_type: 'farm' | 'company' | 'store' | 'service_company';
+  organization_name: string;
+  bin: string;
+  phone: string;
+  region: string;
+  reference_url: string | null;
+  note: string | null;
+  status: 'pending' | 'verified' | 'rejected';
+  review_note: string | null;
+  created_at: number;
+  reviewed_at: number | null;
+};
+
 type ModerationActivityRow = {
   id: string;
   action: 'warn' | 'restrict' | 'restore';
@@ -100,6 +115,7 @@ export async function GET(request: Request) {
       responseResult,
       bookingResult,
       reviewResult,
+      verificationResult,
       responseActivityResult,
       bookingActivityResult,
       bookingDecisionActivityResult,
@@ -118,11 +134,17 @@ export async function GET(request: Request) {
                     listings.seller_type, listings.delivery, listings.owner_id,
                     listings.status,
                     listing_locations.latitude, listing_locations.longitude,
-                    users.display_name AS owner_name,
+                    COALESCE(verified_business.organization_name,
+                             users.display_name) AS owner_name,
+                    verified_business.id AS verified_business_id,
+                    verified_business.profile_type AS business_profile_type,
                     review_stats.rating_average,
                     review_stats.review_count
              FROM listings
              JOIN users ON users.id = listings.owner_id
+             LEFT JOIN business_verifications verified_business
+               ON verified_business.owner_id = listings.owner_id
+              AND verified_business.status = 'verified'
              LEFT JOIN listing_locations ON listing_locations.listing_id = listings.id
              LEFT JOIN (
                SELECT listing_id, AVG(rating) AS rating_average,
@@ -222,6 +244,16 @@ export async function GET(request: Request) {
            LIMIT 250`,
         )
         .all<ReviewRow>(),
+      db
+        .prepare(
+          `SELECT id, profile_type, organization_name, bin, phone, region,
+                  reference_url, note, status, review_note,
+                  created_at, reviewed_at
+           FROM business_verifications
+           WHERE owner_id = ?`,
+        )
+        .bind(viewer.id)
+        .first<OwnVerificationRow>(),
       db
         .prepare(
           `SELECT responses.id, responses.price, responses.message,
@@ -379,6 +411,22 @@ export async function GET(request: Request) {
         description: `${String(row.target_title)} · ${Number(row.deposit_amount) > 0 ? `залог ${Number(row.deposit_amount).toLocaleString('ru-RU')} ₸` : 'без залога'}`,
         createdAt: Number(row.handed_over_at),
       })),
+      ...(verificationResult && verificationResult.status !== 'pending'
+        ? [
+            {
+              id: `business-verification-${verificationResult.id}-${verificationResult.status}`,
+              kind: 'moderation',
+              title:
+                verificationResult.status === 'verified'
+                  ? 'Бизнес-профиль подтверждён'
+                  : 'Нужно уточнить данные бизнеса',
+              description: `${verificationResult.organization_name}${verificationResult.review_note ? ` · ${verificationResult.review_note}` : ''}`,
+              createdAt: Number(
+                verificationResult.reviewed_at || verificationResult.created_at,
+              ),
+            },
+          ]
+        : []),
       ...moderationActivityResult.results.map((row) => ({
         id: `moderation-${String(row.id)}`,
         kind: 'moderation',
@@ -427,8 +475,10 @@ export async function GET(request: Request) {
             `SELECT
                (SELECT COUNT(*) FROM reports
                  WHERE status IN ('new', 'reviewing')) +
-               (SELECT COUNT(*) FROM appeals
-                 WHERE status IN ('new', 'reviewing')) AS count`,
+                (SELECT COUNT(*) FROM appeals
+                  WHERE status IN ('new', 'reviewing')) +
+               (SELECT COUNT(*) FROM business_verifications
+                  WHERE status = 'pending') AS count`,
           )
           .first<{ count: number }>()
       : null;
@@ -455,6 +505,8 @@ export async function GET(request: Request) {
         available: row.available || undefined,
         description: row.description || undefined,
         sellerType: row.seller_type,
+        verified: Boolean(row.verified_business_id),
+        businessType: row.business_profile_type || undefined,
         delivery: Boolean(row.delivery),
         status: row.status,
         latitude: typeof row.latitude === 'number' ? row.latitude : undefined,
@@ -543,6 +595,24 @@ export async function GET(request: Request) {
         reviewer: row.reviewer_name,
         createdAt: Number(row.created_at),
       })),
+      verification: verificationResult
+        ? {
+            id: verificationResult.id,
+            profileType: verificationResult.profile_type,
+            organizationName: verificationResult.organization_name,
+            maskedBin: `••••••••${verificationResult.bin.slice(-4)}`,
+            phone: verificationResult.phone,
+            region: verificationResult.region,
+            referenceUrl: verificationResult.reference_url || '',
+            note: verificationResult.note || '',
+            status: verificationResult.status,
+            reviewNote: verificationResult.review_note || '',
+            createdAt: Number(verificationResult.created_at),
+            reviewedAt: verificationResult.reviewed_at
+              ? Number(verificationResult.reviewed_at)
+              : null,
+          }
+        : null,
       appeals: appealResult.results.map((row) => ({
         id: row.id,
         moderationActionId: row.moderation_action_id,

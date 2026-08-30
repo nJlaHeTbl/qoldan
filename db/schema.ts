@@ -16,6 +16,38 @@ export const users = sqliteTable('users', {
   updatedAt: integer('updated_at').notNull(),
 });
 
+export const businessVerifications = sqliteTable(
+  'business_verifications',
+  {
+    id: text('id').primaryKey(),
+    ownerId: text('owner_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    profileType: text('profile_type').notNull(),
+    organizationName: text('organization_name').notNull(),
+    bin: text('bin').notNull(),
+    phone: text('phone').notNull(),
+    region: text('region').notNull(),
+    referenceUrl: text('reference_url'),
+    note: text('note'),
+    status: text('status').notNull().default('pending'),
+    reviewNote: text('review_note'),
+    reviewedBy: text('reviewed_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+    reviewedAt: integer('reviewed_at'),
+  },
+  (table) => [
+    uniqueIndex('business_verifications_owner_id_unique').on(table.ownerId),
+    index('business_verifications_status_created_at_idx').on(
+      table.status,
+      table.createdAt,
+    ),
+  ],
+);
+
 export const listings = sqliteTable(
   'listings',
   {
