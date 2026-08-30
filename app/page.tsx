@@ -98,6 +98,19 @@ type RequestSelection = {
   selectedAt: number;
   completedAt: number | null;
   mineAsProvider: boolean;
+  review: RequestServiceReview | null;
+};
+type RequestServiceReview = {
+  id: string;
+  requestId: string;
+  responseId: string;
+  requestTitle: string;
+  rating: number;
+  comment: string;
+  reviewer: string;
+  providerId: string;
+  providerName: string;
+  createdAt: number;
 };
 type ResponseItem = {
   id: string;
@@ -105,8 +118,15 @@ type ResponseItem = {
   price: string;
   message: string;
   owner: string;
+  ownerId: string;
   mine?: boolean;
   selectionStatus?: RequestSelection['status'] | null;
+  providerRating?: string;
+  providerReviewCount: number;
+};
+type ServiceTrust = {
+  serviceRating?: string;
+  serviceReviewCount: number;
 };
 type ActivityItem = {
   id: string;
@@ -804,6 +824,12 @@ export default function Home() {
   const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [reviewTarget, setReviewTarget] = useState<BookingItem | null>(null);
   const [reviewRating, setReviewRating] = useState(5);
+  const [serviceReviewTarget, setServiceReviewTarget] =
+    useState<RequestItem | null>(null);
+  const [serviceReviewRating, setServiceReviewRating] = useState(5);
+  const [serviceTrust, setServiceTrust] = useState<ServiceTrust>({
+    serviceReviewCount: 0,
+  });
   const [handoffTarget, setHandoffTarget] = useState<BookingItem | null>(null);
   const [bookingRange, setBookingRange] = useState<DateRange | undefined>();
   const [availabilityRanges, setAvailabilityRanges] = useState<
@@ -869,6 +895,7 @@ export default function Home() {
     | 'booking'
     | 'bookings'
     | 'review'
+    | 'service-review'
     | 'handover'
     | 'report'
     | 'appeal'
@@ -983,6 +1010,7 @@ export default function Home() {
           activities: ActivityItem[];
           moderation: { canModerate: boolean; pendingCount: number };
           messaging: { unreadCount: number };
+          trust: ServiceTrust;
         };
         if (!active) return;
         setAllListings([...data.listings, ...defaultListings]);
@@ -997,6 +1025,7 @@ export default function Home() {
         setCanModerate(data.moderation.canModerate);
         setModerationPendingCount(data.moderation.pendingCount);
         setMessagingUnreadCount(data.messaging.unreadCount);
+        setServiceTrust(data.trust);
         setViewerName(data.viewer.displayName);
         setServerConnected(true);
       } catch {
@@ -2324,6 +2353,71 @@ export default function Home() {
     } catch (error) {
       notify(
         error instanceof Error ? error.message : 'Не удалось отправить отзыв',
+      );
+    } finally {
+      setSubmitting(null);
+    }
+  };
+  const openServiceReview = (request: RequestItem) => {
+    setServiceReviewTarget(request);
+    setServiceReviewRating(5);
+    setModal('service-review');
+  };
+  const submitServiceReview = async (event: SubmitFormEvent) => {
+    event.preventDefault();
+    if (!serviceReviewTarget) return;
+    const form = new FormData(event.currentTarget);
+    setSubmitting('service-review');
+    try {
+      const response = await fetch('/api/request-reviews', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          requestId: serviceReviewTarget.id,
+          rating: serviceReviewRating,
+          comment: fieldText(form, 'comment').trim(),
+        }),
+      });
+      if (!response.ok) throw new Error(await apiError(response));
+      const data = (await response.json()) as {
+        review: RequestServiceReview;
+        reputation: {
+          providerId: string;
+          rating: string;
+          reviewCount: number;
+        };
+      };
+      const updateRequestReview = (request: RequestItem): RequestItem =>
+        String(request.id) === String(data.review.requestId) &&
+        request.selection
+          ? {
+              ...request,
+              selection: { ...request.selection, review: data.review },
+            }
+          : request;
+      setAllRequests((current) => current.map(updateRequestReview));
+      setSelectedRequest((current) =>
+        current ? updateRequestReview(current) : current,
+      );
+      setAllResponses((current) =>
+        current.map((item) =>
+          item.ownerId === data.reputation.providerId
+            ? {
+                ...item,
+                providerRating: data.reputation.rating,
+                providerReviewCount: data.reputation.reviewCount,
+              }
+            : item,
+        ),
+      );
+      setServiceReviewTarget(null);
+      setModal('response');
+      notify('Спасибо! Оценка подтверждена завершённой работой');
+    } catch (error) {
+      notify(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось опубликовать отзыв',
       );
     } finally {
       setSubmitting(null);
@@ -3855,7 +3949,39 @@ export default function Home() {
                               </button>
                             </>
                           )}
+                        {selectedRequest.mine &&
+                          activeRequestSelection.status === 'completed' &&
+                          !activeRequestSelection.review && (
+                            <button
+                              type="button"
+                              className="selection-review"
+                              onClick={() => openServiceReview(selectedRequest)}
+                            >
+                              <Star fill="currentColor" /> Оценить исполнителя
+                            </button>
+                          )}
                       </div>
+                      {activeRequestSelection.review && (
+                        <div className="request-service-review">
+                          <span>
+                            <Star fill="currentColor" />
+                            {activeRequestSelection.review.rating}/5
+                          </span>
+                          <div>
+                            <b>Проверенный отзыв о работе</b>
+                            <p>
+                              {activeRequestSelection.review.comment ||
+                                'Заказчик подтвердил выполнение без дополнительного комментария.'}
+                            </p>
+                            <small>
+                              {activeRequestSelection.review.reviewer} ·{' '}
+                              {formatActivityDate(
+                                activeRequestSelection.review.createdAt,
+                              )}
+                            </small>
+                          </div>
+                        </div>
+                      )}
                     </section>
                   )}
                 {!isDemoRequest(selectedRequest.id) &&
@@ -3871,9 +3997,16 @@ export default function Home() {
                         }
                       >
                         <span>{response.owner.slice(0, 1).toUpperCase()}</span>
-                        <b>{response.owner}</b>
+                        <div className="bid-provider">
+                          <b>{response.owner}</b>
+                          <small>
+                            {response.providerReviewCount > 0
+                              ? `★ ${response.providerRating} · ${response.providerReviewCount} проверенных ${response.providerReviewCount === 1 ? 'работа' : 'работ'} `
+                              : 'Новый исполнитель'}
+                          </small>
+                        </div>
                         <em>{response.price}</em>
-                        <small>
+                        <small className="bid-message">
                           {response.message || 'Готов обсудить детали заказа'}
                         </small>
                         {activeRequestSelection?.responseId === response.id && (
@@ -4771,6 +4904,24 @@ export default function Home() {
                     <span>броней ожидают</span>
                   </div>
                 </div>
+                <section className="service-reputation-card">
+                  <span>
+                    <Star fill="currentColor" />
+                  </span>
+                  <div>
+                    <small>РЕПУТАЦИЯ ИСПОЛНИТЕЛЯ</small>
+                    <b>
+                      {serviceTrust.serviceReviewCount > 0
+                        ? `${serviceTrust.serviceRating} из 5`
+                        : 'Пока без оценок'}
+                    </b>
+                    <p>
+                      {serviceTrust.serviceReviewCount > 0
+                        ? `${serviceTrust.serviceReviewCount} проверенных отзывов после выполненных заявок.`
+                        : 'Первая оценка появится только после завершённой работы через мини‑тендер Qoldan.'}
+                    </p>
+                  </div>
+                </section>
                 <section
                   className={`business-verification-card ${businessVerification?.status || 'empty'}`}
                 >
@@ -6184,6 +6335,76 @@ export default function Home() {
                     {submitting === 'review'
                       ? 'Публикуем…'
                       : 'Опубликовать отзыв'}{' '}
+                    <ArrowRight />
+                  </button>
+                </form>
+              </>
+            )}
+            {modal === 'service-review' && serviceReviewTarget?.selection && (
+              <>
+                <div className="modal-title review-title service-review-title">
+                  <span>
+                    <Star fill="currentColor" />
+                  </span>
+                  <div>
+                    <small>ПОДТВЕРЖДЕНО ВЫПОЛНЕННОЙ ЗАЯВКОЙ</small>
+                    <h2>Оцените исполнителя</h2>
+                    <p>
+                      {serviceReviewTarget.selection.providerName} по заявке «
+                      {serviceReviewTarget.title}». Оценка войдёт в репутацию
+                      исполнителя в будущих мини‑тендерах.
+                    </p>
+                  </div>
+                </div>
+                <form className="review-form" onSubmit={submitServiceReview}>
+                  <fieldset>
+                    <legend>Ваша оценка</legend>
+                    <div className="review-star-picker">
+                      {Array.from({ length: 5 }, (_, index) => {
+                        const value = index + 1;
+                        return (
+                          <button
+                            key={value}
+                            type="button"
+                            className={
+                              value <= serviceReviewRating ? 'active' : ''
+                            }
+                            onClick={() => setServiceReviewRating(value)}
+                            aria-label={`Оценка ${value} из 5`}
+                            aria-pressed={value <= serviceReviewRating}
+                          >
+                            <Star fill="currentColor" />
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <b>{serviceReviewRating} из 5</b>
+                  </fieldset>
+                  <label>
+                    Что было хорошо или что стоит улучшить?{' '}
+                    <small>необязательно</small>
+                    <textarea
+                      name="comment"
+                      rows={4}
+                      maxLength={800}
+                      placeholder="Например: приехал вовремя, объём выполнил полностью, цена не изменилась…"
+                    />
+                  </label>
+                  <div className="review-trust-note">
+                    <ShieldCheck />
+                    <span>
+                      Один отзыв доступен только автору заявки после того, как
+                      он отметил работу выполненной.
+                    </span>
+                  </div>
+                  <button
+                    className="submit-button"
+                    type="submit"
+                    disabled={submitting === 'service-review'}
+                  >
+                    {submitting === 'service-review'
+                      ? 'Публикуем…'
+                      : 'Опубликовать проверенный отзыв'}{' '}
                     <ArrowRight />
                   </button>
                 </form>
