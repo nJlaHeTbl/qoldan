@@ -163,6 +163,17 @@ export async function ensureMarketplaceSchema() {
         delivery INTEGER DEFAULT 0 NOT NULL,
         comment TEXT,
         status TEXT DEFAULT 'pending' NOT NULL,
+        created_at INTEGER NOT NULL,
+        completed_at INTEGER
+      )`),
+      db.prepare(`CREATE TABLE IF NOT EXISTS reviews (
+        id TEXT PRIMARY KEY NOT NULL,
+        booking_id TEXT NOT NULL UNIQUE REFERENCES bookings(id) ON DELETE CASCADE,
+        listing_id TEXT NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+        reviewer_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        reviewee_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        rating INTEGER NOT NULL,
+        comment TEXT,
         created_at INTEGER NOT NULL
       )`),
       db.prepare(`CREATE TABLE IF NOT EXISTS uploads (
@@ -227,6 +238,16 @@ export async function ensureMarketplaceSchema() {
         read_at INTEGER
       )`),
     ]);
+    const bookingColumns = await db
+      .prepare('PRAGMA table_info(bookings)')
+      .all<{ name: string }>();
+    if (
+      !bookingColumns.results.some((column) => column.name === 'completed_at')
+    ) {
+      await db
+        .prepare('ALTER TABLE bookings ADD COLUMN completed_at INTEGER')
+        .run();
+    }
     await db.batch([
       db.prepare(
         'CREATE INDEX IF NOT EXISTS listings_status_created_at_idx ON listings (status, created_at)',
@@ -263,6 +284,15 @@ export async function ensureMarketplaceSchema() {
       ),
       db.prepare(
         'CREATE INDEX IF NOT EXISTS bookings_listing_status_dates_idx ON bookings (listing_id, status, date_from, date_to)',
+      ),
+      db.prepare(
+        'CREATE UNIQUE INDEX IF NOT EXISTS reviews_booking_id_unique ON reviews (booking_id)',
+      ),
+      db.prepare(
+        'CREATE INDEX IF NOT EXISTS reviews_listing_id_created_at_idx ON reviews (listing_id, created_at)',
+      ),
+      db.prepare(
+        'CREATE INDEX IF NOT EXISTS reviews_reviewee_id_created_at_idx ON reviews (reviewee_id, created_at)',
       ),
       db.prepare(
         'CREATE INDEX IF NOT EXISTS uploads_owner_id_idx ON uploads (owner_id)',

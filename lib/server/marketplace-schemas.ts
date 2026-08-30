@@ -6,7 +6,7 @@ const sellerTypes = ['Частное лицо', 'Компания', 'Магаз�
 const requestKinds = ['agro', 'build', 'rent', 'recycle'] as const;
 const listingStatuses = ['active', 'paused'] as const;
 const requestStatuses = ['open', 'closed'] as const;
-const bookingStatuses = ['accepted', 'declined'] as const;
+const bookingStatuses = ['accepted', 'declined', 'completed'] as const;
 const reportReasons = [
   'fraud',
   'spam',
@@ -87,6 +87,16 @@ export const bookingInput = z
 export const bookingStatusInput = z.object({
   bookingId: z.union([z.string(), z.number()]).transform(String),
   status: z.enum(bookingStatuses),
+});
+
+export const reviewInput = z.object({
+  bookingId: z.string().trim().min(1).max(100),
+  rating: z
+    .number()
+    .int()
+    .min(1, 'Выберите оценку от 1 до 5')
+    .max(5, 'Выберите оценку от 1 до 5'),
+  comment: z.string().trim().max(800).optional().default(''),
 });
 
 export const reportInput = z.object({

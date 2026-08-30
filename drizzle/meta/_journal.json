@@ -57,6 +57,13 @@
       "when": 1788042369395,
       "tag": "0007_greedy_starfox",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1788079656764,
+      "tag": "0008_soft_nicolaos",
+      "breakpoints": true
     }
   ]
 }

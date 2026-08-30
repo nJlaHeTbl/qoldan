@@ -30,10 +30,21 @@ type BookingActivityRow = {
 
 type BookingDecisionActivityRow = {
   id: string;
-  status: 'accepted' | 'declined';
+  status: 'accepted' | 'declined' | 'completed';
   created_at: number;
   actor_name: string;
   target_title: string;
+};
+
+type ReviewRow = {
+  id: string;
+  booking_id: string;
+  listing_id: string;
+  listing_title: string;
+  rating: number;
+  comment: string | null;
+  reviewer_name: string;
+  created_at: number;
 };
 
 type ModerationActivityRow = {
@@ -80,6 +91,7 @@ export async function GET(request: Request) {
       favoriteResult,
       responseResult,
       bookingResult,
+      reviewResult,
       responseActivityResult,
       bookingActivityResult,
       bookingDecisionActivityResult,
@@ -97,10 +109,18 @@ export async function GET(request: Request) {
                     listings.seller_type, listings.delivery, listings.owner_id,
                     listings.status,
                     listing_locations.latitude, listing_locations.longitude,
-                    users.display_name AS owner_name
+                    users.display_name AS owner_name,
+                    review_stats.rating_average,
+                    review_stats.review_count
              FROM listings
              JOIN users ON users.id = listings.owner_id
              LEFT JOIN listing_locations ON listing_locations.listing_id = listings.id
+             LEFT JOIN (
+               SELECT listing_id, AVG(rating) AS rating_average,
+                      COUNT(*) AS review_count
+               FROM reviews
+               GROUP BY listing_id
+             ) AS review_stats ON review_stats.listing_id = listings.id
              WHERE listings.status = 'active' OR listings.owner_id = ?
              ORDER BY listings.created_at DESC
              LIMIT 250`,
@@ -147,20 +167,40 @@ export async function GET(request: Request) {
           `SELECT bookings.id, bookings.listing_id, bookings.owner_id AS customer_id,
                   bookings.date_from, bookings.date_to, bookings.customer_phone,
                   bookings.delivery, bookings.comment, bookings.status,
+                  bookings.completed_at,
                   listings.title AS listing_title, listings.phone AS listing_phone,
                   listings.owner_id AS listing_owner_id,
                   customers.display_name AS customer_name,
-                  listing_owners.display_name AS listing_owner_name
+                  listing_owners.display_name AS listing_owner_name,
+                  reviews.id AS review_id, reviews.rating AS review_rating,
+                  reviews.comment AS review_comment,
+                  reviews.created_at AS review_created_at,
+                  reviewers.display_name AS review_reviewer_name
            FROM bookings
            JOIN listings ON listings.id = bookings.listing_id
            JOIN users customers ON customers.id = bookings.owner_id
            JOIN users listing_owners ON listing_owners.id = listings.owner_id
+           LEFT JOIN reviews ON reviews.booking_id = bookings.id
+           LEFT JOIN users reviewers ON reviewers.id = reviews.reviewer_id
            WHERE bookings.owner_id = ? OR listings.owner_id = ?
            ORDER BY bookings.created_at DESC
            LIMIT 150`,
         )
         .bind(viewer.id, viewer.id)
         .all<Record<string, unknown>>(),
+      db
+        .prepare(
+          `SELECT reviews.id, reviews.booking_id, reviews.listing_id,
+                  listings.title AS listing_title, reviews.rating,
+                  reviews.comment, reviews.created_at,
+                  users.display_name AS reviewer_name
+           FROM reviews
+           JOIN listings ON listings.id = reviews.listing_id
+           JOIN users ON users.id = reviews.reviewer_id
+           ORDER BY reviews.created_at DESC
+           LIMIT 250`,
+        )
+        .all<ReviewRow>(),
       db
         .prepare(
           `SELECT responses.id, responses.price, responses.message,
@@ -191,14 +231,15 @@ export async function GET(request: Request) {
         .all<BookingActivityRow>(),
       db
         .prepare(
-          `SELECT bookings.id, bookings.status, bookings.created_at,
+          `SELECT bookings.id, bookings.status,
+                  COALESCE(bookings.completed_at, bookings.created_at) AS created_at,
                   users.display_name AS actor_name,
                   listings.title AS target_title
            FROM bookings
            JOIN listings ON listings.id = bookings.listing_id
            JOIN users ON users.id = listings.owner_id
            WHERE bookings.owner_id = ?
-             AND bookings.status IN ('accepted', 'declined')
+              AND bookings.status IN ('accepted', 'declined', 'completed')
            ORDER BY bookings.created_at DESC
            LIMIT 50`,
         )
@@ -287,7 +328,9 @@ export async function GET(request: Request) {
         title:
           row.status === 'accepted'
             ? `Бронирование подтверждено — ${String(row.actor_name)}`
-            : `Бронирование отклонено — ${String(row.actor_name)}`,
+            : row.status === 'completed'
+              ? `Аренда завершена — можно оставить отзыв`
+              : `Бронирование отклонено — ${String(row.actor_name)}`,
         description: String(row.target_title),
         createdAt: Number(row.created_at),
       })),
@@ -373,6 +416,11 @@ export async function GET(request: Request) {
         longitude:
           typeof row.longitude === 'number' ? row.longitude : undefined,
         mine: row.owner_id === viewer.id,
+        rating:
+          typeof row.rating_average === 'number'
+            ? Number(row.rating_average).toFixed(1)
+            : undefined,
+        reviewCount: Number(row.review_count || 0),
       })),
       requests: requestResult.results.map((row) => ({
         id: String(row.id),
@@ -410,9 +458,33 @@ export async function GET(request: Request) {
           delivery: Boolean(row.delivery),
           comment: row.comment || '',
           status: row.status,
+          completedAt: row.completed_at ? Number(row.completed_at) : null,
           incoming,
+          canReview: !incoming && row.status === 'completed' && !row.review_id,
+          review: row.review_id
+            ? {
+                id: row.review_id as string,
+                bookingId: String(row.id),
+                listingId: String(row.listing_id),
+                listingTitle: row.listing_title,
+                rating: Number(row.review_rating),
+                comment: row.review_comment || '',
+                reviewer: row.review_reviewer_name,
+                createdAt: Number(row.review_created_at),
+              }
+            : null,
         };
       }),
+      reviews: reviewResult.results.map((row) => ({
+        id: row.id,
+        bookingId: row.booking_id,
+        listingId: row.listing_id,
+        listingTitle: row.listing_title,
+        rating: Number(row.rating),
+        comment: row.comment || '',
+        reviewer: row.reviewer_name,
+        createdAt: Number(row.created_at),
+      })),
       appeals: appealResult.results.map((row) => ({
         id: row.id,
         moderationActionId: row.moderation_action_id,

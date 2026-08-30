@@ -135,6 +135,7 @@ export const bookings = sqliteTable(
     comment: text('comment'),
     status: text('status').notNull().default('pending'),
     createdAt: integer('created_at').notNull(),
+    completedAt: integer('completed_at'),
   },
   (table) => [
     index('bookings_listing_id_created_at_idx').on(
@@ -147,6 +148,39 @@ export const bookings = sqliteTable(
       table.status,
       table.dateFrom,
       table.dateTo,
+    ),
+  ],
+);
+
+export const reviews = sqliteTable(
+  'reviews',
+  {
+    id: text('id').primaryKey(),
+    bookingId: text('booking_id')
+      .notNull()
+      .references(() => bookings.id, { onDelete: 'cascade' }),
+    listingId: text('listing_id')
+      .notNull()
+      .references(() => listings.id, { onDelete: 'cascade' }),
+    reviewerId: text('reviewer_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    revieweeId: text('reviewee_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    rating: integer('rating').notNull(),
+    comment: text('comment'),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => [
+    uniqueIndex('reviews_booking_id_unique').on(table.bookingId),
+    index('reviews_listing_id_created_at_idx').on(
+      table.listingId,
+      table.createdAt,
+    ),
+    index('reviews_reviewee_id_created_at_idx').on(
+      table.revieweeId,
+      table.createdAt,
     ),
   ],
 );
