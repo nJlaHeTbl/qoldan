@@ -1,6 +1,8 @@
 'use client';
 /* oxlint-disable next/no-img-element, react/react-compiler -- marketplace photos can be remote or user-uploaded; shared server data is hydrated after mount */
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
+import { type DateRange } from 'react-day-picker';
+import { ru } from 'date-fns/locale';
 import {
   ArrowRight,
   Bell,
@@ -39,6 +41,7 @@ import {
   MarketplaceMap,
   type MarketplaceMapMarker,
 } from '@/components/MarketplaceMap';
+import { Calendar } from '@/components/ui/calendar';
 import {
   getRegionCenter,
   resolveCoordinates,
@@ -133,6 +136,10 @@ type BookingItem = {
   comment: string;
   status: 'pending' | 'accepted' | 'declined';
   incoming: boolean;
+};
+type AvailabilityRange = {
+  dateFrom: string;
+  dateTo: string;
 };
 type ReportTarget = {
   type: 'listing' | 'request';
@@ -233,6 +240,16 @@ const formatBookingDate = (date: string) =>
     day: 'numeric',
     month: 'short',
   }).format(new Date(`${date}T12:00:00`));
+const parseCalendarDate = (value: string) => {
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, month - 1, day, 12);
+};
+const toIsoDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 const listings: Listing[] = [
   {
     id: 1,
@@ -705,6 +722,13 @@ export default function Home() {
     useState<RequestItem[]>(initialRequests);
   const [allResponses, setAllResponses] = useState<ResponseItem[]>([]);
   const [bookings, setBookings] = useState<BookingItem[]>([]);
+  const [bookingRange, setBookingRange] = useState<DateRange | undefined>();
+  const [availabilityRanges, setAvailabilityRanges] = useState<
+    AvailabilityRange[]
+  >([]);
+  const [availabilityState, setAvailabilityState] = useState<
+    'idle' | 'loading' | 'ready' | 'error'
+  >('idle');
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [activeConversation, setActiveConversation] =
@@ -791,6 +815,19 @@ export default function Home() {
     .map((part) => part[0])
     .join('')
     .toUpperCase();
+  const calendarToday = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+  }, []);
+  const occupiedCalendarRanges = useMemo(
+    () =>
+      availabilityRanges.map((range) => ({
+        from: parseCalendarDate(range.dateFrom),
+        to: parseCalendarDate(range.dateTo),
+      })),
+    [availabilityRanges],
+  );
   const selectedResponses = selectedRequest
     ? allResponses.filter(
         (response) => response.requestId === String(selectedRequest.id),
@@ -1780,14 +1817,46 @@ export default function Home() {
       setSubmitting(null);
     }
   };
+  const loadBookingAvailability = async (listingId: string) => {
+    setAvailabilityState('loading');
+    try {
+      const response = await fetch(
+        `/api/bookings/availability?listingId=${encodeURIComponent(listingId)}`,
+        { cache: 'no-store' },
+      );
+      if (!response.ok) throw new Error(await apiError(response));
+      const result = (await response.json()) as {
+        ranges: AvailabilityRange[];
+      };
+      setAvailabilityRanges(result.ranges);
+      setAvailabilityState('ready');
+    } catch (error) {
+      setAvailabilityRanges([]);
+      setAvailabilityState('error');
+      notify(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось загрузить занятые даты',
+      );
+    }
+  };
+  const openBooking = () => {
+    if (!selectedListing) return;
+    setBookingRange(undefined);
+    setAvailabilityRanges([]);
+    setModal('booking');
+    void loadBookingAvailability(String(selectedListing.id));
+  };
   const submitBooking = async (e: SubmitFormEvent) => {
     e.preventDefault();
     if (!selectedListing) return;
     const data = new FormData(e.currentTarget);
-    if (fieldText(data, 'dateTo') < fieldText(data, 'dateFrom')) {
-      notify('Дата возврата не может быть раньше даты начала');
+    if (!bookingRange?.from) {
+      notify('Выберите дату или период аренды в календаре');
       return;
     }
+    const dateFrom = toIsoDate(bookingRange.from);
+    const dateTo = toIsoDate(bookingRange.to || bookingRange.from);
     setSubmitting('booking');
     try {
       const response = await fetch('/api/bookings', {
@@ -1795,8 +1864,8 @@ export default function Home() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           listingId: selectedListing.id,
-          dateFrom: fieldText(data, 'dateFrom'),
-          dateTo: fieldText(data, 'dateTo'),
+          dateFrom,
+          dateTo,
           customerPhone: fieldText(data, 'customerPhone'),
           delivery: data.get('delivery') === 'on',
           comment: fieldText(data, 'comment'),
@@ -1805,9 +1874,11 @@ export default function Home() {
       if (!response.ok) throw new Error(await apiError(response));
       const result = (await response.json()) as { booking: BookingItem };
       setBookings((previous) => [result.booking, ...previous]);
+      setBookingRange(undefined);
       setModal(null);
       notify('Запрос на бронирование отправлен владельцу');
     } catch (error) {
+      void loadBookingAvailability(String(selectedListing.id));
       notify(
         error instanceof Error ? error.message : 'Не удалось отправить запрос',
       );
@@ -1827,14 +1898,23 @@ export default function Home() {
         body: JSON.stringify({ bookingId, status }),
       });
       if (!response.ok) throw new Error(await apiError(response));
+      const result = (await response.json()) as {
+        autoDeclinedIds: string[];
+      };
       setBookings((previous) =>
         previous.map((booking) =>
-          booking.id === bookingId ? { ...booking, status } : booking,
+          booking.id === bookingId
+            ? { ...booking, status }
+            : result.autoDeclinedIds.includes(booking.id)
+              ? { ...booking, status: 'declined' }
+              : booking,
         ),
       );
       notify(
         status === 'accepted'
-          ? 'Бронирование подтверждено — арендатор увидит решение'
+          ? result.autoDeclinedIds.length > 0
+            ? `Бронирование подтверждено, пересекающихся запросов отклонено: ${result.autoDeclinedIds.length}`
+            : 'Бронирование подтверждено — даты теперь заняты'
           : 'Запрос на бронирование отклонён',
       );
     } catch (error) {
@@ -3619,9 +3699,7 @@ export default function Home() {
                       )}
                       {!isDemoListing(selectedListing.id) &&
                         selectedListing.type === 'Сдам' && (
-                          <button onClick={() => setModal('booking')}>
-                            Забронировать
-                          </button>
+                          <button onClick={openBooking}>Забронировать</button>
                         )}
                       {!isDemoListing(selectedListing.id) && (
                         <button
@@ -3681,24 +3759,80 @@ export default function Home() {
                   </div>
                 </div>
                 <form className="product-form" onSubmit={submitBooking}>
-                  <label>
-                    Дата начала
-                    <input
-                      name="dateFrom"
-                      type="date"
-                      min={new Date().toISOString().slice(0, 10)}
-                      required
+                  <div className="booking-calendar-card wide">
+                    <div className="booking-calendar-head">
+                      <div>
+                        <small>ДОСТУПНОСТЬ</small>
+                        <h3>Выберите даты аренды</h3>
+                      </div>
+                      <span
+                        className={`availability-status ${availabilityState}`}
+                      >
+                        {availabilityState === 'loading'
+                          ? 'Проверяем…'
+                          : availabilityState === 'error'
+                            ? 'Проверит сервер'
+                            : availabilityRanges.length > 0
+                              ? `Занято периодов: ${availabilityRanges.length}`
+                              : 'Свободно'}
+                      </span>
+                    </div>
+                    <Calendar
+                      mode="range"
+                      locale={ru}
+                      selected={bookingRange}
+                      onSelect={setBookingRange}
+                      defaultMonth={bookingRange?.from || calendarToday}
+                      startMonth={calendarToday}
+                      disabled={[
+                        { before: calendarToday },
+                        ...occupiedCalendarRanges,
+                      ]}
+                      modifiers={{ booked: occupiedCalendarRanges }}
+                      modifiersClassNames={{ booked: 'qoldan-booked-day' }}
+                      excludeDisabled
+                      className="booking-calendar"
                     />
-                  </label>
-                  <label>
-                    Дата возврата
-                    <input
-                      name="dateTo"
-                      type="date"
-                      min={new Date().toISOString().slice(0, 10)}
-                      required
-                    />
-                  </label>
+                    <div className="booking-calendar-legend">
+                      <span>
+                        <i className="selected" /> Вы выбрали
+                      </span>
+                      <span>
+                        <i className="booked" /> Уже занято
+                      </span>
+                      <span>
+                        <i className="free" /> Свободно
+                      </span>
+                    </div>
+                    <div className="booking-selection">
+                      <Clock3 />
+                      <div>
+                        <b>
+                          {bookingRange?.from
+                            ? `${formatBookingDate(toIsoDate(bookingRange.from))}${bookingRange.to ? ` — ${formatBookingDate(toIsoDate(bookingRange.to))}` : ' · один день'}`
+                            : 'Период ещё не выбран'}
+                        </b>
+                        <span>
+                          {bookingRange?.from
+                            ? 'Владелец получит запрос на этот период.'
+                            : 'Для аренды на один день нажмите дату один раз.'}
+                        </span>
+                      </div>
+                    </div>
+                    {availabilityRanges.length > 0 && (
+                      <div className="busy-periods">
+                        <b>Ближайшие занятые периоды</b>
+                        <div>
+                          {availabilityRanges.slice(0, 3).map((range) => (
+                            <span key={`${range.dateFrom}-${range.dateTo}`}>
+                              {formatBookingDate(range.dateFrom)} —{' '}
+                              {formatBookingDate(range.dateTo)}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                   <label className="wide">
                     Телефон для ответа владельца
                     <input

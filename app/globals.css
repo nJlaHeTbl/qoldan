@@ -1623,6 +1623,161 @@ footer {
 .product-form textarea {
   resize: vertical;
 }
+.booking-calendar-card {
+  overflow: hidden;
+  border: 1px solid #dce5dc;
+  border-radius: 15px;
+  background: #fbfcfa;
+}
+.booking-calendar-head {
+  padding: 13px 15px;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.booking-calendar-head small {
+  color: var(--green);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.8px;
+}
+.booking-calendar-head h3 {
+  margin: 3px 0 0;
+  color: var(--ink);
+  font-size: 14px;
+}
+.availability-status {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 6px 9px;
+  background: #e8f3e7;
+  color: var(--green);
+  font-size: 8px;
+  font-weight: 850;
+}
+.availability-status.loading {
+  background: #fff0d8;
+  color: #835a18;
+}
+.availability-status.error {
+  background: #f8e8e4;
+  color: #9a4c40;
+}
+.booking-calendar {
+  width: 100%;
+  --cell-size: 38px;
+  padding: 13px 16px;
+  background: #fbfcfa;
+}
+.booking-calendar .rdp-months,
+.booking-calendar .rdp-month,
+.booking-calendar .rdp-month_grid {
+  width: 100%;
+}
+.booking-calendar .rdp-month_caption {
+  color: var(--ink);
+  text-transform: capitalize;
+}
+.booking-calendar .rdp-weekday {
+  color: #879188;
+  font-size: 9px;
+  font-weight: 750;
+}
+.booking-calendar .rdp-day button {
+  font-size: 10px;
+}
+.booking-calendar .qoldan-booked-day button {
+  background: #f8e5df !important;
+  color: #a95c4c !important;
+  text-decoration: line-through;
+  opacity: 0.75;
+}
+.booking-calendar-legend {
+  padding: 10px 15px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px 15px;
+}
+.booking-calendar-legend span {
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 8px;
+}
+.booking-calendar-legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  background: #fff;
+  border: 1px solid #ccd7cd;
+}
+.booking-calendar-legend i.selected {
+  border-color: var(--green);
+  background: var(--green);
+}
+.booking-calendar-legend i.booked {
+  border-color: #e7c4ba;
+  background: #f3d8d0;
+}
+.booking-selection {
+  margin: 12px;
+  border-radius: 11px;
+  padding: 11px 13px;
+  background: #eaf4e8;
+  color: var(--green);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.booking-selection > svg {
+  width: 19px;
+  flex: 0 0 auto;
+}
+.booking-selection > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.booking-selection b {
+  color: var(--ink);
+  font-size: 10px;
+}
+.booking-selection span {
+  color: #607064;
+  font-size: 8px;
+}
+.busy-periods {
+  margin: 0 12px 12px;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fff3ee;
+}
+.busy-periods > b {
+  color: #8a4a3d;
+  font-size: 8px;
+}
+.busy-periods > div {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.busy-periods span {
+  border: 1px solid #efd7cf;
+  border-radius: 7px;
+  padding: 5px 7px;
+  background: #fff;
+  color: #7a554c;
+  font-size: 8px;
+}
 .geolocation-picker {
   min-height: 62px;
   border: 1px dashed #a8b8aa;
@@ -4002,6 +4157,20 @@ footer {
   .product-form .wide,
   .product-form .submit-button {
     grid-column: 1;
+  }
+  .booking-calendar-card {
+    grid-column: 1;
+  }
+  .booking-calendar {
+    --cell-size: 34px;
+    padding: 11px 8px;
+  }
+  .booking-calendar-head {
+    align-items: flex-start;
+    padding: 12px;
+  }
+  .booking-calendar-legend {
+    padding: 9px 12px;
   }
   .info-grid {
     grid-template-columns: 1fr;
