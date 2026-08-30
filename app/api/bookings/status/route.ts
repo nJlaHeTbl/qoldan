@@ -42,35 +42,6 @@ export async function POST(request: Request) {
         { status: 404 },
       );
     }
-    if (input.status === 'completed') {
-      if (booking.status !== 'accepted') {
-        return Response.json(
-          { error: 'Завершить можно только подтверждённую аренду' },
-          { status: 409 },
-        );
-      }
-      const completedAt = Date.now();
-      const completed = await db
-        .prepare(
-          `UPDATE bookings
-           SET status = 'completed', completed_at = ?
-           WHERE id = ? AND status = 'accepted'`,
-        )
-        .bind(completedAt, booking.id)
-        .run();
-      if (!completed.meta.changes) {
-        return Response.json(
-          { error: 'Статус аренды уже изменился' },
-          { status: 409 },
-        );
-      }
-      return Response.json({
-        bookingId: input.bookingId,
-        status: input.status,
-        completedAt,
-        autoDeclinedIds: [],
-      });
-    }
     if (booking.status !== 'pending') {
       return Response.json(
         { error: 'Решение по этому бронированию уже принято' },

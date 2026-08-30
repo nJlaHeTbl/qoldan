@@ -166,6 +166,19 @@ export async function ensureMarketplaceSchema() {
         created_at INTEGER NOT NULL,
         completed_at INTEGER
       )`),
+      db.prepare(`CREATE TABLE IF NOT EXISTS rental_handoffs (
+        booking_id TEXT PRIMARY KEY NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
+        deposit_amount INTEGER DEFAULT 0 NOT NULL,
+        deposit_received INTEGER DEFAULT 0 NOT NULL,
+        condition_out TEXT NOT NULL,
+        equipment_list TEXT,
+        handed_over_at INTEGER NOT NULL,
+        condition_in TEXT,
+        deposit_result TEXT,
+        return_note TEXT,
+        returned_at INTEGER,
+        updated_at INTEGER NOT NULL
+      )`),
       db.prepare(`CREATE TABLE IF NOT EXISTS reviews (
         id TEXT PRIMARY KEY NOT NULL,
         booking_id TEXT NOT NULL UNIQUE REFERENCES bookings(id) ON DELETE CASCADE,

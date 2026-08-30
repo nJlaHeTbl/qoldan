@@ -6,7 +6,13 @@ const sellerTypes = ['Частное лицо', 'Компания', 'Магаз�
 const requestKinds = ['agro', 'build', 'rent', 'recycle'] as const;
 const listingStatuses = ['active', 'paused'] as const;
 const requestStatuses = ['open', 'closed'] as const;
-const bookingStatuses = ['accepted', 'declined', 'completed'] as const;
+const bookingStatuses = ['accepted', 'declined'] as const;
+const depositResults = [
+  'not_applicable',
+  'returned',
+  'partially_withheld',
+  'withheld',
+] as const;
 const reportReasons = [
   'fraud',
   'spam',
@@ -88,6 +94,50 @@ export const bookingStatusInput = z.object({
   bookingId: z.union([z.string(), z.number()]).transform(String),
   status: z.enum(bookingStatuses),
 });
+
+export const rentalHandoverInput = z
+  .discriminatedUnion('action', [
+    z.object({
+      action: z.literal('handover'),
+      bookingId: z.string().trim().min(1).max(100),
+      depositAmount: z.number().int().min(0).max(100_000_000),
+      depositReceived: z.boolean(),
+      conditionOut: z.string().trim().min(5).max(1200),
+      equipmentList: z.string().trim().max(800).optional().default(''),
+    }),
+    z.object({
+      action: z.literal('return'),
+      bookingId: z.string().trim().min(1).max(100),
+      conditionIn: z.string().trim().min(5).max(1200),
+      depositResult: z.enum(depositResults),
+      returnNote: z.string().trim().max(1200).optional().default(''),
+    }),
+  ])
+  .superRefine((value, context) => {
+    if (
+      value.action === 'handover' &&
+      value.depositAmount > 0 &&
+      !value.depositReceived
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['depositReceived'],
+        message: 'Подтвердите получение указанного залога',
+      });
+    }
+    if (
+      value.action === 'return' &&
+      (value.depositResult === 'partially_withheld' ||
+        value.depositResult === 'withheld') &&
+      value.returnNote.length < 10
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['returnNote'],
+        message: 'Объясните причину удержания залога',
+      });
+    }
+  });
 
 export const reviewInput = z.object({
   bookingId: z.string().trim().min(1).max(100),

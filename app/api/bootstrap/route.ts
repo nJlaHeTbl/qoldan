@@ -36,6 +36,14 @@ type BookingDecisionActivityRow = {
   target_title: string;
 };
 
+type HandoffActivityRow = {
+  booking_id: string;
+  deposit_amount: number;
+  handed_over_at: number;
+  actor_name: string;
+  target_title: string;
+};
+
 type ReviewRow = {
   id: string;
   booking_id: string;
@@ -95,6 +103,7 @@ export async function GET(request: Request) {
       responseActivityResult,
       bookingActivityResult,
       bookingDecisionActivityResult,
+      handoffActivityResult,
       moderationActivityResult,
       appealResult,
       messageActivityResult,
@@ -175,13 +184,25 @@ export async function GET(request: Request) {
                   reviews.id AS review_id, reviews.rating AS review_rating,
                   reviews.comment AS review_comment,
                   reviews.created_at AS review_created_at,
-                  reviewers.display_name AS review_reviewer_name
+                  reviewers.display_name AS review_reviewer_name,
+                  rental_handoffs.booking_id AS handoff_booking_id,
+                  rental_handoffs.deposit_amount,
+                  rental_handoffs.deposit_received,
+                  rental_handoffs.condition_out,
+                  rental_handoffs.equipment_list,
+                  rental_handoffs.handed_over_at,
+                  rental_handoffs.condition_in,
+                  rental_handoffs.deposit_result,
+                  rental_handoffs.return_note,
+                  rental_handoffs.returned_at
            FROM bookings
            JOIN listings ON listings.id = bookings.listing_id
            JOIN users customers ON customers.id = bookings.owner_id
            JOIN users listing_owners ON listing_owners.id = listings.owner_id
            LEFT JOIN reviews ON reviews.booking_id = bookings.id
            LEFT JOIN users reviewers ON reviewers.id = reviews.reviewer_id
+           LEFT JOIN rental_handoffs
+             ON rental_handoffs.booking_id = bookings.id
            WHERE bookings.owner_id = ? OR listings.owner_id = ?
            ORDER BY bookings.created_at DESC
            LIMIT 150`,
@@ -245,6 +266,23 @@ export async function GET(request: Request) {
         )
         .bind(viewer.id)
         .all<BookingDecisionActivityRow>(),
+      db
+        .prepare(
+          `SELECT rental_handoffs.booking_id,
+                  rental_handoffs.deposit_amount,
+                  rental_handoffs.handed_over_at,
+                  users.display_name AS actor_name,
+                  listings.title AS target_title
+           FROM rental_handoffs
+           JOIN bookings ON bookings.id = rental_handoffs.booking_id
+           JOIN listings ON listings.id = bookings.listing_id
+           JOIN users ON users.id = listings.owner_id
+           WHERE bookings.owner_id = ?
+           ORDER BY rental_handoffs.handed_over_at DESC
+           LIMIT 50`,
+        )
+        .bind(viewer.id)
+        .all<HandoffActivityRow>(),
       db
         .prepare(
           `SELECT moderation_actions.id, moderation_actions.action,
@@ -333,6 +371,13 @@ export async function GET(request: Request) {
               : `Бронирование отклонено — ${String(row.actor_name)}`,
         description: String(row.target_title),
         createdAt: Number(row.created_at),
+      })),
+      ...handoffActivityResult.results.map((row) => ({
+        id: `handoff-${String(row.booking_id)}`,
+        kind: 'booking',
+        title: `Передача аренды зафиксирована — ${String(row.actor_name)}`,
+        description: `${String(row.target_title)} · ${Number(row.deposit_amount) > 0 ? `залог ${Number(row.deposit_amount).toLocaleString('ru-RU')} ₸` : 'без залога'}`,
+        createdAt: Number(row.handed_over_at),
       })),
       ...moderationActivityResult.results.map((row) => ({
         id: `moderation-${String(row.id)}`,
@@ -471,6 +516,19 @@ export async function GET(request: Request) {
                 comment: row.review_comment || '',
                 reviewer: row.review_reviewer_name,
                 createdAt: Number(row.review_created_at),
+              }
+            : null,
+          handoff: row.handoff_booking_id
+            ? {
+                depositAmount: Number(row.deposit_amount || 0),
+                depositReceived: Boolean(row.deposit_received),
+                conditionOut: row.condition_out || '',
+                equipmentList: row.equipment_list || '',
+                handedOverAt: Number(row.handed_over_at),
+                conditionIn: row.condition_in || '',
+                depositResult: row.deposit_result || null,
+                returnNote: row.return_note || '',
+                returnedAt: row.returned_at ? Number(row.returned_at) : null,
               }
             : null,
         };

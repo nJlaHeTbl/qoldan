@@ -152,6 +152,24 @@ export const bookings = sqliteTable(
   ],
 );
 
+export const rentalHandoffs = sqliteTable('rental_handoffs', {
+  bookingId: text('booking_id')
+    .primaryKey()
+    .references(() => bookings.id, { onDelete: 'cascade' }),
+  depositAmount: integer('deposit_amount').notNull().default(0),
+  depositReceived: integer('deposit_received', { mode: 'boolean' })
+    .notNull()
+    .default(false),
+  conditionOut: text('condition_out').notNull(),
+  equipmentList: text('equipment_list'),
+  handedOverAt: integer('handed_over_at').notNull(),
+  conditionIn: text('condition_in'),
+  depositResult: text('deposit_result'),
+  returnNote: text('return_note'),
+  returnedAt: integer('returned_at'),
+  updatedAt: integer('updated_at').notNull(),
+});
+
 export const reviews = sqliteTable(
   'reviews',
   {
