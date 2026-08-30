@@ -19,6 +19,17 @@ type ResponseActivityRow = {
   target_title: string;
 };
 
+type SelectionActivityRow = {
+  request_id: string;
+  status: 'selected' | 'cancelled' | 'completed';
+  price: string;
+  selected_at: number;
+  updated_at: number;
+  completed_at: number | null;
+  customer_name: string;
+  request_title: string;
+};
+
 type BookingActivityRow = {
   id: string;
   date_from: string;
@@ -117,6 +128,7 @@ export async function GET(request: Request) {
       reviewResult,
       verificationResult,
       responseActivityResult,
+      selectionActivityResult,
       bookingActivityResult,
       bookingDecisionActivityResult,
       handoffActivityResult,
@@ -164,14 +176,34 @@ export async function GET(request: Request) {
                     requests.when_text, requests.budget, requests.kind,
                     requests.region, requests.response_count,
                     requests.owner_id, requests.status,
-                    users.display_name AS owner_name
+                    users.display_name AS owner_name,
+                    request_selections.response_id AS selected_response_id,
+                    request_selections.status AS selection_status,
+                    request_selections.selected_at,
+                    request_selections.completed_at,
+                    selected_responses.owner_id AS selected_provider_id,
+                    selected_responses.price AS selected_price,
+                    selected_providers.display_name AS selected_provider_name,
+                    selection_conversations.id AS selection_conversation_id
              FROM requests
              JOIN users ON users.id = requests.owner_id
-             WHERE requests.status = 'open' OR requests.owner_id = ?
+             LEFT JOIN request_selections
+               ON request_selections.request_id = requests.id
+             LEFT JOIN responses selected_responses
+               ON selected_responses.id = request_selections.response_id
+             LEFT JOIN users selected_providers
+               ON selected_providers.id = selected_responses.owner_id
+             LEFT JOIN conversations selection_conversations
+               ON selection_conversations.context_type = 'request'
+              AND selection_conversations.context_id = requests.id
+              AND selection_conversations.participant_id = selected_responses.owner_id
+             WHERE requests.status = 'open'
+                OR requests.owner_id = ?
+                OR selected_responses.owner_id = ?
              ORDER BY requests.created_at DESC
              LIMIT 250`,
         )
-        .bind(viewer.id)
+        .bind(viewer.id, viewer.id)
         .all<Record<string, unknown>>(),
       db
         .prepare(
@@ -183,10 +215,14 @@ export async function GET(request: Request) {
         .prepare(
           `SELECT responses.id, responses.request_id, responses.price,
                     responses.message, users.display_name AS owner_name,
-                    responses.owner_id
+                    responses.owner_id,
+                    request_selections.status AS selection_status
              FROM responses
              JOIN users ON users.id = responses.owner_id
              JOIN requests ON requests.id = responses.request_id
+             LEFT JOIN request_selections
+               ON request_selections.request_id = responses.request_id
+              AND request_selections.response_id = responses.id
              WHERE responses.owner_id = ? OR requests.owner_id = ?
              ORDER BY responses.created_at DESC
              LIMIT 250`,
@@ -268,6 +304,25 @@ export async function GET(request: Request) {
         )
         .bind(viewer.id)
         .all<ResponseActivityRow>(),
+      db
+        .prepare(
+          `SELECT request_selections.request_id, request_selections.status,
+                  request_selections.selected_at,
+                  request_selections.updated_at,
+                  request_selections.completed_at,
+                  responses.price,
+                  customers.display_name AS customer_name,
+                  requests.title AS request_title
+           FROM request_selections
+           JOIN responses ON responses.id = request_selections.response_id
+           JOIN requests ON requests.id = request_selections.request_id
+           JOIN users customers ON customers.id = requests.owner_id
+           WHERE responses.owner_id = ?
+           ORDER BY request_selections.updated_at DESC
+           LIMIT 50`,
+        )
+        .bind(viewer.id)
+        .all<SelectionActivityRow>(),
       db
         .prepare(
           `SELECT bookings.id, bookings.date_from, bookings.date_to,
@@ -384,6 +439,22 @@ export async function GET(request: Request) {
         title: `Новый отклик от ${String(row.actor_name)}`,
         description: `На «${String(row.target_title)}» · ${String(row.price)}${row.message ? ` · ${String(row.message)}` : ''}`,
         createdAt: Number(row.created_at),
+      })),
+      ...selectionActivityResult.results.map((row) => ({
+        id: `selection-${String(row.request_id)}-${row.status}`,
+        kind: 'response',
+        title:
+          row.status === 'selected'
+            ? `Вас выбрали исполнителем — ${String(row.customer_name)}`
+            : row.status === 'completed'
+              ? 'Заказчик отметил работу выполненной'
+              : 'Заказчик отменил выбор исполнителя',
+        description: `«${String(row.request_title)}» · ${String(row.price)}`,
+        createdAt: Number(
+          row.status === 'completed'
+            ? row.completed_at || row.updated_at
+            : row.updated_at || row.selected_at,
+        ),
       })),
       ...bookingActivityResult.results.map((row) => ({
         id: `booking-${String(row.id)}`,
@@ -519,19 +590,45 @@ export async function GET(request: Request) {
             : undefined,
         reviewCount: Number(row.review_count || 0),
       })),
-      requests: requestResult.results.map((row) => ({
-        id: String(row.id),
-        title: row.title,
-        place: row.place,
-        when: row.when_text,
-        budget: row.budget,
-        responses: Number(row.response_count),
-        kind: row.kind,
-        region: row.region,
-        owner: row.owner_name,
-        status: row.status,
-        mine: row.owner_id === viewer.id,
-      })),
+      requests: requestResult.results.map((row) => {
+        const canSeeSelection =
+          row.owner_id === viewer.id || row.selected_provider_id === viewer.id;
+        return {
+          id: String(row.id),
+          title: row.title,
+          place: row.place,
+          when: row.when_text,
+          budget: row.budget,
+          responses: Number(row.response_count),
+          kind: row.kind,
+          region: row.region,
+          owner: row.owner_name,
+          status: row.status,
+          mine: row.owner_id === viewer.id,
+          selection:
+            canSeeSelection && row.selected_response_id
+              ? {
+                  requestId: String(row.id),
+                  responseId: row.selected_response_id as string,
+                  providerName: row.selected_provider_name as string,
+                  price: row.selected_price as string,
+                  status: row.selection_status as
+                    | 'selected'
+                    | 'cancelled'
+                    | 'completed',
+                  conversationId:
+                    typeof row.selection_conversation_id === 'string'
+                      ? row.selection_conversation_id
+                      : '',
+                  selectedAt: Number(row.selected_at),
+                  completedAt: row.completed_at
+                    ? Number(row.completed_at)
+                    : null,
+                  mineAsProvider: row.selected_provider_id === viewer.id,
+                }
+              : null,
+        };
+      }),
       favorites: favoriteResult.results.map((row) => row.listing_id),
       responses: responseResult.results.map((row) => ({
         id: String(row.id),
@@ -540,6 +637,7 @@ export async function GET(request: Request) {
         message: row.message || '',
         owner: row.owner_name,
         mine: row.owner_id === viewer.id,
+        selectionStatus: row.selection_status || null,
       })),
       bookings: bookingResult.results.map((row) => {
         const incoming =

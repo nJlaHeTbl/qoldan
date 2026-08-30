@@ -140,6 +140,28 @@ export const responses = sqliteTable(
   ],
 );
 
+export const requestSelections = sqliteTable(
+  'request_selections',
+  {
+    requestId: text('request_id')
+      .primaryKey()
+      .references(() => requests.id, { onDelete: 'cascade' }),
+    responseId: text('response_id')
+      .notNull()
+      .references(() => responses.id, { onDelete: 'cascade' }),
+    selectedBy: text('selected_by')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    status: text('status').notNull().default('selected'),
+    selectedAt: integer('selected_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+    completedAt: integer('completed_at'),
+  },
+  (table) => [
+    uniqueIndex('request_selections_response_id_unique').on(table.responseId),
+  ],
+);
+
 export const favorites = sqliteTable(
   'favorites',
   {

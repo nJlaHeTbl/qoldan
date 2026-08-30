@@ -77,6 +77,22 @@ export const responseInput = z.object({
   message: z.string().trim().max(800).optional().default(''),
 });
 
+export const requestSelectionInput = z
+  .object({
+    requestId: z.union([z.string(), z.number()]).transform(String),
+    responseId: z.union([z.string(), z.number()]).transform(String).optional(),
+    action: z.enum(['select', 'cancel', 'complete']),
+  })
+  .superRefine((value, context) => {
+    if (value.action === 'select' && !value.responseId) {
+      context.addIssue({
+        code: 'custom',
+        path: ['responseId'],
+        message: 'Выберите отклик исполнителя',
+      });
+    }
+  });
+
 export const favoriteInput = z.object({
   listingId: z.union([z.string(), z.number()]).transform(String),
   active: z.boolean(),

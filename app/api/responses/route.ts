@@ -39,6 +39,19 @@ export async function POST(request: Request) {
         { status: 409 },
       );
     }
+    const existing = await db
+      .prepare(
+        `SELECT id FROM responses
+         WHERE request_id = ? AND owner_id = ?`,
+      )
+      .bind(input.requestId, viewer.id)
+      .first<{ id: string }>();
+    if (existing) {
+      return Response.json(
+        { error: 'Вы уже отправили отклик на эту заявку' },
+        { status: 409 },
+      );
+    }
     const id = crypto.randomUUID();
     const now = Date.now();
     await db.batch([

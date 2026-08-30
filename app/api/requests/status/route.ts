@@ -19,7 +19,25 @@ export async function POST(request: Request) {
     const input = await parseJson(request, requestStatusInput);
     await ensureMarketplaceSchema();
     await upsertViewer(viewer);
-    const result = await getMarketplaceDb()
+    const db = getMarketplaceDb();
+    if (input.status === 'open') {
+      const activeSelection = await db
+        .prepare(
+          `SELECT request_id FROM request_selections
+           WHERE request_id = ? AND status IN ('selected', 'completed')`,
+        )
+        .bind(input.requestId)
+        .first<{ request_id: string }>();
+      if (activeSelection) {
+        return Response.json(
+          {
+            error: 'Сначала отмените выбранного исполнителя в карточке заявки',
+          },
+          { status: 409 },
+        );
+      }
+    }
+    const result = await db
       .prepare(
         `UPDATE requests
          SET status = ?, updated_at = ?
