@@ -6,6 +6,7 @@ import { ru } from 'date-fns/locale';
 import {
   ArrowRight,
   Bell,
+  Bookmark,
   ChevronLeft,
   ChevronDown,
   Clock3,
@@ -128,9 +129,24 @@ type ServiceTrust = {
   serviceRating?: string;
   serviceReviewCount: number;
 };
+type SavedSearchItem = {
+  id: string;
+  name: string;
+  query: string;
+  region: string;
+  category: string;
+  offerType: 'Все' | Listing['type'];
+  deliveryOnly: boolean;
+  companyOnly: boolean;
+  totalMatches: number;
+  newMatches: number;
+  latestMatchAt: number | null;
+  createdAt: number;
+  lastViewedAt: number;
+};
 type ActivityItem = {
   id: string;
-  kind: 'response' | 'booking' | 'moderation' | 'appeal' | 'message';
+  kind: 'response' | 'booking' | 'moderation' | 'appeal' | 'message' | 'search';
   title: string;
   description: string;
   createdAt: number;
@@ -811,6 +827,7 @@ export default function Home() {
   const [query, setQuery] = useState('');
   const [type, setType] = useState('Все');
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [savedSearches, setSavedSearches] = useState<SavedSearchItem[]>([]);
   const [mapOpen, setMapOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toast, setToast] = useState('');
@@ -888,6 +905,7 @@ export default function Home() {
     | 'detail'
     | 'response'
     | 'profile'
+    | 'saved-searches'
     | 'verification'
     | 'notifications'
     | 'messages'
@@ -991,6 +1009,18 @@ export default function Home() {
     myOnly,
     listingContentMode !== 'all',
   ].filter(Boolean).length;
+  const savedSearchNewCount = savedSearches.reduce(
+    (total, item) => total + item.newMatches,
+    0,
+  );
+  const hasSavableSearch = Boolean(
+    query.trim() ||
+    type !== 'Все' ||
+    categoryFilter !== 'Все категории' ||
+    selectedRegion !== 'Весь Казахстан' ||
+    deliveryOnly ||
+    companyOnly,
+  );
   useEffect(() => {
     let active = true;
     const loadMarketplace = async () => {
@@ -1002,6 +1032,7 @@ export default function Home() {
           listings: Listing[];
           requests: RequestItem[];
           favorites: string[];
+          savedSearches: SavedSearchItem[];
           responses: ResponseItem[];
           bookings: BookingItem[];
           reviews: ReviewItem[];
@@ -1016,6 +1047,7 @@ export default function Home() {
         setAllListings([...data.listings, ...defaultListings]);
         setAllRequests([...data.requests, ...initialRequests]);
         setFavorites(data.favorites.map(String));
+        setSavedSearches(data.savedSearches);
         setAllResponses(data.responses);
         setBookings(data.bookings);
         setReviews(data.reviews);
@@ -1210,6 +1242,119 @@ export default function Home() {
   const notify = (m: string) => {
     setToast(m);
     setTimeout(() => setToast(''), 2600);
+  };
+  const saveCurrentSearch = async () => {
+    if (!hasSavableSearch) {
+      notify('Сначала задайте запрос, регион или фильтр');
+      return;
+    }
+    const name = [
+      query.trim() ? `«${query.trim()}»` : '',
+      type !== 'Все' ? type : '',
+      categoryFilter !== 'Все категории' ? categoryFilter : '',
+      selectedRegion !== 'Весь Казахстан' ? selectedRegion : '',
+      deliveryOnly ? 'С доставкой' : '',
+      companyOnly ? 'Компании' : '',
+    ]
+      .filter(Boolean)
+      .join(' · ')
+      .slice(0, 120);
+    setSubmitting('saved-search-create');
+    try {
+      const response = await fetch('/api/saved-searches', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create',
+          name,
+          query: query.trim(),
+          region: selectedRegion,
+          category: categoryFilter,
+          offerType: type,
+          deliveryOnly,
+          companyOnly,
+        }),
+      });
+      if (!response.ok) throw new Error(await apiError(response));
+      const data = (await response.json()) as {
+        savedSearch: SavedSearchItem;
+      };
+      setSavedSearches((current) => [data.savedSearch, ...current]);
+      notify('Поиск сохранён — новые объявления появятся в уведомлениях');
+    } catch (error) {
+      notify(
+        error instanceof Error ? error.message : 'Не удалось сохранить поиск',
+      );
+    } finally {
+      setSubmitting(null);
+    }
+  };
+  const applySavedSearch = async (savedSearch: SavedSearchItem) => {
+    setQuery(savedSearch.query);
+    setType(savedSearch.offerType);
+    setCategoryFilter(savedSearch.category);
+    setSelectedRegion(savedSearch.region);
+    setDeliveryOnly(savedSearch.deliveryOnly);
+    setCompanyOnly(savedSearch.companyOnly);
+    setMaxDistance(100);
+    setFavoriteOnly(false);
+    setMyOnly(false);
+    setListingContentMode('real');
+    setFiltersOpen(false);
+    setModal(null);
+    window.setTimeout(
+      () =>
+        document
+          .querySelector('#catalog')
+          ?.scrollIntoView({ behavior: 'smooth' }),
+      0,
+    );
+    try {
+      const response = await fetch('/api/saved-searches', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          action: 'mark_seen',
+          savedSearchId: savedSearch.id,
+        }),
+      });
+      if (!response.ok) throw new Error(await apiError(response));
+      const data = (await response.json()) as { viewedAt: number };
+      setSavedSearches((current) =>
+        current.map((item) =>
+          item.id === savedSearch.id
+            ? { ...item, newMatches: 0, lastViewedAt: data.viewedAt }
+            : item,
+        ),
+      );
+    } catch (error) {
+      notify(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось отметить поиск просмотренным',
+      );
+    }
+  };
+  const deleteSavedSearch = async (savedSearchId: string) => {
+    setSubmitting(`saved-search-delete-${savedSearchId}`);
+    try {
+      const response = await fetch('/api/saved-searches', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', savedSearchId }),
+      });
+      if (!response.ok) throw new Error(await apiError(response));
+      setSavedSearches((current) =>
+        current.filter((item) => item.id !== savedSearchId),
+      );
+      notify('Сохранённый поиск удалён');
+    } catch (error) {
+      notify(
+        error instanceof Error ? error.message : 'Не удалось удалить поиск',
+      );
+    } finally {
+      setSubmitting(null);
+    }
   };
   const openAddListing = () => {
     setListingImage('');
@@ -2884,6 +3029,26 @@ export default function Home() {
                   onClick={() => setMyOnly(false)}
                 >
                   <X size={14} /> Все объявления
+                </button>
+              )}
+              {!favoriteOnly && !myOnly && (
+                <button
+                  className="save-search-button"
+                  type="button"
+                  disabled={
+                    !hasSavableSearch || submitting === 'saved-search-create'
+                  }
+                  title={
+                    hasSavableSearch
+                      ? 'Получать новые реальные совпадения'
+                      : 'Сначала задайте условие поиска'
+                  }
+                  onClick={() => void saveCurrentSearch()}
+                >
+                  <Bookmark />
+                  {submitting === 'saved-search-create'
+                    ? 'Сохраняем…'
+                    : 'Сохранить поиск'}
                 </button>
               )}
               <button
@@ -4978,6 +5143,10 @@ export default function Home() {
                       <b>{moderationPendingCount}</b>
                     </button>
                   )}
+                  <button onClick={() => setModal('saved-searches')}>
+                    <Bookmark /> Сохранённые поиски
+                    <b>{savedSearchNewCount || savedSearches.length}</b>
+                  </button>
                   <button
                     onClick={() => {
                       setModal(null);
@@ -5025,6 +5194,103 @@ export default function Home() {
                     <MessageCircle /> Мои заявки <ArrowRight />
                   </button>
                 </div>
+              </>
+            )}
+            {modal === 'saved-searches' && (
+              <>
+                <div className="modal-title saved-searches-title">
+                  <span>
+                    <Bookmark />
+                  </span>
+                  <div>
+                    <small>ПЕРСОНАЛЬНЫЙ ПОИСК</small>
+                    <h2>Сохранённые поиски</h2>
+                    <p>
+                      Qoldan следит только за настоящими объявлениями и покажет
+                      новые совпадения здесь и в уведомлениях.
+                    </p>
+                  </div>
+                </div>
+                {savedSearches.length > 0 ? (
+                  <div className="saved-search-list">
+                    {savedSearches.map((savedSearch) => (
+                      <article key={savedSearch.id}>
+                        <span className="saved-search-icon">
+                          <Search />
+                        </span>
+                        <div className="saved-search-copy">
+                          <div>
+                            <h3>{savedSearch.name}</h3>
+                            {savedSearch.newMatches > 0 && (
+                              <b>
+                                {savedSearch.newMatches === 1
+                                  ? '1 новое'
+                                  : `${savedSearch.newMatches} новых`}
+                              </b>
+                            )}
+                          </div>
+                          <p>
+                            {[
+                              savedSearch.query
+                                ? `Запрос: ${savedSearch.query}`
+                                : '',
+                              savedSearch.offerType !== 'Все'
+                                ? savedSearch.offerType
+                                : '',
+                              savedSearch.category !== 'Все категории'
+                                ? savedSearch.category
+                                : '',
+                              savedSearch.region !== 'Весь Казахстан'
+                                ? savedSearch.region
+                                : '',
+                              savedSearch.deliveryOnly ? 'С доставкой' : '',
+                              savedSearch.companyOnly
+                                ? 'Магазины и компании'
+                                : '',
+                            ]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </p>
+                          <small>
+                            Сейчас найдено: {savedSearch.totalMatches}
+                          </small>
+                        </div>
+                        <div className="saved-search-actions">
+                          <button
+                            type="button"
+                            className="apply-saved-search"
+                            onClick={() => void applySavedSearch(savedSearch)}
+                          >
+                            Показать <ArrowRight />
+                          </button>
+                          <button
+                            type="button"
+                            className="delete-saved-search"
+                            aria-label={`Удалить поиск ${savedSearch.name}`}
+                            disabled={
+                              submitting ===
+                              `saved-search-delete-${savedSearch.id}`
+                            }
+                            onClick={() =>
+                              void deleteSavedSearch(savedSearch.id)
+                            }
+                          >
+                            <X />
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="notification-empty saved-search-empty">
+                    <Bookmark />
+                    <b>Поисков пока нет</b>
+                    <span>
+                      Выберите запрос, регион или фильтр в каталоге и нажмите
+                      «Сохранить поиск».
+                    </span>
+                  </div>
+                )}
               </>
             )}
             {modal === 'verification' && (
@@ -6429,6 +6695,8 @@ export default function Home() {
                         <span>
                           {activity.kind === 'booking' ? (
                             <Clock3 />
+                          ) : activity.kind === 'search' ? (
+                            <Bookmark />
                           ) : activity.kind === 'moderation' ? (
                             <ShieldAlert />
                           ) : activity.kind === 'appeal' ? (
@@ -6473,6 +6741,15 @@ export default function Home() {
                               onClick={() => void openMessages()}
                             >
                               <MessageCircle /> Открыть сообщения
+                            </button>
+                          )}
+                          {activity.kind === 'search' && (
+                            <button
+                              type="button"
+                              className="appeal-inline-button"
+                              onClick={() => setModal('saved-searches')}
+                            >
+                              <Bookmark /> Открыть сохранённые поиски
                             </button>
                           )}
                         </div>
