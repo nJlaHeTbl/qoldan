@@ -60,6 +60,7 @@ function mapSelection(row: SelectionRow, viewerId: string) {
   return {
     requestId: row.request_id,
     responseId: row.response_id,
+    providerId: row.provider_id,
     providerName: row.provider_name,
     price: row.price,
     status: row.status,

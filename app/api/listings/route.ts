@@ -67,6 +67,7 @@ export async function POST(request: Request) {
       {
         listing: {
           id,
+          ownerId: viewer.id,
           title: input.title,
           price: input.price,
           unit: input.unit || undefined,

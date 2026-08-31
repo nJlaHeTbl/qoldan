@@ -648,6 +648,7 @@ export async function GET(request: Request) {
       },
       listings: listingResult.results.map((row) => ({
         id: String(row.id),
+        ownerId: row.owner_id,
         title: row.title,
         price: row.price,
         unit: row.unit || undefined,
@@ -696,6 +697,7 @@ export async function GET(request: Request) {
               ? {
                   requestId: String(row.id),
                   responseId: row.selected_response_id as string,
+                  providerId: row.selected_provider_id as string,
                   providerName: row.selected_provider_name as string,
                   price: row.selected_price as string,
                   status: row.selection_status as
