@@ -45,8 +45,10 @@ export async function POST(request: Request) {
         .prepare(
           `INSERT OR IGNORE INTO saved_searches
            (id, owner_id, name, search_query, region, category, offer_type,
-            delivery_only, company_only, created_at, last_viewed_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            delivery_only, company_only, livestock_type,
+            livestock_price_mode, livestock_quantity_group,
+            created_at, last_viewed_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .bind(
           id,
@@ -58,6 +60,9 @@ export async function POST(request: Request) {
           input.offerType,
           input.deliveryOnly ? 1 : 0,
           input.companyOnly ? 1 : 0,
+          input.livestockType,
+          input.livestockPriceMode,
+          input.livestockQuantityGroup,
           now,
           now,
         )

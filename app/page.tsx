@@ -57,6 +57,7 @@ type LivestockType =
   | 'Верблюды'
   | 'Другое';
 type LivestockPriceMode = 'per_head' | 'whole_group';
+type LivestockQuantityGroup = 'all' | 'single' | 'small_group' | 'large_group';
 type Listing = {
   id: number | string;
   ownerId?: string;
@@ -179,6 +180,9 @@ type SavedSearchItem = {
   offerType: 'Все' | Listing['type'];
   deliveryOnly: boolean;
   companyOnly: boolean;
+  livestockType: 'Все виды' | LivestockType;
+  livestockPriceMode: 'all' | LivestockPriceMode;
+  livestockQuantityGroup: LivestockQuantityGroup;
   totalMatches: number;
   newMatches: number;
   latestMatchAt: number | null;
@@ -413,6 +417,17 @@ const livestockQuantityLabel = (quantity: number) => {
           ? 'головы'
           : 'голов';
   return `${quantity} ${word}`;
+};
+const livestockPriceModeLabels: Record<'all' | LivestockPriceMode, string> = {
+  all: 'Любая цена',
+  per_head: 'За одну голову',
+  whole_group: 'За всю группу',
+};
+const livestockQuantityGroupLabels: Record<LivestockQuantityGroup, string> = {
+  all: 'Любое количество',
+  single: '1 голова',
+  small_group: '2–10 голов',
+  large_group: '11 и больше',
 };
 const parseCalendarDate = (value: string) => {
   const [year, month, day] = value.split('-').map(Number);
@@ -1027,6 +1042,14 @@ export default function Home() {
   const [listingFlow, setListingFlow] = useState<'standard' | 'livestock'>(
     'standard',
   );
+  const [livestockTypeFilter, setLivestockTypeFilter] = useState<
+    'Все виды' | LivestockType
+  >('Все виды');
+  const [livestockPriceModeFilter, setLivestockPriceModeFilter] = useState<
+    'all' | LivestockPriceMode
+  >('all');
+  const [livestockQuantityGroup, setLivestockQuantityGroup] =
+    useState<LivestockQuantityGroup>('all');
   const [listingCoords, setListingCoords] = useState<Coordinates | null>(null);
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
   const [requestKind, setRequestKind] = useState<'all' | RequestItem['kind']>(
@@ -1097,6 +1120,9 @@ export default function Home() {
     companyOnly,
     myOnly,
     listingContentMode !== 'all',
+    livestockTypeFilter !== 'Все виды',
+    livestockPriceModeFilter !== 'all',
+    livestockQuantityGroup !== 'all',
   ].filter(Boolean).length;
   const savedSearchNewCount = savedSearches.reduce(
     (total, item) => total + item.newMatches,
@@ -1108,7 +1134,10 @@ export default function Home() {
     categoryFilter !== 'Все категории' ||
     selectedRegion !== 'Весь Казахстан' ||
     deliveryOnly ||
-    companyOnly,
+    companyOnly ||
+    livestockTypeFilter !== 'Все виды' ||
+    livestockPriceModeFilter !== 'all' ||
+    livestockQuantityGroup !== 'all',
   );
   useEffect(() => {
     let active = true;
@@ -1261,7 +1290,21 @@ export default function Home() {
           (!deliveryOnly || i.delivery) &&
           (!companyOnly ||
             i.sellerType === 'Компания' ||
-            i.sellerType === 'Магазин'),
+            i.sellerType === 'Магазин') &&
+          (livestockTypeFilter === 'Все виды' ||
+            i.livestockType === livestockTypeFilter) &&
+          (livestockPriceModeFilter === 'all' ||
+            i.livestockPriceMode === livestockPriceModeFilter) &&
+          (livestockQuantityGroup === 'all' ||
+            (livestockQuantityGroup === 'single' &&
+              i.livestockQuantity === 1) ||
+            (livestockQuantityGroup === 'small_group' &&
+              i.livestockQuantity !== undefined &&
+              i.livestockQuantity >= 2 &&
+              i.livestockQuantity <= 10) ||
+            (livestockQuantityGroup === 'large_group' &&
+              i.livestockQuantity !== undefined &&
+              i.livestockQuantity >= 11)),
       ),
     [
       allListings,
@@ -1276,6 +1319,9 @@ export default function Home() {
       deliveryOnly,
       companyOnly,
       listingContentMode,
+      livestockTypeFilter,
+      livestockPriceModeFilter,
+      livestockQuantityGroup,
     ],
   );
   const visibleRequests = useMemo(
@@ -1346,6 +1392,13 @@ export default function Home() {
       selectedRegion !== 'Весь Казахстан' ? selectedRegion : '',
       deliveryOnly ? 'С доставкой' : '',
       companyOnly ? 'Компании' : '',
+      livestockTypeFilter !== 'Все виды' ? livestockTypeFilter : '',
+      livestockPriceModeFilter !== 'all'
+        ? livestockPriceModeLabels[livestockPriceModeFilter]
+        : '',
+      livestockQuantityGroup !== 'all'
+        ? livestockQuantityGroupLabels[livestockQuantityGroup]
+        : '',
     ]
       .filter(Boolean)
       .join(' · ')
@@ -1364,6 +1417,9 @@ export default function Home() {
           offerType: type,
           deliveryOnly,
           companyOnly,
+          livestockType: livestockTypeFilter,
+          livestockPriceMode: livestockPriceModeFilter,
+          livestockQuantityGroup,
         }),
       });
       if (!response.ok) throw new Error(await apiError(response));
@@ -1387,6 +1443,9 @@ export default function Home() {
     setSelectedRegion(savedSearch.region);
     setDeliveryOnly(savedSearch.deliveryOnly);
     setCompanyOnly(savedSearch.companyOnly);
+    setLivestockTypeFilter(savedSearch.livestockType);
+    setLivestockPriceModeFilter(savedSearch.livestockPriceMode);
+    setLivestockQuantityGroup(savedSearch.livestockQuantityGroup);
     setMaxDistance(100);
     setFavoriteOnly(false);
     setMyOnly(false);
@@ -2059,6 +2118,11 @@ export default function Home() {
     const item = filtered.find((listing) => String(listing.id) === id);
     if (item) openListing(item);
   };
+  const resetLivestockFilters = () => {
+    setLivestockTypeFilter('Все виды');
+    setLivestockPriceModeFilter('all');
+    setLivestockQuantityGroup('all');
+  };
   const exploreDirection = (label: string) => {
     setQuery('');
     setType('Все');
@@ -2067,6 +2131,7 @@ export default function Home() {
     setCompanyOnly(false);
     setFavoriteOnly(false);
     setMyOnly(false);
+    resetLivestockFilters();
     if (label === 'Услуги' || label === 'Рабочие услуги') {
       setType('Окажу услугу');
     } else if (label === 'Аренда техники') {
@@ -2864,7 +2929,14 @@ export default function Home() {
               <button
                 key={x}
                 onClick={() => {
-                  setQuery(x);
+                  if (x === 'Лошади') {
+                    setQuery('');
+                    setCategoryFilter('Скот и животные');
+                    resetLivestockFilters();
+                    setLivestockTypeFilter('Лошади');
+                  } else {
+                    setQuery(x);
+                  }
                   setFavoriteOnly(false);
                   setMyOnly(false);
                   document
@@ -2953,7 +3025,14 @@ export default function Home() {
                 key={i}
                 className={'category-card ' + (c[0] as string)}
                 onClick={() => {
-                  setQuery(c[5] as string);
+                  if (c[5] === 'Скот и животные') {
+                    setQuery('');
+                    setType('Все');
+                    setCategoryFilter('Скот и животные');
+                    resetLivestockFilters();
+                  } else {
+                    setQuery(c[5] as string);
+                  }
                   document
                     .querySelector('#catalog')
                     ?.scrollIntoView({ behavior: 'smooth' });
@@ -3225,7 +3304,12 @@ export default function Home() {
                 Категория
                 <select
                   value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  onChange={(e) => {
+                    setCategoryFilter(e.target.value);
+                    if (e.target.value !== 'Скот и животные') {
+                      resetLivestockFilters();
+                    }
+                  }}
                 >
                   <option>Все категории</option>
                   {[...new Set(allListings.map((x) => x.category))].map((x) => (
@@ -3268,9 +3352,83 @@ export default function Home() {
                   setCompanyOnly(false);
                   setMyOnly(false);
                   setListingContentMode('all');
+                  resetLivestockFilters();
                 }}
               >
                 Сбросить
+              </button>
+            </div>
+          )}
+          {categoryFilter === 'Скот и животные' && (
+            <div className="livestock-catalog-filters">
+              <div className="livestock-filter-title">
+                <span>
+                  <Beef />
+                </span>
+                <div>
+                  <b>Подберите животных</b>
+                  <small>Три простых фильтра — без сложной анкеты</small>
+                </div>
+              </div>
+              <label>
+                Вид скота
+                <select
+                  value={livestockTypeFilter}
+                  onChange={(e) =>
+                    setLivestockTypeFilter(
+                      e.target.value as 'Все виды' | LivestockType,
+                    )
+                  }
+                >
+                  <option>Все виды</option>
+                  <option>Лошади</option>
+                  <option>Крупный рогатый скот</option>
+                  <option>Овцы</option>
+                  <option>Козы</option>
+                  <option>Верблюды</option>
+                  <option>Другое</option>
+                </select>
+              </label>
+              <label>
+                Количество
+                <select
+                  value={livestockQuantityGroup}
+                  onChange={(e) =>
+                    setLivestockQuantityGroup(
+                      e.target.value as LivestockQuantityGroup,
+                    )
+                  }
+                >
+                  {Object.entries(livestockQuantityGroupLabels).map(
+                    ([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </label>
+              <label>
+                Цена указана
+                <select
+                  value={livestockPriceModeFilter}
+                  onChange={(e) =>
+                    setLivestockPriceModeFilter(
+                      e.target.value as 'all' | LivestockPriceMode,
+                    )
+                  }
+                >
+                  {Object.entries(livestockPriceModeLabels).map(
+                    ([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </label>
+              <button type="button" onClick={resetLivestockFilters}>
+                <X /> Очистить
               </button>
             </div>
           )}
@@ -5779,6 +5937,19 @@ export default function Home() {
                               savedSearch.deliveryOnly ? 'С доставкой' : '',
                               savedSearch.companyOnly
                                 ? 'Магазины и компании'
+                                : '',
+                              savedSearch.livestockType !== 'Все виды'
+                                ? savedSearch.livestockType
+                                : '',
+                              savedSearch.livestockPriceMode !== 'all'
+                                ? livestockPriceModeLabels[
+                                    savedSearch.livestockPriceMode
+                                  ]
+                                : '',
+                              savedSearch.livestockQuantityGroup !== 'all'
+                                ? livestockQuantityGroupLabels[
+                                    savedSearch.livestockQuantityGroup
+                                  ]
                                 : '',
                             ]
                               .filter(Boolean)

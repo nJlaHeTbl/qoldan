@@ -203,6 +203,9 @@ export async function ensureMarketplaceSchema() {
         offer_type TEXT DEFAULT 'Все' NOT NULL,
         delivery_only INTEGER DEFAULT 0 NOT NULL,
         company_only INTEGER DEFAULT 0 NOT NULL,
+        livestock_type TEXT DEFAULT 'Все виды' NOT NULL,
+        livestock_price_mode TEXT DEFAULT 'all' NOT NULL,
+        livestock_quantity_group TEXT DEFAULT 'all' NOT NULL,
         created_at INTEGER NOT NULL,
         last_viewed_at INTEGER NOT NULL
       )`),
@@ -330,6 +333,46 @@ export async function ensureMarketplaceSchema() {
         missingListingColumns.map(([, sql]) => db.prepare(sql as string)),
       );
     }
+    const savedSearchColumns = await db
+      .prepare('PRAGMA table_info(saved_searches)')
+      .all<{ name: string }>();
+    const missingSavedSearchColumns = [
+      [
+        'livestock_type',
+        "ALTER TABLE saved_searches ADD COLUMN livestock_type TEXT DEFAULT 'Все виды' NOT NULL",
+      ],
+      [
+        'livestock_price_mode',
+        "ALTER TABLE saved_searches ADD COLUMN livestock_price_mode TEXT DEFAULT 'all' NOT NULL",
+      ],
+      [
+        'livestock_quantity_group',
+        "ALTER TABLE saved_searches ADD COLUMN livestock_quantity_group TEXT DEFAULT 'all' NOT NULL",
+      ],
+    ].filter(
+      ([name]) =>
+        !savedSearchColumns.results.some((column) => column.name === name),
+    );
+    if (missingSavedSearchColumns.length > 0) {
+      await db.batch(
+        missingSavedSearchColumns.map(([, sql]) => db.prepare(sql as string)),
+      );
+    }
+    const savedSearchIndexColumns = await db
+      .prepare('PRAGMA index_info(saved_searches_owner_filters_unique)')
+      .all<{ name: string }>();
+    if (
+      !savedSearchIndexColumns.results.some(
+        (column) => column.name === 'livestock_quantity_group',
+      )
+    ) {
+      await db.batch([
+        db.prepare('DROP INDEX IF EXISTS saved_searches_owner_filters_unique'),
+        db.prepare(
+          'CREATE UNIQUE INDEX saved_searches_owner_filters_unique ON saved_searches (owner_id, search_query, region, category, offer_type, delivery_only, company_only, livestock_type, livestock_price_mode, livestock_quantity_group)',
+        ),
+      ]);
+    }
     const bookingColumns = await db
       .prepare('PRAGMA table_info(bookings)')
       .all<{ name: string }>();
@@ -384,7 +427,7 @@ export async function ensureMarketplaceSchema() {
         'CREATE INDEX IF NOT EXISTS request_reviews_provider_id_created_at_idx ON request_reviews (provider_id, created_at)',
       ),
       db.prepare(
-        'CREATE UNIQUE INDEX IF NOT EXISTS saved_searches_owner_filters_unique ON saved_searches (owner_id, search_query, region, category, offer_type, delivery_only, company_only)',
+        'CREATE UNIQUE INDEX IF NOT EXISTS saved_searches_owner_filters_unique ON saved_searches (owner_id, search_query, region, category, offer_type, delivery_only, company_only, livestock_type, livestock_price_mode, livestock_quantity_group)',
       ),
       db.prepare(
         'CREATE INDEX IF NOT EXISTS saved_searches_owner_created_at_idx ON saved_searches (owner_id, created_at)',

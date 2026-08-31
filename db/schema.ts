@@ -225,6 +225,11 @@ export const savedSearches = sqliteTable(
     companyOnly: integer('company_only', { mode: 'boolean' })
       .notNull()
       .default(false),
+    livestockType: text('livestock_type').notNull().default('Все виды'),
+    livestockPriceMode: text('livestock_price_mode').notNull().default('all'),
+    livestockQuantityGroup: text('livestock_quantity_group')
+      .notNull()
+      .default('all'),
     createdAt: integer('created_at').notNull(),
     lastViewedAt: integer('last_viewed_at').notNull(),
   },
@@ -237,6 +242,9 @@ export const savedSearches = sqliteTable(
       table.offerType,
       table.deliveryOnly,
       table.companyOnly,
+      table.livestockType,
+      table.livestockPriceMode,
+      table.livestockQuantityGroup,
     ),
     index('saved_searches_owner_created_at_idx').on(
       table.ownerId,

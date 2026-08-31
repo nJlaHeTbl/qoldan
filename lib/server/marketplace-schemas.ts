@@ -152,6 +152,18 @@ const savedSearchCreate = z
     offerType: z.enum(['Все', ...offerTypes]),
     deliveryOnly: z.boolean().optional().default(false),
     companyOnly: z.boolean().optional().default(false),
+    livestockType: z
+      .enum(['Все виды', ...livestockTypes])
+      .optional()
+      .default('Все виды'),
+    livestockPriceMode: z
+      .enum(['all', ...livestockPriceModes])
+      .optional()
+      .default('all'),
+    livestockQuantityGroup: z
+      .enum(['all', 'single', 'small_group', 'large_group'])
+      .optional()
+      .default('all'),
   })
   .refine(
     (value) =>
@@ -160,7 +172,10 @@ const savedSearchCreate = z
       value.category !== 'Все категории' ||
       value.offerType !== 'Все' ||
       value.deliveryOnly ||
-      value.companyOnly,
+      value.companyOnly ||
+      value.livestockType !== 'Все виды' ||
+      value.livestockPriceMode !== 'all' ||
+      value.livestockQuantityGroup !== 'all',
     { message: 'Сначала задайте хотя бы одно условие поиска' },
   );
 
