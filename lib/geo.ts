@@ -60,6 +60,41 @@ export function getRegionCenter(region?: string): Coordinates {
   return (region && regionCenters[region]) || KAZAKHSTAN_CENTER;
 }
 
+export function calculateDistanceKm(from: Coordinates, to: Coordinates) {
+  const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
+  const latitudeDelta = toRadians(to.latitude - from.latitude);
+  const longitudeDelta = toRadians(to.longitude - from.longitude);
+  const fromLatitude = toRadians(from.latitude);
+  const toLatitude = toRadians(to.latitude);
+  const haversine =
+    Math.sin(latitudeDelta / 2) ** 2 +
+    Math.cos(fromLatitude) *
+      Math.cos(toLatitude) *
+      Math.sin(longitudeDelta / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+}
+
+export function formatDistanceKm(distance: number) {
+  if (distance < 0.1) return 'меньше 100 м';
+  if (distance < 1)
+    return `${Math.max(100, Math.round(distance * 10) * 100)} м`;
+  if (distance < 10) {
+    return `${distance.toFixed(1).replace('.', ',')} км`;
+  }
+  return `${Math.round(distance).toLocaleString('ru-RU')} км`;
+}
+
+export function hasExactCoordinates<
+  T extends { latitude?: number; longitude?: number },
+>(item: T): item is T & Coordinates {
+  return (
+    typeof item.latitude === 'number' &&
+    Number.isFinite(item.latitude) &&
+    typeof item.longitude === 'number' &&
+    Number.isFinite(item.longitude)
+  );
+}
+
 export function resolveCoordinates(item: {
   id: number | string;
   location: string;
@@ -67,12 +102,7 @@ export function resolveCoordinates(item: {
   latitude?: number;
   longitude?: number;
 }): Coordinates {
-  if (
-    typeof item.latitude === 'number' &&
-    Number.isFinite(item.latitude) &&
-    typeof item.longitude === 'number' &&
-    Number.isFinite(item.longitude)
-  ) {
+  if (hasExactCoordinates(item)) {
     return { latitude: item.latitude, longitude: item.longitude };
   }
 

@@ -45,7 +45,10 @@ import {
 } from '@/components/MarketplaceMap';
 import { Calendar } from '@/components/ui/calendar';
 import {
+  calculateDistanceKm,
+  formatDistanceKm,
   getRegionCenter,
+  hasExactCoordinates,
   resolveCoordinates,
   type Coordinates,
 } from '@/lib/geo';
@@ -1051,6 +1054,8 @@ export default function Home() {
   const [livestockQuantityGroup, setLivestockQuantityGroup] =
     useState<LivestockQuantityGroup>('all');
   const [listingCoords, setListingCoords] = useState<Coordinates | null>(null);
+  const [userCoords, setUserCoords] = useState<Coordinates | null>(null);
+  const [userLocationLoading, setUserLocationLoading] = useState(false);
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
   const [requestKind, setRequestKind] = useState<'all' | RequestItem['kind']>(
     'all',
@@ -1123,22 +1128,25 @@ export default function Home() {
     livestockTypeFilter !== 'Все виды',
     livestockPriceModeFilter !== 'all',
     livestockQuantityGroup !== 'all',
+    Boolean(userCoords),
   ].filter(Boolean).length;
   const savedSearchNewCount = savedSearches.reduce(
     (total, item) => total + item.newMatches,
     0,
   );
-  const hasSavableSearch = Boolean(
-    query.trim() ||
-    type !== 'Все' ||
-    categoryFilter !== 'Все категории' ||
-    selectedRegion !== 'Весь Казахстан' ||
-    deliveryOnly ||
-    companyOnly ||
-    livestockTypeFilter !== 'Все виды' ||
-    livestockPriceModeFilter !== 'all' ||
-    livestockQuantityGroup !== 'all',
-  );
+  const hasSavableSearch =
+    !userCoords &&
+    Boolean(
+      query.trim() ||
+      type !== 'Все' ||
+      categoryFilter !== 'Все категории' ||
+      selectedRegion !== 'Весь Казахстан' ||
+      deliveryOnly ||
+      companyOnly ||
+      livestockTypeFilter !== 'Все виды' ||
+      livestockPriceModeFilter !== 'all' ||
+      livestockQuantityGroup !== 'all',
+    );
   useEffect(() => {
     let active = true;
     const loadMarketplace = async () => {
@@ -1261,51 +1269,72 @@ export default function Home() {
       window.clearInterval(refreshTimer);
     };
   }, [modal, activeConversation]);
+  const distanceFromUser = (listing: Listing) =>
+    userCoords
+      ? calculateDistanceKm(userCoords, resolveCoordinates(listing))
+      : null;
+  const listingDistanceLabel = (listing: Listing) => {
+    const distance = distanceFromUser(listing);
+    if (distance !== null) {
+      return `${hasExactCoordinates(listing) ? '' : '≈ '}${formatDistanceKm(distance)}`;
+    }
+    if (listing.distance !== 'Рядом') return listing.distance;
+    return hasExactCoordinates(listing) ? 'точка указана' : 'место указано';
+  };
   const filtered = useMemo(
     () =>
-      allListings.filter(
-        (i) =>
-          (i.title.toLowerCase().includes(query.toLowerCase()) ||
-            i.category.toLowerCase().includes(query.toLowerCase()) ||
-            i.location.toLowerCase().includes(query.toLowerCase()) ||
-            i.region?.toLowerCase().includes(query.toLowerCase()) ||
-            i.description?.toLowerCase().includes(query.toLowerCase()) ||
-            i.livestockType?.toLowerCase().includes(query.toLowerCase()) ||
-            i.livestockBreed?.toLowerCase().includes(query.toLowerCase())) &&
-          (type === 'Все' || i.type === type) &&
-          (categoryFilter === 'Все категории' ||
-            i.category === categoryFilter) &&
-          (selectedRegion === 'Весь Казахстан' ||
-            i.region === selectedRegion) &&
-          (selectedRegion === 'Весь Казахстан' ||
-            parseFloat(i.distance.replace(',', '.')) <= maxDistance) &&
-          (!favoriteOnly || favorites.includes(String(i.id))) &&
-          (!myOnly || i.mine) &&
-          (myOnly ||
-            listingContentMode === 'all' ||
-            (listingContentMode === 'real'
-              ? !isDemoListing(i.id)
-              : isDemoListing(i.id))) &&
-          (myOnly || i.status !== 'paused') &&
-          (!deliveryOnly || i.delivery) &&
-          (!companyOnly ||
-            i.sellerType === 'Компания' ||
-            i.sellerType === 'Магазин') &&
-          (livestockTypeFilter === 'Все виды' ||
-            i.livestockType === livestockTypeFilter) &&
-          (livestockPriceModeFilter === 'all' ||
-            i.livestockPriceMode === livestockPriceModeFilter) &&
-          (livestockQuantityGroup === 'all' ||
-            (livestockQuantityGroup === 'single' &&
-              i.livestockQuantity === 1) ||
-            (livestockQuantityGroup === 'small_group' &&
-              i.livestockQuantity !== undefined &&
-              i.livestockQuantity >= 2 &&
-              i.livestockQuantity <= 10) ||
-            (livestockQuantityGroup === 'large_group' &&
-              i.livestockQuantity !== undefined &&
-              i.livestockQuantity >= 11)),
-      ),
+      allListings
+        .filter(
+          (i) =>
+            (i.title.toLowerCase().includes(query.toLowerCase()) ||
+              i.category.toLowerCase().includes(query.toLowerCase()) ||
+              i.location.toLowerCase().includes(query.toLowerCase()) ||
+              i.region?.toLowerCase().includes(query.toLowerCase()) ||
+              i.description?.toLowerCase().includes(query.toLowerCase()) ||
+              i.livestockType?.toLowerCase().includes(query.toLowerCase()) ||
+              i.livestockBreed?.toLowerCase().includes(query.toLowerCase())) &&
+            (type === 'Все' || i.type === type) &&
+            (categoryFilter === 'Все категории' ||
+              i.category === categoryFilter) &&
+            (selectedRegion === 'Весь Казахстан' ||
+              i.region === selectedRegion) &&
+            (!userCoords ||
+              calculateDistanceKm(userCoords, resolveCoordinates(i)) <=
+                maxDistance) &&
+            (!favoriteOnly || favorites.includes(String(i.id))) &&
+            (!myOnly || i.mine) &&
+            (myOnly ||
+              listingContentMode === 'all' ||
+              (listingContentMode === 'real'
+                ? !isDemoListing(i.id)
+                : isDemoListing(i.id))) &&
+            (myOnly || i.status !== 'paused') &&
+            (!deliveryOnly || i.delivery) &&
+            (!companyOnly ||
+              i.sellerType === 'Компания' ||
+              i.sellerType === 'Магазин') &&
+            (livestockTypeFilter === 'Все виды' ||
+              i.livestockType === livestockTypeFilter) &&
+            (livestockPriceModeFilter === 'all' ||
+              i.livestockPriceMode === livestockPriceModeFilter) &&
+            (livestockQuantityGroup === 'all' ||
+              (livestockQuantityGroup === 'single' &&
+                i.livestockQuantity === 1) ||
+              (livestockQuantityGroup === 'small_group' &&
+                i.livestockQuantity !== undefined &&
+                i.livestockQuantity >= 2 &&
+                i.livestockQuantity <= 10) ||
+              (livestockQuantityGroup === 'large_group' &&
+                i.livestockQuantity !== undefined &&
+                i.livestockQuantity >= 11)),
+        )
+        .sort((a, b) => {
+          if (!userCoords) return 0;
+          return (
+            calculateDistanceKm(userCoords, resolveCoordinates(a)) -
+            calculateDistanceKm(userCoords, resolveCoordinates(b))
+          );
+        }),
     [
       allListings,
       query,
@@ -1322,6 +1351,7 @@ export default function Home() {
       livestockTypeFilter,
       livestockPriceModeFilter,
       livestockQuantityGroup,
+      userCoords,
     ],
   );
   const visibleRequests = useMemo(
@@ -1437,6 +1467,7 @@ export default function Home() {
     }
   };
   const applySavedSearch = async (savedSearch: SavedSearchItem) => {
+    setUserCoords(null);
     setQuery(savedSearch.query);
     setType(savedSearch.offerType);
     setCategoryFilter(savedSearch.category);
@@ -1588,6 +1619,47 @@ export default function Home() {
       () => {
         setSubmitting(null);
         notify('Не удалось получить геопозицию — укажите город вручную');
+      },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+    );
+  };
+  const toggleNearbyMode = () => {
+    if (userCoords) {
+      setUserCoords(null);
+      setMaxDistance(100);
+      notify('Режим «Рядом со мной» выключен');
+      return;
+    }
+    if (!navigator.geolocation) {
+      notify('Геопозиция не поддерживается этим устройством');
+      return;
+    }
+    setUserLocationLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const latitude = Number(position.coords.latitude.toFixed(6));
+        const longitude = Number(position.coords.longitude.toFixed(6));
+        if (
+          latitude < 40 ||
+          latitude > 56 ||
+          longitude < 45 ||
+          longitude > 88
+        ) {
+          setUserLocationLoading(false);
+          notify('Сейчас режим работает только на территории Казахстана');
+          return;
+        }
+        setUserCoords({ latitude, longitude });
+        setSelectedRegion('Весь Казахстан');
+        setMaxDistance(50);
+        setUserLocationLoading(false);
+        notify('Сначала показываем ближайшие предложения');
+      },
+      () => {
+        setUserLocationLoading(false);
+        notify(
+          'Не удалось получить точку — поиск по региону продолжает работать',
+        );
       },
       { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
     );
@@ -3090,7 +3162,9 @@ export default function Home() {
                 key={r}
                 className={selectedRegion === r ? 'active' : ''}
                 onClick={() => {
+                  setUserCoords(null);
                   setSelectedRegion(r);
+                  setMaxDistance(100);
                   document
                     .querySelector('#catalog')
                     ?.scrollIntoView({ behavior: 'smooth' });
@@ -3253,6 +3327,21 @@ export default function Home() {
               ))}
             </div>
             <div className="filter-actions">
+              <button
+                className={`near-me-button ${userCoords ? 'active' : ''}`}
+                type="button"
+                disabled={userLocationLoading}
+                aria-pressed={Boolean(userCoords)}
+                onClick={toggleNearbyMode}
+              >
+                <Navigation />
+                {userLocationLoading
+                  ? 'Определяем…'
+                  : userCoords
+                    ? `Рядом · ${maxDistance} км`
+                    : 'Рядом со мной'}
+                {userCoords && <X />}
+              </button>
               {favoriteOnly && (
                 <button
                   className="clear-favorite"
@@ -3277,9 +3366,11 @@ export default function Home() {
                     !hasSavableSearch || submitting === 'saved-search-create'
                   }
                   title={
-                    hasSavableSearch
-                      ? 'Получать новые реальные совпадения'
-                      : 'Сначала задайте условие поиска'
+                    userCoords
+                      ? 'Выключите «Рядом со мной»: точная геопозиция не сохраняется'
+                      : hasSavableSearch
+                        ? 'Получать новые реальные совпадения'
+                        : 'Сначала задайте условие поиска'
                   }
                   onClick={() => void saveCurrentSearch()}
                 >
@@ -3317,16 +3408,24 @@ export default function Home() {
                   ))}
                 </select>
               </label>
-              <label>
-                Радиус: <b>{maxDistance} км</b>
+              <label className="radius-filter">
+                Радиус:{' '}
+                <b>
+                  {userCoords ? `${maxDistance} км` : 'сначала включите GPS'}
+                </b>
                 <input
                   type="range"
                   min="2"
                   max="100"
                   value={maxDistance}
                   onChange={(e) => setMaxDistance(Number(e.target.value))}
-                  disabled={selectedRegion === 'Весь Казахстан'}
+                  disabled={!userCoords}
                 />
+                <small>
+                  {userCoords
+                    ? 'Точные точки считаются точно, остальные — приблизительно'
+                    : 'Без геопозиции каталог фильтруется только по региону'}
+                </small>
               </label>
               <label className="mini-check">
                 <input
@@ -3353,6 +3452,7 @@ export default function Home() {
                   setMyOnly(false);
                   setListingContentMode('all');
                   resetLivestockFilters();
+                  setUserCoords(null);
                 }}
               >
                 Сбросить
@@ -3435,7 +3535,8 @@ export default function Home() {
           {mapOpen ? (
             <MarketplaceMap
               markers={mapMarkers}
-              fallbackCenter={getRegionCenter(selectedRegion)}
+              fallbackCenter={userCoords || getRegionCenter(selectedRegion)}
+              userCoordinates={userCoords}
               onSelect={selectMapListing}
             />
           ) : (
@@ -3505,7 +3606,7 @@ export default function Home() {
                     <div className="meta">
                       <span>
                         <MapPin size={14} />
-                        {item.location} · {item.distance}
+                        {item.location} · {listingDistanceLabel(item)}
                       </span>
                       {item.rating && !isDemoListing(item.id) && (
                         <span className="rating">
@@ -4822,7 +4923,8 @@ export default function Home() {
                       )}
                     <span>
                       <MapPin />
-                      {selectedListing.location} · {selectedListing.distance}
+                      {selectedListing.location} ·{' '}
+                      {listingDistanceLabel(selectedListing)}
                     </span>
                     <span>
                       <Clock3 />
@@ -5509,6 +5611,7 @@ export default function Home() {
                       key={r}
                       className={selectedRegion === r ? 'active' : ''}
                       onClick={() => {
+                        setUserCoords(null);
                         setSelectedRegion(r);
                         setModal(null);
                         setMaxDistance(100);

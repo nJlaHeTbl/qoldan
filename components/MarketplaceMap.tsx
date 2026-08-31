@@ -16,6 +16,7 @@ export type MarketplaceMapMarker = {
 type Props = {
   markers: MarketplaceMapMarker[];
   fallbackCenter: { latitude: number; longitude: number };
+  userCoordinates?: { latitude: number; longitude: number } | null;
   onSelect: (id: string) => void;
 };
 
@@ -38,7 +39,12 @@ const escapeHtml = (value: string) =>
       })[character] || character,
   );
 
-export function MarketplaceMap({ markers, fallbackCenter, onSelect }: Props) {
+export function MarketplaceMap({
+  markers,
+  fallbackCenter,
+  userCoordinates,
+  onSelect,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const onSelectRef = useRef(onSelect);
@@ -84,10 +90,30 @@ export function MarketplaceMap({ markers, fallbackCenter, onSelect }: Props) {
         bounds.extend([marker.latitude, marker.longitude]);
       }
 
-      if (markers.length === 0) {
+      if (userCoordinates) {
+        const userPoint = L.circleMarker(
+          [userCoordinates.latitude, userCoordinates.longitude],
+          {
+            radius: 8,
+            weight: 4,
+            color: '#ffffff',
+            fillColor: '#2878d0',
+            fillOpacity: 1,
+          },
+        ).addTo(map);
+        userPoint.bindTooltip('<div><b>Вы здесь</b></div>', {
+          direction: 'top',
+          offset: [0, -8],
+        });
+        bounds.extend([userCoordinates.latitude, userCoordinates.longitude]);
+      }
+
+      const pointCount = markers.length + (userCoordinates ? 1 : 0);
+      if (pointCount === 0) {
         map.setView([fallbackCenter.latitude, fallbackCenter.longitude], 5);
-      } else if (markers.length === 1) {
-        map.setView([markers[0].latitude, markers[0].longitude], 12);
+      } else if (pointCount === 1) {
+        const onlyPoint = userCoordinates || markers[0];
+        map.setView([onlyPoint.latitude, onlyPoint.longitude], 12);
       } else {
         map.fitBounds(bounds.pad(0.18), { maxZoom: 11 });
       }
@@ -98,7 +124,12 @@ export function MarketplaceMap({ markers, fallbackCenter, onSelect }: Props) {
       currentMap?.remove();
       if (mapRef.current === currentMap) mapRef.current = null;
     };
-  }, [fallbackCenter.latitude, fallbackCenter.longitude, markers]);
+  }, [
+    fallbackCenter.latitude,
+    fallbackCenter.longitude,
+    markers,
+    userCoordinates,
+  ]);
 
   return (
     <div className="real-map-shell">
@@ -111,6 +142,7 @@ export function MarketplaceMap({ markers, fallbackCenter, onSelect }: Props) {
         <span className="sale">Продам</span>
         <span className="rent">Сдам</span>
         <span className="service">Услуга</span>
+        {userCoordinates && <span className="you">Вы здесь</span>}
       </div>
       <small className="map-hint">
         Нажмите на точку, чтобы открыть объявление

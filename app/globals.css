@@ -573,6 +573,36 @@ a {
   color: #9ca49e;
   cursor: not-allowed;
 }
+.near-me-button {
+  min-height: 37px;
+  border: 1px solid #d4e0ea;
+  border-radius: 10px;
+  padding: 0 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f4f8fb;
+  color: #356986;
+  font-size: 10px;
+  font-weight: 800;
+}
+.near-me-button:hover {
+  border-color: #9fbccd;
+}
+.near-me-button.active {
+  border-color: #2878d0;
+  background: #eaf3ff;
+  color: #1f65b4;
+}
+.near-me-button:disabled {
+  opacity: 0.65;
+}
+.near-me-button svg {
+  width: 15px;
+}
+.near-me-button svg:last-child:not(:first-child) {
+  width: 12px;
+}
 .listing-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -846,6 +876,10 @@ a {
 }
 .map-legend .rent:before {
   background: #d86a25;
+}
+.map-legend .you:before {
+  background: #2878d0;
+  box-shadow: 0 0 0 2px #dcecff;
 }
 .map-hint {
   right: 14px;
@@ -4944,6 +4978,16 @@ footer {
 .national-filters {
   grid-template-columns: 1fr 1fr auto auto auto;
 }
+.radius-filter small {
+  max-width: 230px;
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.radius-filter input:disabled {
+  opacity: 0.38;
+}
 .mini-check {
   height: 38px;
   flex-direction: row !important;
@@ -5664,6 +5708,7 @@ footer {
     align-items: flex-end;
   }
   .save-search-button,
+  .near-me-button,
   .filter-actions .filter-button {
     width: 100%;
     justify-content: center;
