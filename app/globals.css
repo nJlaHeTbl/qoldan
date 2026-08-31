@@ -551,6 +551,31 @@ a {
   border-radius: 50%;
   font-size: 9px;
 }
+.sort-control {
+  min-height: 37px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #fff;
+  color: #56605a;
+}
+.sort-control svg {
+  width: 14px;
+}
+.sort-control select {
+  max-width: 160px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 750;
+  cursor: pointer;
+}
 .save-search-button {
   min-height: 37px;
   border: 1px solid #cfe0d0;
@@ -5730,9 +5755,14 @@ footer {
   }
   .save-search-button,
   .near-me-button,
+  .sort-control,
   .filter-actions .filter-button {
     width: 100%;
     justify-content: center;
+  }
+  .sort-control select {
+    flex: 1;
+    max-width: none;
   }
   .saved-search-list article {
     grid-template-columns: auto 1fr;

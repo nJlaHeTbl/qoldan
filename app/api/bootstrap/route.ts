@@ -163,7 +163,7 @@ export async function GET(request: Request) {
                     listings.seller_type, listings.delivery, listings.owner_id,
                     listings.livestock_type, listings.livestock_quantity,
                     listings.livestock_price_mode, listings.livestock_breed,
-                    listings.status,
+                    listings.status, listings.created_at,
                     listing_locations.latitude, listing_locations.longitude,
                     COALESCE(verified_business.organization_name,
                              users.display_name) AS owner_name,
@@ -676,6 +676,7 @@ export async function GET(request: Request) {
         livestockPriceMode: row.livestock_price_mode || undefined,
         livestockBreed: row.livestock_breed || undefined,
         status: row.status,
+        createdAt: Number(row.created_at),
         latitude: typeof row.latitude === 'number' ? row.latitude : undefined,
         longitude:
           typeof row.longitude === 'number' ? row.longitude : undefined,

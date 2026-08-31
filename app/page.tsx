@@ -5,6 +5,7 @@ import { type DateRange } from 'react-day-picker';
 import { ru } from 'date-fns/locale';
 import {
   ArrowRight,
+  ArrowUpDown,
   Beef,
   Bell,
   Bookmark,
@@ -61,6 +62,7 @@ type LivestockType =
   | 'Другое';
 type LivestockPriceMode = 'per_head' | 'whole_group';
 type LivestockQuantityGroup = 'all' | 'single' | 'small_group' | 'large_group';
+type ListingSort = 'recommended' | 'newest' | 'price_asc' | 'price_desc';
 type Listing = {
   id: number | string;
   ownerId?: string;
@@ -91,6 +93,7 @@ type Listing = {
   livestockQuantity?: number;
   livestockPriceMode?: LivestockPriceMode;
   livestockBreed?: string;
+  createdAt?: number;
   mine?: boolean;
 };
 type RequestItem = {
@@ -408,6 +411,10 @@ const formatBookingDate = (date: string) =>
     month: 'short',
   }).format(new Date(`${date}T12:00:00`));
 const formatTenge = (amount: number) => `${amount.toLocaleString('ru-RU')} ₸`;
+const listingPriceValue = (price: string) => {
+  const digits = price.replace(/[^\d]/g, '');
+  return digits ? Number(digits) : null;
+};
 const livestockQuantityLabel = (quantity: number) => {
   const mod100 = quantity % 100;
   const mod10 = quantity % 10;
@@ -930,6 +937,7 @@ export default function Home() {
   const [savedSearches, setSavedSearches] = useState<SavedSearchItem[]>([]);
   const [visibleListingCount, setVisibleListingCount] =
     useState(LISTINGS_PAGE_SIZE);
+  const [listingSort, setListingSort] = useState<ListingSort>('recommended');
   const [mapOpen, setMapOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toast, setToast] = useState('');
@@ -1332,11 +1340,25 @@ export default function Home() {
                 i.livestockQuantity >= 11)),
         )
         .sort((a, b) => {
-          if (!userCoords) return 0;
-          return (
-            calculateDistanceKm(userCoords, resolveCoordinates(a)) -
-            calculateDistanceKm(userCoords, resolveCoordinates(b))
-          );
+          if (listingSort === 'newest') {
+            return (b.createdAt || 0) - (a.createdAt || 0);
+          }
+          if (listingSort === 'price_asc' || listingSort === 'price_desc') {
+            const priceA = listingPriceValue(a.price);
+            const priceB = listingPriceValue(b.price);
+            if (priceA === null) return priceB === null ? 0 : 1;
+            if (priceB === null) return -1;
+            return listingSort === 'price_asc'
+              ? priceA - priceB
+              : priceB - priceA;
+          }
+          if (userCoords) {
+            return (
+              calculateDistanceKm(userCoords, resolveCoordinates(a)) -
+              calculateDistanceKm(userCoords, resolveCoordinates(b))
+            );
+          }
+          return 0;
         }),
     [
       allListings,
@@ -1355,6 +1377,7 @@ export default function Home() {
       livestockPriceModeFilter,
       livestockQuantityGroup,
       userCoords,
+      listingSort,
     ],
   );
   const visibleListings = filtered.slice(0, visibleListingCount);
@@ -1380,6 +1403,7 @@ export default function Home() {
     livestockPriceModeFilter,
     livestockQuantityGroup,
     userCoords,
+    listingSort,
   ]);
   const visibleRequests = useMemo(
     () =>
@@ -1679,6 +1703,7 @@ export default function Home() {
         setUserCoords({ latitude, longitude });
         setSelectedRegion('Весь Казахстан');
         setMaxDistance(50);
+        setListingSort('recommended');
         setUserLocationLoading(false);
         notify('Сначала показываем ближайшие предложения');
       },
@@ -3354,6 +3379,23 @@ export default function Home() {
               ))}
             </div>
             <div className="filter-actions">
+              <label className="sort-control">
+                <ArrowUpDown />
+                <select
+                  aria-label="Сортировка объявлений"
+                  value={listingSort}
+                  onChange={(event) =>
+                    setListingSort(event.target.value as ListingSort)
+                  }
+                >
+                  <option value="recommended">
+                    {userCoords ? 'Сначала ближайшие' : 'Сначала подходящие'}
+                  </option>
+                  <option value="newest">Сначала новые</option>
+                  <option value="price_asc">Сначала дешевле</option>
+                  <option value="price_desc">Сначала дороже</option>
+                </select>
+              </label>
               <button
                 className={`near-me-button ${userCoords ? 'active' : ''}`}
                 type="button"
@@ -3478,6 +3520,7 @@ export default function Home() {
                   setCompanyOnly(false);
                   setMyOnly(false);
                   setListingContentMode('all');
+                  setListingSort('recommended');
                   resetLivestockFilters();
                   setUserCoords(null);
                 }}
@@ -3680,6 +3723,7 @@ export default function Home() {
                   setCompanyOnly(false);
                   setSelectedRegion('Весь Казахстан');
                   setListingContentMode('all');
+                  setListingSort('recommended');
                 }}
               >
                 Сбросить фильтры

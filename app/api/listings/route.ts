@@ -93,6 +93,7 @@ export async function POST(request: Request) {
           livestockPriceMode: input.livestockPriceMode,
           livestockBreed: input.livestockBreed || undefined,
           status: 'active',
+          createdAt: now,
           latitude: input.latitude,
           longitude: input.longitude,
           mine: true,
