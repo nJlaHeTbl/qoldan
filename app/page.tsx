@@ -5,6 +5,7 @@ import { type DateRange } from 'react-day-picker';
 import { ru } from 'date-fns/locale';
 import {
   ArrowRight,
+  Beef,
   Bell,
   Bookmark,
   ChevronLeft,
@@ -48,6 +49,14 @@ import {
   resolveCoordinates,
   type Coordinates,
 } from '@/lib/geo';
+type LivestockType =
+  | 'Лошади'
+  | 'Крупный рогатый скот'
+  | 'Овцы'
+  | 'Козы'
+  | 'Верблюды'
+  | 'Другое';
+type LivestockPriceMode = 'per_head' | 'whole_group';
 type Listing = {
   id: number | string;
   ownerId?: string;
@@ -74,6 +83,10 @@ type Listing = {
   status?: 'active' | 'paused';
   latitude?: number;
   longitude?: number;
+  livestockType?: LivestockType;
+  livestockQuantity?: number;
+  livestockPriceMode?: LivestockPriceMode;
+  livestockBreed?: string;
   mine?: boolean;
 };
 type RequestItem = {
@@ -388,6 +401,19 @@ const formatBookingDate = (date: string) =>
     month: 'short',
   }).format(new Date(`${date}T12:00:00`));
 const formatTenge = (amount: number) => `${amount.toLocaleString('ru-RU')} ₸`;
+const livestockQuantityLabel = (quantity: number) => {
+  const mod100 = quantity % 100;
+  const mod10 = quantity % 10;
+  const word =
+    mod100 >= 11 && mod100 <= 14
+      ? 'голов'
+      : mod10 === 1
+        ? 'голова'
+        : mod10 >= 2 && mod10 <= 4
+          ? 'головы'
+          : 'голов';
+  return `${quantity} ${word}`;
+};
 const parseCalendarDate = (value: string) => {
   const [year, month, day] = value.split('-').map(Number);
   return new Date(year, month - 1, day, 12);
@@ -668,6 +694,28 @@ const nationalListings: Listing[] = [
     sellerType: 'Компания',
     delivery: true,
     description: 'Монтаж, демонтаж и доставка входят в стоимость по городу.',
+  },
+  {
+    id: 110,
+    title: 'Табун лошадей — 12 голов',
+    price: '7 800 000 ₸',
+    unit: '/ всё стадо',
+    location: 'Талдыкорган',
+    region: 'Область Жетісу',
+    distance: '16 км',
+    category: 'Скот и животные',
+    type: 'Продам',
+    image:
+      'https://images.unsplash.com/photo-1553284965-83fd3e82fa5a?auto=format&fit=crop&w=900&q=80',
+    owner: 'Демонстрация Qoldan',
+    phone: '+7 700 000 00 00',
+    sellerType: 'Частное лицо',
+    livestockType: 'Лошади',
+    livestockQuantity: 12,
+    livestockPriceMode: 'whole_group',
+    livestockBreed: 'Казахская порода',
+    description:
+      'Пример объявления о продаже группы животных. Контакты и цена указаны только для демонстрации функции.',
   },
 ];
 const defaultListings = [
@@ -976,6 +1024,9 @@ export default function Home() {
   const [deliveryOnly, setDeliveryOnly] = useState(false);
   const [companyOnly, setCompanyOnly] = useState(false);
   const [listingImage, setListingImage] = useState('');
+  const [listingFlow, setListingFlow] = useState<'standard' | 'livestock'>(
+    'standard',
+  );
   const [listingCoords, setListingCoords] = useState<Coordinates | null>(null);
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
   const [requestKind, setRequestKind] = useState<'all' | RequestItem['kind']>(
@@ -1189,7 +1240,9 @@ export default function Home() {
             i.category.toLowerCase().includes(query.toLowerCase()) ||
             i.location.toLowerCase().includes(query.toLowerCase()) ||
             i.region?.toLowerCase().includes(query.toLowerCase()) ||
-            i.description?.toLowerCase().includes(query.toLowerCase())) &&
+            i.description?.toLowerCase().includes(query.toLowerCase()) ||
+            i.livestockType?.toLowerCase().includes(query.toLowerCase()) ||
+            i.livestockBreed?.toLowerCase().includes(query.toLowerCase())) &&
           (type === 'Все' || i.type === type) &&
           (categoryFilter === 'Все категории' ||
             i.category === categoryFilter) &&
@@ -1396,6 +1449,7 @@ export default function Home() {
   };
   const openAddListing = () => {
     setListingImage('');
+    setListingFlow('standard');
     setListingCoords(null);
     setModal('listing');
   };
@@ -2056,14 +2110,25 @@ export default function Home() {
         body: JSON.stringify({
           title: fieldText(f, 'title'),
           price: `${fieldText(f, 'price')} ₸`,
-          unit: fieldText(f, 'unit'),
+          unit:
+            listingFlow === 'livestock'
+              ? fieldText(f, 'livestockPriceMode') === 'per_head'
+                ? '/ голову'
+                : '/ всё стадо'
+              : fieldText(f, 'unit'),
           location: fieldText(f, 'location'),
           region: fieldText(f, 'region'),
-          category: fieldText(f, 'category'),
-          type: fieldText(f, 'type'),
+          category:
+            listingFlow === 'livestock'
+              ? 'Скот и животные'
+              : fieldText(f, 'category'),
+          type: listingFlow === 'livestock' ? 'Продам' : fieldText(f, 'type'),
           imageUrl: upload.url,
           phone: fieldText(f, 'phone'),
-          available: fieldText(f, 'available', 'Доступно по договорённости'),
+          available:
+            listingFlow === 'livestock'
+              ? 'Продажа по договорённости'
+              : fieldText(f, 'available', 'Доступно по договорённости'),
           description: fieldText(
             f,
             'description',
@@ -2073,6 +2138,22 @@ export default function Home() {
           delivery: f.get('delivery') === 'on',
           latitude: listingCoords?.latitude,
           longitude: listingCoords?.longitude,
+          livestockType:
+            listingFlow === 'livestock'
+              ? fieldText(f, 'livestockType')
+              : undefined,
+          livestockQuantity:
+            listingFlow === 'livestock'
+              ? Number(fieldText(f, 'livestockQuantity'))
+              : undefined,
+          livestockPriceMode:
+            listingFlow === 'livestock'
+              ? fieldText(f, 'livestockPriceMode')
+              : undefined,
+          livestockBreed:
+            listingFlow === 'livestock'
+              ? fieldText(f, 'livestockBreed')
+              : undefined,
         }),
       });
       if (!response.ok) throw new Error(await apiError(response));
@@ -2772,23 +2853,28 @@ export default function Home() {
           </div>
           <div className="quick-search">
             <span>Часто ищут:</span>
-            {['Комбайн', 'Перфоратор', 'Кирпич', 'Сено', 'Проектор'].map(
-              (x) => (
-                <button
-                  key={x}
-                  onClick={() => {
-                    setQuery(x);
-                    setFavoriteOnly(false);
-                    setMyOnly(false);
-                    document
-                      .querySelector('#catalog')
-                      ?.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                >
-                  {x}
-                </button>
-              ),
-            )}
+            {[
+              'Комбайн',
+              'Перфоратор',
+              'Кирпич',
+              'Сено',
+              'Проектор',
+              'Лошади',
+            ].map((x) => (
+              <button
+                key={x}
+                onClick={() => {
+                  setQuery(x);
+                  setFavoriteOnly(false);
+                  setMyOnly(false);
+                  document
+                    .querySelector('#catalog')
+                    ?.scrollIntoView({ behavior: 'smooth' });
+                }}
+              >
+                {x}
+              </button>
+            ))}
           </div>
         </div>
         <div className="hero-art">
@@ -2851,6 +2937,14 @@ export default function Home() {
               'Кирпич, плитка, смеси и другие остатки рядом',
               'Открыть раздел',
               'Стройматериалы',
+            ],
+            [
+              'livestock',
+              Beef,
+              'Скот и|животные',
+              'Продайте одну голову или целое стадо простым объявлением',
+              'Открыть раздел',
+              'Скот и животные',
             ],
           ].map((c, i) => {
             const Icon = c[1] as typeof Tractor;
@@ -2944,6 +3038,7 @@ export default function Home() {
                 'Корма и сено',
                 'Зерно',
                 'Пастбища',
+                'Скот и животные',
                 'Перевозка скота',
               ].map((x) => (
                 <button key={x} onClick={() => exploreDirection(x)}>
@@ -3239,6 +3334,13 @@ export default function Home() {
                   <div className="listing-body">
                     <small>{item.category}</small>
                     <h3>{item.title}</h3>
+                    {item.livestockQuantity && item.livestockType && (
+                      <div className="livestock-tag">
+                        <Beef />
+                        {livestockQuantityLabel(item.livestockQuantity)} ·{' '}
+                        {item.livestockType}
+                      </div>
+                    )}
                     <div className="price">
                       {item.price} <span>{item.unit}</span>
                     </div>
@@ -3798,38 +3900,124 @@ export default function Home() {
                   </div>
                 </div>
                 <form className="product-form" onSubmit={addListing}>
-                  <label>
-                    Тип предложения
-                    <select name="type" required>
-                      <option>Продам</option>
-                      <option>Сдам</option>
-                      <option>Окажу услугу</option>
-                    </select>
-                  </label>
-                  <label>
-                    Категория
-                    <select name="category" required>
-                      <option>Сельхозуслуги</option>
-                      <option>Спецтехника</option>
-                      <option>Корма и сено</option>
-                      <option>Зерно</option>
-                      <option>Пастбища</option>
-                      <option>Перевозка скота</option>
-                      <option>Инструменты</option>
-                      <option>Электроника</option>
-                      <option>Оборудование</option>
-                      <option>Для мероприятий</option>
-                      <option>Стройматериалы</option>
-                      <option>Остатки партий</option>
-                      <option>Доставка</option>
-                    </select>
-                  </label>
+                  <div className="listing-mode-switch wide">
+                    <button
+                      type="button"
+                      className={listingFlow === 'standard' ? 'active' : ''}
+                      aria-pressed={listingFlow === 'standard'}
+                      onClick={() => setListingFlow('standard')}
+                    >
+                      <PackageOpen />
+                      <span>
+                        <b>Обычное объявление</b>
+                        <small>Техника, аренда, услуги и материалы</small>
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className={listingFlow === 'livestock' ? 'active' : ''}
+                      aria-pressed={listingFlow === 'livestock'}
+                      onClick={() => setListingFlow('livestock')}
+                    >
+                      <Beef />
+                      <span>
+                        <b>Скот или стадо</b>
+                        <small>Одна голова или несколько животных</small>
+                      </span>
+                    </button>
+                  </div>
+                  {listingFlow === 'standard' ? (
+                    <>
+                      <label>
+                        Тип предложения
+                        <select name="type" required>
+                          <option>Продам</option>
+                          <option>Сдам</option>
+                          <option>Окажу услугу</option>
+                        </select>
+                      </label>
+                      <label>
+                        Категория
+                        <select name="category" required>
+                          <option>Сельхозуслуги</option>
+                          <option>Спецтехника</option>
+                          <option>Корма и сено</option>
+                          <option>Зерно</option>
+                          <option>Пастбища</option>
+                          <option>Перевозка скота</option>
+                          <option>Инструменты</option>
+                          <option>Электроника</option>
+                          <option>Оборудование</option>
+                          <option>Для мероприятий</option>
+                          <option>Стройматериалы</option>
+                          <option>Остатки партий</option>
+                          <option>Доставка</option>
+                        </select>
+                      </label>
+                    </>
+                  ) : (
+                    <div className="livestock-fields wide">
+                      <div className="livestock-fields-head">
+                        <span>
+                          <Beef />
+                        </span>
+                        <div>
+                          <b>Продажа животных</b>
+                          <small>
+                            Заполните четыре коротких поля — остальное как в
+                            обычном объявлении
+                          </small>
+                        </div>
+                      </div>
+                      <label>
+                        Вид скота
+                        <select name="livestockType" required>
+                          <option>Лошади</option>
+                          <option>Крупный рогатый скот</option>
+                          <option>Овцы</option>
+                          <option>Козы</option>
+                          <option>Верблюды</option>
+                          <option>Другое</option>
+                        </select>
+                      </label>
+                      <label>
+                        Количество голов
+                        <input
+                          name="livestockQuantity"
+                          type="number"
+                          min="1"
+                          max="10000"
+                          defaultValue="1"
+                          required
+                        />
+                      </label>
+                      <label>
+                        Как указана цена
+                        <select name="livestockPriceMode" required>
+                          <option value="per_head">За одну голову</option>
+                          <option value="whole_group">За всё стадо</option>
+                        </select>
+                      </label>
+                      <label>
+                        Порода <small>необязательно</small>
+                        <input
+                          name="livestockBreed"
+                          maxLength={120}
+                          placeholder="Например, казахская белоголовая"
+                        />
+                      </label>
+                    </div>
+                  )}
                   <label className="wide">
                     Название
                     <input
                       name="title"
                       required
-                      placeholder="Например, вспашка полей МТЗ-82"
+                      placeholder={
+                        listingFlow === 'livestock'
+                          ? 'Например, табун лошадей — 12 голов'
+                          : 'Например, вспашка полей МТЗ-82'
+                      }
                     />
                   </label>
                   <label className="wide photo-upload">
@@ -3851,7 +4039,7 @@ export default function Home() {
                     )}
                   </label>
                   <label>
-                    Цена
+                    {listingFlow === 'livestock' ? 'Цена, ₸' : 'Цена'}
                     <input
                       name="price"
                       type="number"
@@ -3860,18 +4048,20 @@ export default function Home() {
                       placeholder="18000"
                     />
                   </label>
-                  <label>
-                    Единица
-                    <select name="unit">
-                      <option>/ услуга</option>
-                      <option>/ га</option>
-                      <option>/ час</option>
-                      <option>/ сутки</option>
-                      <option>/ шт.</option>
-                      <option>/ кг</option>
-                      <option>/ тюк</option>
-                    </select>
-                  </label>
+                  {listingFlow === 'standard' && (
+                    <label>
+                      Единица
+                      <select name="unit">
+                        <option>/ услуга</option>
+                        <option>/ га</option>
+                        <option>/ час</option>
+                        <option>/ сутки</option>
+                        <option>/ шт.</option>
+                        <option>/ кг</option>
+                        <option>/ тюк</option>
+                      </select>
+                    </label>
+                  )}
                   <label>
                     Регион
                     <select
@@ -3947,22 +4137,30 @@ export default function Home() {
                     </select>
                   </label>
                   <label className="check-line form-delivery">
-                    <input name="delivery" type="checkbox" /> Возможна доставка
-                    или выезд
+                    <input name="delivery" type="checkbox" />{' '}
+                    {listingFlow === 'livestock'
+                      ? 'Помогу с перевозкой'
+                      : 'Возможна доставка или выезд'}
                   </label>
-                  <label className="wide">
-                    Когда доступно
-                    <input
-                      name="available"
-                      placeholder="Например, 2–7 сентября"
-                    />
-                  </label>
+                  {listingFlow === 'standard' && (
+                    <label className="wide">
+                      Когда доступно
+                      <input
+                        name="available"
+                        placeholder="Например, 2–7 сентября"
+                      />
+                    </label>
+                  )}
                   <label className="wide">
                     Описание
                     <textarea
                       name="description"
                       rows={3}
-                      placeholder="Расскажите о состоянии, условиях и радиусе выезда"
+                      placeholder={
+                        listingFlow === 'livestock'
+                          ? 'Возраст, состояние, документы и условия осмотра'
+                          : 'Расскажите о состоянии, условиях и радиусе выезда'
+                      }
                     />
                   </label>
                   <button
@@ -4451,6 +4649,19 @@ export default function Home() {
                       'Свяжитесь с владельцем, чтобы уточнить подробности предложения.'}
                   </p>
                   <div className="detail-facts">
+                    {selectedListing.livestockQuantity &&
+                      selectedListing.livestockType && (
+                        <span>
+                          <Beef />
+                          {livestockQuantityLabel(
+                            selectedListing.livestockQuantity,
+                          )}{' '}
+                          · {selectedListing.livestockType}
+                          {selectedListing.livestockBreed
+                            ? ` · ${selectedListing.livestockBreed}`
+                            : ''}
+                        </span>
+                      )}
                     <span>
                       <MapPin />
                       {selectedListing.location} · {selectedListing.distance}
