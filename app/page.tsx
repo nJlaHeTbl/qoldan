@@ -50,6 +50,7 @@ import {
 } from '@/lib/geo';
 type Listing = {
   id: number | string;
+  ownerId?: string;
   title: string;
   price: string;
   unit?: string;
@@ -92,6 +93,7 @@ type RequestItem = {
 type RequestSelection = {
   requestId: string;
   responseId: string;
+  providerId: string;
   providerName: string;
   price: string;
   status: 'selected' | 'cancelled' | 'completed';
@@ -128,6 +130,32 @@ type ResponseItem = {
 type ServiceTrust = {
   serviceRating?: string;
   serviceReviewCount: number;
+};
+type ProviderReview = {
+  id: string;
+  rating: number;
+  comment: string;
+  subjectTitle: string;
+  reviewer: string;
+  createdAt: number;
+};
+type ProviderProfile = {
+  id: string;
+  displayName: string;
+  joinedAt: number;
+  verified: boolean;
+  organizationName?: string;
+  businessType?: BusinessProfileType;
+  region?: string;
+  serviceRating?: string;
+  serviceReviewCount: number;
+  rentalRating?: string;
+  rentalReviewCount: number;
+  completedWorkCount: number;
+  activeListingCount: number;
+  listings: Listing[];
+  serviceReviews: ProviderReview[];
+  rentalReviews: ProviderReview[];
 };
 type SavedSearchItem = {
   id: string;
@@ -348,6 +376,11 @@ const formatActivityDate = (timestamp: number) =>
     month: 'short',
     hour: '2-digit',
     minute: '2-digit',
+  }).format(new Date(timestamp));
+const formatJoinedDate = (timestamp: number) =>
+  new Intl.DateTimeFormat('ru-RU', {
+    month: 'long',
+    year: 'numeric',
   }).format(new Date(timestamp));
 const formatBookingDate = (date: string) =>
   new Intl.DateTimeFormat('ru-RU', {
@@ -847,6 +880,10 @@ export default function Home() {
   const [serviceTrust, setServiceTrust] = useState<ServiceTrust>({
     serviceReviewCount: 0,
   });
+  const [providerProfile, setProviderProfile] =
+    useState<ProviderProfile | null>(null);
+  const [providerLoading, setProviderLoading] = useState(false);
+  const [providerError, setProviderError] = useState('');
   const [handoffTarget, setHandoffTarget] = useState<BookingItem | null>(null);
   const [bookingRange, setBookingRange] = useState<DateRange | undefined>();
   const [availabilityRanges, setAvailabilityRanges] = useState<
@@ -905,6 +942,7 @@ export default function Home() {
     | 'detail'
     | 'response'
     | 'profile'
+    | 'provider'
     | 'saved-searches'
     | 'verification'
     | 'notifications'
@@ -1444,6 +1482,32 @@ export default function Home() {
   const openListing = (item: Listing) => {
     setSelectedListing(item);
     setModal('detail');
+  };
+  const openProviderProfile = async (providerId?: string) => {
+    if (!providerId) {
+      notify('У демонстрационного примера нет реального профиля');
+      return;
+    }
+    setProviderProfile(null);
+    setProviderError('');
+    setProviderLoading(true);
+    setModal('provider');
+    try {
+      const response = await fetch(
+        `/api/providers/${encodeURIComponent(providerId)}`,
+        { cache: 'no-store' },
+      );
+      if (!response.ok) throw new Error(await apiError(response));
+      const data = (await response.json()) as { profile: ProviderProfile };
+      setProviderProfile(data.profile);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Не удалось открыть профиль';
+      setProviderError(message);
+      notify(message);
+    } finally {
+      setProviderLoading(false);
+    }
   };
   const openConversation = async (conversation: ConversationSummary) => {
     setActiveConversation(conversation);
@@ -3708,7 +3772,7 @@ export default function Home() {
         >
           <dialog
             open
-            className={`app-modal ${modal === 'detail' ? 'detail-modal' : ''} ${modal === 'moderation' ? 'moderation-modal' : ''} ${modal === 'messages' ? 'messages-modal' : ''}`}
+            className={`app-modal ${modal === 'detail' ? 'detail-modal' : ''} ${modal === 'provider' ? 'provider-modal' : ''} ${modal === 'moderation' ? 'moderation-modal' : ''} ${modal === 'messages' ? 'messages-modal' : ''}`}
             aria-label="Окно Qoldan"
           >
             <button
@@ -4072,6 +4136,17 @@ export default function Home() {
                         </p>
                       </div>
                       <div className="request-selection-actions">
+                        <button
+                          type="button"
+                          className="selection-profile"
+                          onClick={() =>
+                            void openProviderProfile(
+                              activeRequestSelection.providerId,
+                            )
+                          }
+                        >
+                          <UserRound /> Профиль исполнителя
+                        </button>
                         {activeRequestSelection.conversationId && (
                           <button
                             type="button"
@@ -4163,7 +4238,15 @@ export default function Home() {
                       >
                         <span>{response.owner.slice(0, 1).toUpperCase()}</span>
                         <div className="bid-provider">
-                          <b>{response.owner}</b>
+                          <button
+                            type="button"
+                            className="bid-provider-link"
+                            onClick={() =>
+                              void openProviderProfile(response.ownerId)
+                            }
+                          >
+                            {response.owner}
+                          </button>
                           <small>
                             {response.providerReviewCount > 0
                               ? `★ ${response.providerRating} · ${response.providerReviewCount} проверенных ${response.providerReviewCount === 1 ? 'работа' : 'работ'} `
@@ -4414,6 +4497,18 @@ export default function Home() {
                           : `${selectedListing.sellerType || 'Частное лицо'} · ${selectedListing.verified ? 'бизнес подтверждён Qoldan' : 'участник площадки'}`}
                       </small>
                     </div>
+                    {!isDemoListing(selectedListing.id) &&
+                      selectedListing.ownerId && (
+                        <button
+                          type="button"
+                          className="owner-profile-link"
+                          onClick={() =>
+                            void openProviderProfile(selectedListing.ownerId)
+                          }
+                        >
+                          <UserRound /> Профиль
+                        </button>
+                      )}
                     {selectedListing.rating &&
                       !isDemoListing(selectedListing.id) && (
                         <em>
@@ -4613,6 +4708,233 @@ export default function Home() {
                   )}
                 </div>
               </>
+            )}
+            {modal === 'provider' && (
+              <div className="provider-profile">
+                {providerLoading ? (
+                  <div className="provider-status">
+                    <UserRound />
+                    <b>Собираем профиль и репутацию…</b>
+                    <span>Проверяем активные предложения и отзывы.</span>
+                  </div>
+                ) : providerError ? (
+                  <div className="provider-status error">
+                    <CircleAlert />
+                    <b>Не удалось открыть профиль</b>
+                    <span>{providerError}</span>
+                  </div>
+                ) : providerProfile ? (
+                  <>
+                    <section className="provider-cover">
+                      <span>
+                        {providerProfile.displayName
+                          .split(/\s+/)
+                          .filter(Boolean)
+                          .slice(0, 2)
+                          .map((part) => part[0])
+                          .join('')
+                          .toUpperCase() || 'Q'}
+                      </span>
+                      <div>
+                        <small>ПУБЛИЧНЫЙ ПРОФИЛЬ</small>
+                        <h2>{providerProfile.displayName}</h2>
+                        <p>
+                          {providerProfile.region && (
+                            <>
+                              <MapPin /> {providerProfile.region} ·{' '}
+                            </>
+                          )}
+                          в Qoldan с{' '}
+                          {formatJoinedDate(providerProfile.joinedAt)}
+                        </p>
+                      </div>
+                      {providerProfile.verified && (
+                        <strong>
+                          <ShieldCheck /> Бизнес подтверждён
+                        </strong>
+                      )}
+                    </section>
+
+                    {providerProfile.verified &&
+                      providerProfile.businessType && (
+                        <div className="provider-verification">
+                          <ShieldCheck />
+                          <div>
+                            <b>
+                              {providerProfile.organizationName ||
+                                providerProfile.displayName}
+                            </b>
+                            <span>
+                              {
+                                businessProfileLabels[
+                                  providerProfile.businessType
+                                ]
+                              }{' '}
+                              · документы проверены командой Qoldan
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                    <div className="provider-stats">
+                      <div>
+                        <b>{providerProfile.activeListingCount}</b>
+                        <span>активных предложений</span>
+                      </div>
+                      <div>
+                        <b>{providerProfile.completedWorkCount}</b>
+                        <span>завершённых работ</span>
+                      </div>
+                      <div>
+                        <b>
+                          {providerProfile.serviceRating
+                            ? `★ ${providerProfile.serviceRating}`
+                            : '—'}
+                        </b>
+                        <span>
+                          услуги · {providerProfile.serviceReviewCount} отзывов
+                        </span>
+                      </div>
+                      <div>
+                        <b>
+                          {providerProfile.rentalRating
+                            ? `★ ${providerProfile.rentalRating}`
+                            : '—'}
+                        </b>
+                        <span>
+                          аренда · {providerProfile.rentalReviewCount} отзывов
+                        </span>
+                      </div>
+                    </div>
+
+                    <section className="provider-section">
+                      <div className="provider-section-head">
+                        <div>
+                          <small>СЕЙЧАС ДОСТУПНО</small>
+                          <h3>Активные предложения</h3>
+                        </div>
+                        <span>{providerProfile.listings.length}</span>
+                      </div>
+                      {providerProfile.listings.length > 0 ? (
+                        <div className="provider-offer-grid">
+                          {providerProfile.listings.map((listing) => (
+                            <button
+                              type="button"
+                              key={listing.id}
+                              onClick={() => openListing(listing)}
+                            >
+                              <img src={listing.image} alt={listing.title} />
+                              <span>
+                                <small>
+                                  {listing.type} · {listing.category}
+                                </small>
+                                <b>{listing.title}</b>
+                                <em>
+                                  {listing.price} {listing.unit}
+                                </em>
+                                <i>
+                                  <MapPin /> {listing.location}
+                                </i>
+                              </span>
+                              <ArrowRight />
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="provider-empty">
+                          <PackageOpen />
+                          <span>
+                            Сейчас у пользователя нет активных объявлений.
+                          </span>
+                        </div>
+                      )}
+                    </section>
+
+                    <div className="provider-review-columns">
+                      <section className="provider-section">
+                        <div className="provider-section-head">
+                          <div>
+                            <small>ПОСЛЕ РЕАЛЬНОЙ ЗАЯВКИ</small>
+                            <h3>Отзывы об услугах</h3>
+                          </div>
+                          <ShieldCheck />
+                        </div>
+                        {providerProfile.serviceReviews.length > 0 ? (
+                          <div className="provider-reviews">
+                            {providerProfile.serviceReviews.map((review) => (
+                              <article key={review.id}>
+                                <div>
+                                  <b>{review.reviewer}</b>
+                                  <strong>★ {review.rating}/5</strong>
+                                </div>
+                                <small>{review.subjectTitle}</small>
+                                <p>
+                                  {review.comment ||
+                                    'Работа подтверждена без дополнительного комментария.'}
+                                </p>
+                                <time>
+                                  {formatActivityDate(review.createdAt)}
+                                </time>
+                              </article>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="provider-empty compact">
+                            <Star />
+                            <span>
+                              Проверенных отзывов об услугах пока нет.
+                            </span>
+                          </div>
+                        )}
+                      </section>
+
+                      <section className="provider-section">
+                        <div className="provider-section-head">
+                          <div>
+                            <small>ПОСЛЕ ЗАВЕРШЁННОЙ АРЕНДЫ</small>
+                            <h3>Отзывы об аренде</h3>
+                          </div>
+                          <ShieldCheck />
+                        </div>
+                        {providerProfile.rentalReviews.length > 0 ? (
+                          <div className="provider-reviews">
+                            {providerProfile.rentalReviews.map((review) => (
+                              <article key={review.id}>
+                                <div>
+                                  <b>{review.reviewer}</b>
+                                  <strong>★ {review.rating}/5</strong>
+                                </div>
+                                <small>{review.subjectTitle}</small>
+                                <p>
+                                  {review.comment ||
+                                    'Аренда завершена без дополнительного комментария.'}
+                                </p>
+                                <time>
+                                  {formatActivityDate(review.createdAt)}
+                                </time>
+                              </article>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="provider-empty compact">
+                            <Star />
+                            <span>Проверенных отзывов об аренде пока нет.</span>
+                          </div>
+                        )}
+                      </section>
+                    </div>
+
+                    <div className="provider-safety-note">
+                      <ShieldCheck />
+                      <span>
+                        Отзывы появляются только после завершённой заявки или
+                        аренды. Контакты открываются внутри конкретного
+                        активного объявления.
+                      </span>
+                    </div>
+                  </>
+                ) : null}
+              </div>
             )}
             {modal === 'booking' && selectedListing && (
               <>
