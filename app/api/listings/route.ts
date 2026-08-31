@@ -27,8 +27,9 @@ export async function POST(request: Request) {
         `INSERT INTO listings
          (id, owner_id, title, price, unit, location, region, category,
           offer_type, image_url, phone, available, description, seller_type,
-          delivery, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)`,
+          delivery, livestock_type, livestock_quantity, livestock_price_mode,
+          livestock_breed, status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)`,
       )
       .bind(
         id,
@@ -46,6 +47,10 @@ export async function POST(request: Request) {
         input.description || null,
         input.sellerType,
         input.delivery ? 1 : 0,
+        input.livestockType || null,
+        input.livestockQuantity || null,
+        input.livestockPriceMode || null,
+        input.livestockBreed || null,
         now,
         now,
       );
@@ -83,6 +88,10 @@ export async function POST(request: Request) {
           description: input.description || undefined,
           sellerType: input.sellerType,
           delivery: input.delivery,
+          livestockType: input.livestockType,
+          livestockQuantity: input.livestockQuantity,
+          livestockPriceMode: input.livestockPriceMode,
+          livestockBreed: input.livestockBreed || undefined,
           status: 'active',
           latitude: input.latitude,
           longitude: input.longitude,

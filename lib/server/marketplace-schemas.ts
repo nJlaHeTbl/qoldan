@@ -3,6 +3,15 @@ import { z } from 'zod';
 const shortText = z.string().trim().min(1).max(160);
 const offerTypes = ['Продам', 'Сдам', 'Окажу услугу'] as const;
 const sellerTypes = ['Частное лицо', 'Компания', 'Магазин'] as const;
+const livestockTypes = [
+  'Лошади',
+  'Крупный рогатый скот',
+  'Овцы',
+  'Козы',
+  'Верблюды',
+  'Другое',
+] as const;
+const livestockPriceModes = ['per_head', 'whole_group'] as const;
 const requestKinds = ['agro', 'build', 'rent', 'recycle'] as const;
 const listingStatuses = ['active', 'paused'] as const;
 const requestStatuses = ['open', 'closed'] as const;
@@ -42,6 +51,10 @@ export const listingInput = z
     description: z.string().trim().max(1200).optional().default(''),
     sellerType: z.enum(sellerTypes),
     delivery: z.boolean().optional().default(false),
+    livestockType: z.enum(livestockTypes).optional(),
+    livestockQuantity: z.number().int().min(1).max(10_000).optional(),
+    livestockPriceMode: z.enum(livestockPriceModes).optional(),
+    livestockBreed: z.string().trim().max(120).optional().default(''),
     latitude: z.number().min(40).max(56).optional(),
     longitude: z.number().min(45).max(88).optional(),
   })
@@ -50,7 +63,38 @@ export const listingInput = z
       (data.latitude === undefined && data.longitude === undefined) ||
       (data.latitude !== undefined && data.longitude !== undefined),
     { message: 'Передайте обе координаты', path: ['latitude'] },
-  );
+  )
+  .superRefine((data, context) => {
+    if (data.category !== 'Скот и животные') return;
+    if (data.type !== 'Продам') {
+      context.addIssue({
+        code: 'custom',
+        path: ['type'],
+        message: 'Объявление о скоте публикуется как продажа',
+      });
+    }
+    if (!data.livestockType) {
+      context.addIssue({
+        code: 'custom',
+        path: ['livestockType'],
+        message: 'Выберите вид скота',
+      });
+    }
+    if (!data.livestockQuantity) {
+      context.addIssue({
+        code: 'custom',
+        path: ['livestockQuantity'],
+        message: 'Укажите количество голов',
+      });
+    }
+    if (!data.livestockPriceMode) {
+      context.addIssue({
+        code: 'custom',
+        path: ['livestockPriceMode'],
+        message: 'Укажите, за что указана цена',
+      });
+    }
+  });
 
 export const requestInput = z.object({
   title: shortText.min(4),

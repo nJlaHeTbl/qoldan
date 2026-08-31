@@ -132,6 +132,10 @@ export async function ensureMarketplaceSchema() {
         description TEXT,
         seller_type TEXT NOT NULL,
         delivery INTEGER DEFAULT 0 NOT NULL,
+        livestock_type TEXT,
+        livestock_quantity INTEGER,
+        livestock_price_mode TEXT,
+        livestock_breed TEXT,
         status TEXT DEFAULT 'active' NOT NULL,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
@@ -300,6 +304,32 @@ export async function ensureMarketplaceSchema() {
         read_at INTEGER
       )`),
     ]);
+    const listingColumns = await db
+      .prepare('PRAGMA table_info(listings)')
+      .all<{ name: string }>();
+    const missingListingColumns = [
+      ['livestock_type', 'ALTER TABLE listings ADD COLUMN livestock_type TEXT'],
+      [
+        'livestock_quantity',
+        'ALTER TABLE listings ADD COLUMN livestock_quantity INTEGER',
+      ],
+      [
+        'livestock_price_mode',
+        'ALTER TABLE listings ADD COLUMN livestock_price_mode TEXT',
+      ],
+      [
+        'livestock_breed',
+        'ALTER TABLE listings ADD COLUMN livestock_breed TEXT',
+      ],
+    ].filter(
+      ([name]) =>
+        !listingColumns.results.some((column) => column.name === name),
+    );
+    if (missingListingColumns.length > 0) {
+      await db.batch(
+        missingListingColumns.map(([, sql]) => db.prepare(sql as string)),
+      );
+    }
     const bookingColumns = await db
       .prepare('PRAGMA table_info(bookings)')
       .all<{ name: string }>();

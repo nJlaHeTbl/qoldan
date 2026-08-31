@@ -71,6 +71,8 @@ export async function GET(request: Request, context: RouteContext) {
                     listings.offer_type, listings.image_url, listings.phone,
                     listings.available, listings.description,
                     listings.seller_type, listings.delivery, listings.owner_id,
+                    listings.livestock_type, listings.livestock_quantity,
+                    listings.livestock_price_mode, listings.livestock_breed,
                     listings.status, listing_locations.latitude,
                     listing_locations.longitude, review_stats.rating_average,
                     review_stats.review_count
@@ -217,6 +219,13 @@ export async function GET(request: Request, context: RouteContext) {
             ? provider.profile_type || undefined
             : undefined,
           delivery: Boolean(row.delivery),
+          livestockType: row.livestock_type || undefined,
+          livestockQuantity:
+            typeof row.livestock_quantity === 'number'
+              ? row.livestock_quantity
+              : undefined,
+          livestockPriceMode: row.livestock_price_mode || undefined,
+          livestockBreed: row.livestock_breed || undefined,
           status: row.status,
           latitude: typeof row.latitude === 'number' ? row.latitude : undefined,
           longitude:
