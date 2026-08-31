@@ -740,6 +740,7 @@ const defaultListings = [
   ...listings.map((x) => ({ ...x, region: 'Область Жетісу' as const })),
   ...nationalListings,
 ];
+const LISTINGS_PAGE_SIZE = 9;
 const kzRegions = [
   'Весь Казахстан',
   'Астана',
@@ -927,6 +928,8 @@ export default function Home() {
   const [type, setType] = useState('Все');
   const [favorites, setFavorites] = useState<string[]>([]);
   const [savedSearches, setSavedSearches] = useState<SavedSearchItem[]>([]);
+  const [visibleListingCount, setVisibleListingCount] =
+    useState(LISTINGS_PAGE_SIZE);
   const [mapOpen, setMapOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toast, setToast] = useState('');
@@ -1354,6 +1357,30 @@ export default function Home() {
       userCoords,
     ],
   );
+  const visibleListings = filtered.slice(0, visibleListingCount);
+  const remainingListingCount = Math.max(
+    filtered.length - visibleListings.length,
+    0,
+  );
+  const nextListingCount = Math.min(LISTINGS_PAGE_SIZE, remainingListingCount);
+  useEffect(() => {
+    setVisibleListingCount(LISTINGS_PAGE_SIZE);
+  }, [
+    query,
+    type,
+    categoryFilter,
+    maxDistance,
+    favoriteOnly,
+    myOnly,
+    selectedRegion,
+    deliveryOnly,
+    companyOnly,
+    listingContentMode,
+    livestockTypeFilter,
+    livestockPriceModeFilter,
+    livestockQuantityGroup,
+    userCoords,
+  ]);
   const visibleRequests = useMemo(
     () =>
       allRequests.filter(
@@ -3541,7 +3568,7 @@ export default function Home() {
             />
           ) : (
             <div className="listing-grid">
-              {filtered.map((item) => (
+              {visibleListings.map((item) => (
                 <article className="listing-card" key={item.id}>
                   <button
                     className="listing-open"
@@ -3660,14 +3687,27 @@ export default function Home() {
             </div>
           )}
           {!mapOpen && filtered.length > 0 && (
-            <button
-              className="more-button"
-              onClick={() =>
-                notify(`Показаны все предложения: ${selectedRegion}`)
-              }
-            >
-              Показать ещё
-            </button>
+            <div className="catalog-pagination" aria-live="polite">
+              <p>
+                Показано <b>{visibleListings.length}</b> из{' '}
+                <b>{filtered.length}</b>
+              </p>
+              {remainingListingCount > 0 ? (
+                <button
+                  className="more-button"
+                  type="button"
+                  onClick={() =>
+                    setVisibleListingCount(
+                      (count) => count + LISTINGS_PAGE_SIZE,
+                    )
+                  }
+                >
+                  Показать ещё {nextListingCount}
+                </button>
+              ) : (
+                <span>Вы посмотрели все подходящие предложения</span>
+              )}
+            </div>
           )}
         </div>
       </section>
