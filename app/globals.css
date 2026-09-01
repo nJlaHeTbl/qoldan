@@ -2110,6 +2110,24 @@ footer {
 .share-listing-button svg {
   width: 14px;
 }
+.request-share-button {
+  min-height: 34px;
+  width: max-content;
+  margin: -3px 0 15px auto;
+  border: 1px solid #d7e3d8;
+  border-radius: 9px;
+  padding: 0 11px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f3f8f2;
+  color: var(--green);
+  font-size: 9px;
+  font-weight: 850;
+}
+.request-share-button svg {
+  width: 14px;
+}
 .detail-content h2 {
   font-size: 25px;
   line-height: 1.25;
@@ -2529,6 +2547,135 @@ footer {
   width: 16px;
 }
 .listing-page-content p.listing-page-safety {
+  margin: 14px 0 0;
+  padding: 11px 12px;
+  border-radius: 10px;
+  background: #f5f7f3;
+  color: #778078;
+  font-size: 9px;
+  line-height: 1.5;
+}
+.request-page-shell {
+  max-width: 960px;
+}
+.request-page-card {
+  display: grid;
+  grid-template-columns: minmax(250px, 0.72fr) minmax(0, 1.28fr);
+  overflow: hidden;
+  border: 1px solid #e0e5df;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 20px 60px #24352912;
+}
+.request-page-direction {
+  min-height: 560px;
+  padding: 46px 36px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  background: var(--green);
+  color: #fff;
+}
+.request-page-direction > span {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 28px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  background: #ffffff1c;
+}
+.request-page-direction svg {
+  width: 29px;
+  height: 29px;
+}
+.request-page-direction small {
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  opacity: 0.76;
+}
+.request-page-direction b {
+  margin-top: 13px;
+  font-size: 27px;
+  letter-spacing: -0.8px;
+}
+.request-page-direction p {
+  margin: 18px 0 0;
+  font-size: 10px;
+  line-height: 1.65;
+  opacity: 0.76;
+}
+.request-page-content {
+  padding: 50px 44px;
+  align-self: center;
+}
+.request-page-content > small {
+  color: var(--green);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.7px;
+}
+.request-page-content h1 {
+  margin: 10px 0 21px;
+  font-size: clamp(28px, 3.5vw, 43px);
+  line-height: 1.12;
+  letter-spacing: -1.2px;
+}
+.request-page-budget {
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #657068;
+  font-size: 11px;
+}
+.request-page-budget > svg {
+  width: 20px;
+  color: var(--green);
+}
+.request-page-budget span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.request-page-budget b {
+  color: var(--ink);
+  font-size: 18px;
+}
+.request-page-owner {
+  padding-bottom: 12px;
+}
+.request-page-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+}
+.request-page-actions a {
+  min-height: 46px;
+  border: 1px solid var(--ink);
+  border-radius: 11px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: var(--ink);
+  color: #fff;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 850;
+}
+.request-page-actions a.secondary {
+  background: #fff;
+  color: var(--ink);
+}
+.request-page-actions svg {
+  width: 16px;
+}
+.request-page-content p.listing-page-safety {
   margin: 14px 0 0;
   padding: 11px 12px;
   border-radius: 10px;
@@ -5725,6 +5872,18 @@ footer {
   .listing-page-card {
     grid-template-columns: 1fr;
   }
+  .request-page-card {
+    grid-template-columns: 1fr;
+  }
+  .request-page-direction {
+    min-height: auto;
+    padding: 34px;
+  }
+  .request-page-direction > span {
+    width: 52px;
+    height: 52px;
+    margin-bottom: 20px;
+  }
   .listing-page-photo {
     min-height: 440px;
   }
@@ -5846,6 +6005,22 @@ footer {
   }
   .listing-page-actions {
     grid-template-columns: 1fr;
+  }
+  .request-page-card {
+    border-radius: 16px;
+  }
+  .request-page-direction,
+  .request-page-content {
+    padding: 28px 20px;
+  }
+  .request-page-content h1 {
+    font-size: 29px;
+  }
+  .request-page-actions {
+    grid-template-columns: 1fr;
+  }
+  .request-share-button {
+    margin-left: 0;
   }
   .detail-heading-row {
     align-items: flex-start;

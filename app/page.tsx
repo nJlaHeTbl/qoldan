@@ -1014,6 +1014,7 @@ export default function Home() {
   const [serverConnected, setServerConnected] = useState(false);
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [storageReady, setStorageReady] = useState(false);
+  const [requestLinkHandled, setRequestLinkHandled] = useState(false);
   const [modal, setModal] = useState<
     | 'listing'
     | 'request'
@@ -1462,6 +1463,57 @@ export default function Home() {
     setToast(m);
     setTimeout(() => setToast(''), 2600);
   };
+  useEffect(() => {
+    if (!storageReady || requestLinkHandled) return;
+    const linkedRequestId = new URLSearchParams(window.location.search).get(
+      'request',
+    );
+    setRequestLinkHandled(true);
+    if (!linkedRequestId) return;
+
+    let active = true;
+    const openLinkedRequest = async () => {
+      try {
+        const response = await fetch(
+          `/api/requests/${encodeURIComponent(linkedRequestId)}`,
+          { cache: 'no-store' },
+        );
+        if (!response.ok) throw new Error(await apiError(response));
+        const data = (await response.json()) as {
+          request: RequestItem;
+          responses: ResponseItem[];
+        };
+        if (!active) return;
+        setAllRequests((current) => [
+          data.request,
+          ...current.filter(
+            (item) => String(item.id) !== String(data.request.id),
+          ),
+        ]);
+        setAllResponses((current) => [
+          ...data.responses,
+          ...current.filter(
+            (item) => item.requestId !== String(data.request.id),
+          ),
+        ]);
+        setSelectedRequest(data.request);
+        setRequestContentMode('real');
+        setRequestOwnerOnly(false);
+        setModal('response');
+      } catch (error) {
+        if (!active) return;
+        notify(
+          error instanceof Error
+            ? error.message
+            : 'Не удалось открыть заявку по ссылке',
+        );
+      }
+    };
+    void openLinkedRequest();
+    return () => {
+      active = false;
+    };
+  }, [storageReady, requestLinkHandled]);
   const saveCurrentSearch = async () => {
     if (!hasSavableSearch) {
       notify('Сначала задайте запрос, регион или фильтр');
@@ -1744,6 +1796,34 @@ export default function Home() {
       try {
         await navigator.clipboard.writeText(url);
         notify('Ссылка на объявление скопирована');
+      } catch {
+        notify('Не удалось скопировать ссылку — попробуйте ещё раз');
+      }
+    }
+  };
+  const shareRequest = async (item: RequestItem) => {
+    const url = new URL(
+      `/request/${encodeURIComponent(String(item.id))}`,
+      window.location.origin,
+    ).toString();
+    const shareData = {
+      title: `${item.title} — заявка Qoldan`,
+      text: `${item.place} · ${item.when} · ${item.budget}`,
+      url,
+    };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        notify('Заявка отправлена');
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      notify('Ссылка на заявку скопирована');
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      try {
+        await navigator.clipboard.writeText(url);
+        notify('Ссылка на заявку скопирована');
       } catch {
         notify('Не удалось скопировать ссылку — попробуйте ещё раз');
       }
@@ -4652,6 +4732,15 @@ export default function Home() {
                     </p>
                   </div>
                 </div>
+                {!isDemoRequest(selectedRequest.id) && (
+                  <button
+                    className="request-share-button"
+                    type="button"
+                    onClick={() => void shareRequest(selectedRequest)}
+                  >
+                    <Share2 /> Поделиться заявкой
+                  </button>
+                )}
                 {isDemoRequest(selectedRequest.id) && (
                   <div className="demo-flow-note">
                     <CircleAlert />
