@@ -75,25 +75,17 @@
       "indexes": {
         "appeals_moderation_action_id_unique": {
           "name": "appeals_moderation_action_id_unique",
-          "columns": [
-            "moderation_action_id"
-          ],
+          "columns": ["moderation_action_id"],
           "isUnique": true
         },
         "appeals_owner_id_created_at_idx": {
           "name": "appeals_owner_id_created_at_idx",
-          "columns": [
-            "owner_id",
-            "created_at"
-          ],
+          "columns": ["owner_id", "created_at"],
           "isUnique": false
         },
         "appeals_status_created_at_idx": {
           "name": "appeals_status_created_at_idx",
-          "columns": [
-            "status",
-            "created_at"
-          ],
+          "columns": ["status", "created_at"],
           "isUnique": false
         }
       },
@@ -102,12 +94,8 @@
           "name": "appeals_moderation_action_id_moderation_actions_id_fk",
           "tableFrom": "appeals",
           "tableTo": "moderation_actions",
-          "columnsFrom": [
-            "moderation_action_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["moderation_action_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -115,12 +103,8 @@
           "name": "appeals_owner_id_users_id_fk",
           "tableFrom": "appeals",
           "tableTo": "users",
-          "columnsFrom": [
-            "owner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -128,12 +112,8 @@
           "name": "appeals_reviewed_by_users_id_fk",
           "tableFrom": "appeals",
           "tableTo": "users",
-          "columnsFrom": [
-            "reviewed_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["reviewed_by"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -228,27 +208,17 @@
       "indexes": {
         "bookings_listing_id_created_at_idx": {
           "name": "bookings_listing_id_created_at_idx",
-          "columns": [
-            "listing_id",
-            "created_at"
-          ],
+          "columns": ["listing_id", "created_at"],
           "isUnique": false
         },
         "bookings_owner_id_idx": {
           "name": "bookings_owner_id_idx",
-          "columns": [
-            "owner_id"
-          ],
+          "columns": ["owner_id"],
           "isUnique": false
         },
         "bookings_listing_status_dates_idx": {
           "name": "bookings_listing_status_dates_idx",
-          "columns": [
-            "listing_id",
-            "status",
-            "date_from",
-            "date_to"
-          ],
+          "columns": ["listing_id", "status", "date_from", "date_to"],
           "isUnique": false
         }
       },
@@ -257,12 +227,8 @@
           "name": "bookings_owner_id_users_id_fk",
           "tableFrom": "bookings",
           "tableTo": "users",
-          "columnsFrom": [
-            "owner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -334,27 +300,17 @@
       "indexes": {
         "conversations_context_participant_unique": {
           "name": "conversations_context_participant_unique",
-          "columns": [
-            "context_type",
-            "context_id",
-            "participant_id"
-          ],
+          "columns": ["context_type", "context_id", "participant_id"],
           "isUnique": true
         },
         "conversations_owner_updated_at_idx": {
           "name": "conversations_owner_updated_at_idx",
-          "columns": [
-            "context_owner_id",
-            "updated_at"
-          ],
+          "columns": ["context_owner_id", "updated_at"],
           "isUnique": false
         },
         "conversations_participant_updated_at_idx": {
           "name": "conversations_participant_updated_at_idx",
-          "columns": [
-            "participant_id",
-            "updated_at"
-          ],
+          "columns": ["participant_id", "updated_at"],
           "isUnique": false
         }
       },
@@ -363,12 +319,8 @@
           "name": "conversations_context_owner_id_users_id_fk",
           "tableFrom": "conversations",
           "tableTo": "users",
-          "columnsFrom": [
-            "context_owner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["context_owner_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -376,12 +328,8 @@
           "name": "conversations_participant_id_users_id_fk",
           "tableFrom": "conversations",
           "tableTo": "users",
-          "columnsFrom": [
-            "participant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["participant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -421,22 +369,15 @@
           "name": "favorites_owner_id_users_id_fk",
           "tableFrom": "favorites",
           "tableTo": "users",
-          "columnsFrom": [
-            "owner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "favorites_owner_id_listing_id_pk": {
-          "columns": [
-            "owner_id",
-            "listing_id"
-          ],
+          "columns": ["owner_id", "listing_id"],
           "name": "favorites_owner_id_listing_id_pk"
         }
       },
@@ -481,12 +422,8 @@
           "name": "listing_locations_listing_id_listings_id_fk",
           "tableFrom": "listing_locations",
           "tableTo": "listings",
-          "columnsFrom": [
-            "listing_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["listing_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -630,33 +567,22 @@
       "indexes": {
         "listings_status_created_at_idx": {
           "name": "listings_status_created_at_idx",
-          "columns": [
-            "status",
-            "created_at"
-          ],
+          "columns": ["status", "created_at"],
           "isUnique": false
         },
         "listings_region_status_idx": {
           "name": "listings_region_status_idx",
-          "columns": [
-            "region",
-            "status"
-          ],
+          "columns": ["region", "status"],
           "isUnique": false
         },
         "listings_owner_id_idx": {
           "name": "listings_owner_id_idx",
-          "columns": [
-            "owner_id"
-          ],
+          "columns": ["owner_id"],
           "isUnique": false
         },
         "listings_category_offer_type_idx": {
           "name": "listings_category_offer_type_idx",
-          "columns": [
-            "category",
-            "offer_type"
-          ],
+          "columns": ["category", "offer_type"],
           "isUnique": false
         }
       },
@@ -665,12 +591,8 @@
           "name": "listings_owner_id_users_id_fk",
           "tableFrom": "listings",
           "tableTo": "users",
-          "columnsFrom": [
-            "owner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -728,10 +650,7 @@
       "indexes": {
         "messages_conversation_created_at_idx": {
           "name": "messages_conversation_created_at_idx",
-          "columns": [
-            "conversation_id",
-            "created_at"
-          ],
+          "columns": ["conversation_id", "created_at"],
           "isUnique": false
         }
       },
@@ -740,12 +659,8 @@
           "name": "messages_conversation_id_conversations_id_fk",
           "tableFrom": "messages",
           "tableTo": "conversations",
-          "columnsFrom": [
-            "conversation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["conversation_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -753,12 +668,8 @@
           "name": "messages_sender_id_users_id_fk",
           "tableFrom": "messages",
           "tableTo": "users",
-          "columnsFrom": [
-            "sender_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["sender_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -844,17 +755,12 @@
       "indexes": {
         "moderation_actions_created_at_idx": {
           "name": "moderation_actions_created_at_idx",
-          "columns": [
-            "created_at"
-          ],
+          "columns": ["created_at"],
           "isUnique": false
         },
         "moderation_actions_target_owner_created_at_idx": {
           "name": "moderation_actions_target_owner_created_at_idx",
-          "columns": [
-            "target_owner_id",
-            "created_at"
-          ],
+          "columns": ["target_owner_id", "created_at"],
           "isUnique": false
         }
       },
@@ -863,12 +769,8 @@
           "name": "moderation_actions_report_id_reports_id_fk",
           "tableFrom": "moderation_actions",
           "tableTo": "reports",
-          "columnsFrom": [
-            "report_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["report_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -876,12 +778,8 @@
           "name": "moderation_actions_moderator_id_users_id_fk",
           "tableFrom": "moderation_actions",
           "tableTo": "users",
-          "columnsFrom": [
-            "moderator_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["moderator_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -889,12 +787,8 @@
           "name": "moderation_actions_target_owner_id_users_id_fk",
           "tableFrom": "moderation_actions",
           "tableTo": "users",
-          "columnsFrom": [
-            "target_owner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["target_owner_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -992,12 +886,8 @@
           "name": "rental_handoffs_booking_id_bookings_id_fk",
           "tableFrom": "rental_handoffs",
           "tableTo": "bookings",
-          "columnsFrom": [
-            "booking_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["booking_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1091,26 +981,17 @@
       "indexes": {
         "reports_owner_id_created_at_idx": {
           "name": "reports_owner_id_created_at_idx",
-          "columns": [
-            "owner_id",
-            "created_at"
-          ],
+          "columns": ["owner_id", "created_at"],
           "isUnique": false
         },
         "reports_status_created_at_idx": {
           "name": "reports_status_created_at_idx",
-          "columns": [
-            "status",
-            "created_at"
-          ],
+          "columns": ["status", "created_at"],
           "isUnique": false
         },
         "reports_target_idx": {
           "name": "reports_target_idx",
-          "columns": [
-            "target_type",
-            "target_id"
-          ],
+          "columns": ["target_type", "target_id"],
           "isUnique": false
         }
       },
@@ -1119,12 +1000,8 @@
           "name": "reports_owner_id_users_id_fk",
           "tableFrom": "reports",
           "tableTo": "users",
-          "columnsFrom": [
-            "owner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1132,12 +1009,8 @@
           "name": "reports_reviewed_by_users_id_fk",
           "tableFrom": "reports",
           "tableTo": "users",
-          "columnsFrom": [
-            "reviewed_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["reviewed_by"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1239,25 +1112,17 @@
       "indexes": {
         "requests_status_created_at_idx": {
           "name": "requests_status_created_at_idx",
-          "columns": [
-            "status",
-            "created_at"
-          ],
+          "columns": ["status", "created_at"],
           "isUnique": false
         },
         "requests_region_kind_idx": {
           "name": "requests_region_kind_idx",
-          "columns": [
-            "region",
-            "kind"
-          ],
+          "columns": ["region", "kind"],
           "isUnique": false
         },
         "requests_owner_id_idx": {
           "name": "requests_owner_id_idx",
-          "columns": [
-            "owner_id"
-          ],
+          "columns": ["owner_id"],
           "isUnique": false
         }
       },
@@ -1266,12 +1131,8 @@
           "name": "requests_owner_id_users_id_fk",
           "tableFrom": "requests",
           "tableTo": "users",
-          "columnsFrom": [
-            "owner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1329,17 +1190,12 @@
       "indexes": {
         "responses_request_id_created_at_idx": {
           "name": "responses_request_id_created_at_idx",
-          "columns": [
-            "request_id",
-            "created_at"
-          ],
+          "columns": ["request_id", "created_at"],
           "isUnique": false
         },
         "responses_owner_id_idx": {
           "name": "responses_owner_id_idx",
-          "columns": [
-            "owner_id"
-          ],
+          "columns": ["owner_id"],
           "isUnique": false
         }
       },
@@ -1348,12 +1204,8 @@
           "name": "responses_request_id_requests_id_fk",
           "tableFrom": "responses",
           "tableTo": "requests",
-          "columnsFrom": [
-            "request_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["request_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1361,12 +1213,8 @@
           "name": "responses_owner_id_users_id_fk",
           "tableFrom": "responses",
           "tableTo": "users",
-          "columnsFrom": [
-            "owner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1438,25 +1286,17 @@
       "indexes": {
         "reviews_booking_id_unique": {
           "name": "reviews_booking_id_unique",
-          "columns": [
-            "booking_id"
-          ],
+          "columns": ["booking_id"],
           "isUnique": true
         },
         "reviews_listing_id_created_at_idx": {
           "name": "reviews_listing_id_created_at_idx",
-          "columns": [
-            "listing_id",
-            "created_at"
-          ],
+          "columns": ["listing_id", "created_at"],
           "isUnique": false
         },
         "reviews_reviewee_id_created_at_idx": {
           "name": "reviews_reviewee_id_created_at_idx",
-          "columns": [
-            "reviewee_id",
-            "created_at"
-          ],
+          "columns": ["reviewee_id", "created_at"],
           "isUnique": false
         }
       },
@@ -1465,12 +1305,8 @@
           "name": "reviews_booking_id_bookings_id_fk",
           "tableFrom": "reviews",
           "tableTo": "bookings",
-          "columnsFrom": [
-            "booking_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["booking_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1478,12 +1314,8 @@
           "name": "reviews_listing_id_listings_id_fk",
           "tableFrom": "reviews",
           "tableTo": "listings",
-          "columnsFrom": [
-            "listing_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["listing_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1491,12 +1323,8 @@
           "name": "reviews_reviewer_id_users_id_fk",
           "tableFrom": "reviews",
           "tableTo": "users",
-          "columnsFrom": [
-            "reviewer_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["reviewer_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1504,12 +1332,8 @@
           "name": "reviews_reviewee_id_users_id_fk",
           "tableFrom": "reviews",
           "tableTo": "users",
-          "columnsFrom": [
-            "reviewee_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["reviewee_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1560,9 +1384,7 @@
       "indexes": {
         "uploads_owner_id_idx": {
           "name": "uploads_owner_id_idx",
-          "columns": [
-            "owner_id"
-          ],
+          "columns": ["owner_id"],
           "isUnique": false
         }
       },
@@ -1571,12 +1393,8 @@
           "name": "uploads_owner_id_users_id_fk",
           "tableFrom": "uploads",
           "tableTo": "users",
-          "columnsFrom": [
-            "owner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }

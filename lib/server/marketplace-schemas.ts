@@ -363,6 +363,32 @@ export const messageInput = z.object({
   body: z.string().trim().min(1, 'Напишите сообщение').max(1200),
 });
 
+export const supportTicketInput = z.object({
+  category: z.enum(['bug', 'idea', 'safety', 'other']),
+  message: z
+    .string()
+    .trim()
+    .min(10, 'Опишите вопрос хотя бы в 10 символах')
+    .max(1500),
+  pageContext: z.string().trim().max(240).optional().default(''),
+});
+
+export const supportTicketStatusInput = z
+  .object({
+    ticketId: z.string().trim().min(1).max(100),
+    status: z.enum(['reviewing', 'closed']),
+    reviewNote: z.string().trim().max(800).optional().default(''),
+  })
+  .superRefine((value, context) => {
+    if (value.status === 'closed' && value.reviewNote.length < 5) {
+      context.addIssue({
+        code: 'custom',
+        path: ['reviewNote'],
+        message: 'Добавьте короткий итог обращения',
+      });
+    }
+  });
+
 export async function parseJson<T extends z.ZodType>(
   request: Request,
   schema: T,

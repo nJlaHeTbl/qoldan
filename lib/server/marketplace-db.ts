@@ -306,6 +306,19 @@ export async function ensureMarketplaceSchema() {
         created_at INTEGER NOT NULL,
         read_at INTEGER
       )`),
+      db.prepare(`CREATE TABLE IF NOT EXISTS support_tickets (
+        id TEXT PRIMARY KEY NOT NULL,
+        owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        category TEXT NOT NULL,
+        message TEXT NOT NULL,
+        page_context TEXT,
+        status TEXT DEFAULT 'new' NOT NULL,
+        review_note TEXT,
+        reviewed_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        reviewed_at INTEGER
+      )`),
     ]);
     const listingColumns = await db
       .prepare('PRAGMA table_info(listings)')
@@ -488,6 +501,12 @@ export async function ensureMarketplaceSchema() {
       ),
       db.prepare(
         'CREATE INDEX IF NOT EXISTS messages_conversation_created_at_idx ON messages (conversation_id, created_at)',
+      ),
+      db.prepare(
+        'CREATE INDEX IF NOT EXISTS support_tickets_owner_created_at_idx ON support_tickets (owner_id, created_at)',
+      ),
+      db.prepare(
+        'CREATE INDEX IF NOT EXISTS support_tickets_status_created_at_idx ON support_tickets (status, created_at)',
       ),
     ]);
     await db.prepare('PRAGMA optimize').run();

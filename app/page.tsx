@@ -41,6 +41,8 @@ import {
   Scale,
   Send,
   Share2,
+  LifeBuoy,
+  LockKeyhole,
 } from 'lucide-react';
 import {
   MarketplaceMap,
@@ -367,6 +369,21 @@ type FormDraft = {
 type ListingFormDraft = FormDraft & {
   flow: 'standard' | 'livestock';
 };
+type SupportTopic = 'safety' | 'rules' | 'privacy' | 'feedback' | 'queue';
+type SupportTicket = {
+  id: string;
+  category: 'bug' | 'idea' | 'safety' | 'other';
+  message: string;
+  pageContext: string;
+  status: 'new' | 'reviewing' | 'closed';
+  reviewNote: string;
+  ownerName: string;
+  reviewerName: string;
+  createdAt: number;
+  updatedAt: number;
+  reviewedAt: number | null;
+  mine: boolean;
+};
 const RECENT_VIEWS_KEY = 'qoldan-recent-views-v1';
 const LISTING_DRAFT_KEY = 'qoldan-listing-draft-v1';
 const REQUEST_DRAFT_KEY = 'qoldan-request-draft-v1';
@@ -447,6 +464,17 @@ const businessProfileLabels: Record<BusinessProfileType, string> = {
   company: 'Компания',
   store: 'Магазин или склад',
   service_company: 'Сервисная компания',
+};
+const supportCategoryLabels: Record<SupportTicket['category'], string> = {
+  bug: 'Ошибка в приложении',
+  idea: 'Идея для Qoldan',
+  safety: 'Безопасность',
+  other: 'Другой вопрос',
+};
+const supportStatusLabels: Record<SupportTicket['status'], string> = {
+  new: 'Получено',
+  reviewing: 'Разбираемся',
+  closed: 'Готово',
 };
 const formatActivityDate = (timestamp: number) =>
   new Intl.DateTimeFormat('ru-RU', {
@@ -1069,6 +1097,11 @@ export default function Home() {
   const [moderationLoading, setModerationLoading] = useState(false);
   const [canModerate, setCanModerate] = useState(false);
   const [moderationPendingCount, setModerationPendingCount] = useState(0);
+  const [supportTopic, setSupportTopic] = useState<SupportTopic>('safety');
+  const [supportTickets, setSupportTickets] = useState<SupportTicket[]>([]);
+  const [supportQueue, setSupportQueue] = useState<SupportTicket[]>([]);
+  const [supportNotes, setSupportNotes] = useState<Record<string, string>>({});
+  const [supportLoading, setSupportLoading] = useState(false);
   const [viewerName, setViewerName] = useState('Пользователь Qoldan');
   const [serverConnected, setServerConnected] = useState(false);
   const [submitting, setSubmitting] = useState<string | null>(null);
@@ -1183,6 +1216,12 @@ export default function Home() {
         ? false
         : report.status === moderationFilter,
   );
+  const openSupportCount = supportTickets.filter(
+    (ticket) => ticket.status !== 'closed',
+  ).length;
+  const pendingSupportCount = supportQueue.filter(
+    (ticket) => ticket.status !== 'closed',
+  ).length;
   const realListingCount = allListings.filter(
     (listing) => !isDemoListing(listing.id),
   ).length;
@@ -2287,6 +2326,111 @@ export default function Home() {
         error instanceof Error
           ? error.message
           : 'Не удалось отправить апелляцию',
+      );
+    } finally {
+      setSubmitting(null);
+    }
+  };
+  const openSupport = async (topic: SupportTopic = 'safety') => {
+    setSupportTopic(topic);
+    setModal('info');
+    setSupportLoading(true);
+    try {
+      const response = await fetch('/api/support', { cache: 'no-store' });
+      if (!response.ok) throw new Error(await apiError(response));
+      const data = (await response.json()) as {
+        tickets: SupportTicket[];
+        queue: SupportTicket[];
+        canModerate: boolean;
+      };
+      setSupportTickets(data.tickets);
+      setSupportQueue(data.queue);
+      setSupportNotes(
+        Object.fromEntries(
+          data.queue.map((ticket) => [ticket.id, ticket.reviewNote]),
+        ),
+      );
+    } catch (error) {
+      notify(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось загрузить обращения',
+      );
+    } finally {
+      setSupportLoading(false);
+    }
+  };
+  const submitSupportTicket = async (event: SubmitFormEvent) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const fields = new FormData(form);
+    setSubmitting('support-ticket');
+    try {
+      const pageContext = `${window.location.pathname}${window.location.hash}`;
+      const response = await fetch('/api/support', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          category: fieldText(fields, 'category'),
+          message: fieldText(fields, 'message'),
+          pageContext,
+        }),
+      });
+      if (!response.ok) throw new Error(await apiError(response));
+      const data = (await response.json()) as { ticket: SupportTicket };
+      setSupportTickets((current) => [data.ticket, ...current]);
+      if (canModerate) {
+        setSupportQueue((current) => [data.ticket, ...current]);
+      }
+      form.reset();
+      notify(`Обращение ${data.ticket.id.slice(0, 8)} получено`);
+    } catch (error) {
+      notify(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось отправить обращение',
+      );
+    } finally {
+      setSubmitting(null);
+    }
+  };
+  const updateSupportTicket = async (
+    ticketId: string,
+    status: 'reviewing' | 'closed',
+  ) => {
+    setSubmitting(`support-${ticketId}`);
+    try {
+      const response = await fetch('/api/support', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          ticketId,
+          status,
+          reviewNote: supportNotes[ticketId] || '',
+        }),
+      });
+      if (!response.ok) throw new Error(await apiError(response));
+      const data = (await response.json()) as {
+        ticket: Pick<
+          SupportTicket,
+          | 'id'
+          | 'status'
+          | 'reviewNote'
+          | 'reviewerName'
+          | 'reviewedAt'
+          | 'updatedAt'
+        >;
+      };
+      const mergeTicket = (ticket: SupportTicket) =>
+        ticket.id === data.ticket.id ? { ...ticket, ...data.ticket } : ticket;
+      setSupportQueue((current) => current.map(mergeTicket));
+      setSupportTickets((current) => current.map(mergeTicket));
+      notify(status === 'closed' ? 'Обращение закрыто' : 'Обращение в работе');
+    } catch (error) {
+      notify(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось обновить обращение',
       );
     } finally {
       setSubmitting(null);
@@ -4512,9 +4656,15 @@ export default function Home() {
           </div>
           <div>
             <b>Помощь</b>
-            <button onClick={() => setModal('info')}>Правила сервиса</button>
-            <button onClick={() => setModal('info')}>Связаться с нами</button>
-            <button onClick={() => setModal('info')}>Безопасность</button>
+            <button onClick={() => void openSupport('rules')}>
+              Правила сервиса
+            </button>
+            <button onClick={() => void openSupport('feedback')}>
+              Связаться с нами
+            </button>
+            <button onClick={() => void openSupport('safety')}>
+              Безопасность
+            </button>
           </div>
         </div>
         <div className="wrap foot-bottom">
@@ -4565,7 +4715,7 @@ export default function Home() {
         >
           <dialog
             open
-            className={`app-modal ${modal === 'detail' ? 'detail-modal' : ''} ${modal === 'provider' ? 'provider-modal' : ''} ${modal === 'moderation' ? 'moderation-modal' : ''} ${modal === 'messages' ? 'messages-modal' : ''}`}
+            className={`app-modal ${modal === 'detail' ? 'detail-modal' : ''} ${modal === 'provider' ? 'provider-modal' : ''} ${modal === 'moderation' ? 'moderation-modal' : ''} ${modal === 'messages' ? 'messages-modal' : ''} ${modal === 'info' ? 'info-modal' : ''}`}
             aria-label="Окно Qoldan"
           >
             <button
@@ -6543,6 +6693,10 @@ export default function Home() {
                   <button onClick={() => setModal('appeals')}>
                     <Scale /> Мои апелляции <b>{appeals.length}</b>
                   </button>
+                  <button onClick={() => void openSupport('safety')}>
+                    <LifeBuoy /> Помощь и безопасность
+                    <b>{openSupportCount}</b>
+                  </button>
                   <button
                     onClick={() => {
                       setModal(null);
@@ -8245,41 +8399,401 @@ export default function Home() {
               <>
                 <div className="modal-title">
                   <span>
-                    <CheckCircle2 />
+                    <LifeBuoy />
                   </span>
                   <div>
-                    <small>ЦЕНТР ПОМОЩИ</small>
-                    <h2>Договаривайтесь уверенно</h2>
+                    <small>ПОМОЩЬ И БЕЗОПАСНОСТЬ</small>
+                    <h2>Qoldan рядом, когда нужно</h2>
                     <p>
-                      Qoldan соединяет людей напрямую и помогает проверить
-                      главное до сделки.
+                      Короткие правила без мелкого шрифта и настоящее обращение
+                      в команду с номером и статусом.
                     </p>
                   </div>
                 </div>
-                <div className="info-grid">
-                  <article>
-                    <b>Безопасность</b>
-                    <p>
-                      Проверяйте товар при встрече, не переводите предоплату
-                      незнакомым людям и фиксируйте условия аренды в сообщениях.
-                    </p>
-                  </article>
-                  <article>
-                    <b>Правила сервиса</b>
-                    <p>
-                      Указывайте честную цену, реальные фотографии и точное
-                      местоположение. Запрещены дубли, обман и опасные товары.
-                    </p>
-                  </article>
-                  <article>
-                    <b>Связаться с нами</b>
-                    <p>
-                      Контакты поддержки появятся перед открытием пилота.
-                      <br />
-                      Сейчас это закрытая рабочая версия Qoldan.
-                    </p>
-                  </article>
+                <div className="support-tabs" aria-label="Разделы помощи">
+                  {(
+                    [
+                      ['safety', 'Безопасность'],
+                      ['rules', 'Правила'],
+                      ['privacy', 'Приватность'],
+                      ['feedback', 'Написать нам'],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={supportTopic === value ? 'active' : ''}
+                      onClick={() => setSupportTopic(value)}
+                    >
+                      {label}
+                      {value === 'feedback' && openSupportCount > 0 && (
+                        <b>{openSupportCount}</b>
+                      )}
+                    </button>
+                  ))}
+                  {canModerate && (
+                    <button
+                      type="button"
+                      className={supportTopic === 'queue' ? 'active' : ''}
+                      onClick={() => setSupportTopic('queue')}
+                    >
+                      Очередь <b>{pendingSupportCount}</b>
+                    </button>
+                  )}
                 </div>
+                {supportTopic === 'safety' && (
+                  <section className="support-guide">
+                    <div className="support-lead">
+                      <ShieldCheck />
+                      <div>
+                        <small>ГЛАВНОЕ ПРАВИЛО</small>
+                        <b>Сначала проверьте — потом рассчитывайтесь</b>
+                        <p>
+                          Qoldan пока не принимает оплату и не просит код из
+                          SMS. Договорённость и расчёт происходят напрямую между
+                          участниками.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="support-checklist">
+                      <article>
+                        <span>1</span>
+                        <div>
+                          <b>Обсудите всё в сообщениях</b>
+                          <p>
+                            Зафиксируйте цену, объём работы, дату, доставку и
+                            условия отмены до встречи.
+                          </p>
+                        </div>
+                      </article>
+                      <article>
+                        <span>2</span>
+                        <div>
+                          <b>Осмотрите товар или технику</b>
+                          <p>
+                            Сверьте состояние, комплектность и документы. Для
+                            скота уточните возраст, здоровье и ветдокументы.
+                          </p>
+                        </div>
+                      </article>
+                      <article>
+                        <span>3</span>
+                        <div>
+                          <b>Не спешите с предоплатой</b>
+                          <p>
+                            Не переводите деньги незнакомому человеку только
+                            из-за обещания скидки или срочности.
+                          </p>
+                        </div>
+                      </article>
+                      <article>
+                        <span>4</span>
+                        <div>
+                          <b>Для аренды сделайте передачу</b>
+                          <p>
+                            Встроенный чек-лист сохранит состояние, комплект и
+                            залог при выдаче и возврате.
+                          </p>
+                        </div>
+                      </article>
+                    </div>
+                    <button
+                      type="button"
+                      className="support-action"
+                      onClick={() => setSupportTopic('feedback')}
+                    >
+                      Сообщить о проблеме <ArrowRight />
+                    </button>
+                  </section>
+                )}
+                {supportTopic === 'rules' && (
+                  <section className="support-guide">
+                    <div className="info-grid support-rule-grid">
+                      <article>
+                        <CheckCircle2 />
+                        <b>Публикуйте честно</b>
+                        <p>
+                          Реальные фото, понятная цена, верная категория,
+                          населённый пункт и актуальное описание.
+                        </p>
+                      </article>
+                      <article>
+                        <ScrollText />
+                        <b>Одно предложение — одно объявление</b>
+                        <p>
+                          Не создавайте повторы, спам и заголовки, которые не
+                          соответствуют содержанию.
+                        </p>
+                      </article>
+                      <article>
+                        <ShieldAlert />
+                        <b>Что запрещено</b>
+                        <p>
+                          Обман, краденые и незаконные товары, опасные услуги,
+                          ложные сведения о животных и чужие фотографии.
+                        </p>
+                      </article>
+                    </div>
+                    <div className="support-note">
+                      <CircleAlert />
+                      <p>
+                        При жалобе публикация не исчезает автоматически:
+                        модератор проверяет контекст, фиксирует решение и даёт
+                        автору возможность подать апелляцию.
+                      </p>
+                    </div>
+                  </section>
+                )}
+                {supportTopic === 'privacy' && (
+                  <section className="support-guide">
+                    <div className="support-lead privacy">
+                      <LockKeyhole />
+                      <div>
+                        <small>ПРОСТО О ДАННЫХ</small>
+                        <b>Публично — только то, что нужно для объявления</b>
+                        <p>
+                          Перед публикацией проверяйте, какие контакты и
+                          сведения вы оставляете в открытом описании.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="privacy-list">
+                      <article>
+                        <b>Видят другие</b>
+                        <p>
+                          Название, фото, цена, описание, регион, имя автора и
+                          контакт, который автор указал для связи.
+                        </p>
+                      </article>
+                      <article>
+                        <b>Не публикуется</b>
+                        <p>
+                          БИН, заметки модерации, содержание личных сообщений и
+                          данные проверки бизнес-профиля.
+                        </p>
+                      </article>
+                      <article>
+                        <b>Точная геопозиция</b>
+                        <p>
+                          Добавляется только по вашему действию. В объявлении
+                          всё равно показывается понятный населённый пункт.
+                        </p>
+                      </article>
+                    </div>
+                    <div className="support-note">
+                      <LockKeyhole />
+                      <p>
+                        Не пишите в открытом описании ИИН, номер документа,
+                        банковские данные, домашний адрес или коды из SMS.
+                      </p>
+                    </div>
+                  </section>
+                )}
+                {supportTopic === 'feedback' && (
+                  <section className="support-feedback">
+                    <form
+                      className="support-form"
+                      onSubmit={submitSupportTicket}
+                    >
+                      <div className="support-form-head">
+                        <LifeBuoy />
+                        <div>
+                          <b>Напишите команде Qoldan</b>
+                          <p>
+                            Мы сохраним обращение и покажем его статус здесь.
+                          </p>
+                        </div>
+                      </div>
+                      <label>
+                        Тема
+                        <select name="category" defaultValue="bug">
+                          <option value="bug">Ошибка в приложении</option>
+                          <option value="idea">Идея для Qoldan</option>
+                          <option value="safety">Вопрос безопасности</option>
+                          <option value="other">Другой вопрос</option>
+                        </select>
+                      </label>
+                      <label>
+                        Что произошло или что хотите предложить
+                        <textarea
+                          name="message"
+                          rows={5}
+                          minLength={10}
+                          maxLength={1500}
+                          required
+                          placeholder="Опишите своими словами. Если это ошибка — напишите, что нажали и что ожидали увидеть."
+                        />
+                      </label>
+                      <small>
+                        Страница, с которой отправлено обращение, прикрепится
+                        автоматически. Не указывайте ИИН и банковские данные.
+                      </small>
+                      <button
+                        className="submit-button"
+                        type="submit"
+                        disabled={submitting === 'support-ticket'}
+                      >
+                        {submitting === 'support-ticket'
+                          ? 'Отправляем…'
+                          : 'Отправить обращение'}{' '}
+                        <Send />
+                      </button>
+                    </form>
+                    <div className="support-history">
+                      <div className="support-history-title">
+                        <div>
+                          <small>МОИ ОБРАЩЕНИЯ</small>
+                          <b>История и статусы</b>
+                        </div>
+                        {supportLoading && <span>Обновляем…</span>}
+                      </div>
+                      {supportTickets.length > 0 ? (
+                        <div className="support-ticket-list">
+                          {supportTickets.map((ticket) => (
+                            <article key={ticket.id}>
+                              <div className="support-ticket-head">
+                                <div>
+                                  <small>
+                                    № {ticket.id.slice(0, 8).toUpperCase()} ·{' '}
+                                    {formatActivityDate(ticket.createdAt)}
+                                  </small>
+                                  <b>
+                                    {supportCategoryLabels[ticket.category]}
+                                  </b>
+                                </div>
+                                <span
+                                  className={`support-status ${ticket.status}`}
+                                >
+                                  {supportStatusLabels[ticket.status]}
+                                </span>
+                              </div>
+                              <p>{ticket.message}</p>
+                              {ticket.reviewNote && (
+                                <div className="support-reply">
+                                  <CheckCircle2 />
+                                  <span>
+                                    <small>ОТВЕТ КОМАНДЫ</small>
+                                    {ticket.reviewNote}
+                                  </span>
+                                </div>
+                              )}
+                            </article>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="notification-empty support-empty">
+                          <MessageCircle />
+                          <b>Обращений пока нет</b>
+                          <span>
+                            Первое обращение появится здесь сразу после
+                            отправки.
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </section>
+                )}
+                {supportTopic === 'queue' && canModerate && (
+                  <section className="support-queue">
+                    <div className="support-queue-summary">
+                      <div>
+                        <small>ОЧЕРЕДЬ ПИЛОТА</small>
+                        <b>{pendingSupportCount} требуют внимания</b>
+                      </div>
+                      {supportLoading && <span>Обновляем…</span>}
+                    </div>
+                    {supportQueue.length > 0 ? (
+                      <div className="moderation-list support-ticket-list">
+                        {supportQueue.map((ticket) => (
+                          <article key={ticket.id}>
+                            <div className="support-ticket-head">
+                              <div>
+                                <small>
+                                  № {ticket.id.slice(0, 8).toUpperCase()} ·{' '}
+                                  {ticket.ownerName}
+                                </small>
+                                <b>{supportCategoryLabels[ticket.category]}</b>
+                              </div>
+                              <span
+                                className={`support-status ${ticket.status}`}
+                              >
+                                {supportStatusLabels[ticket.status]}
+                              </span>
+                            </div>
+                            <p>{ticket.message}</p>
+                            <div className="support-ticket-meta">
+                              <span>
+                                {formatActivityDate(ticket.createdAt)}
+                              </span>
+                              {ticket.pageContext && (
+                                <span>Страница: {ticket.pageContext}</span>
+                              )}
+                            </div>
+                            <label>
+                              Ответ или итог
+                              <textarea
+                                rows={2}
+                                maxLength={800}
+                                value={supportNotes[ticket.id] ?? ''}
+                                disabled={ticket.status === 'closed'}
+                                placeholder="Что проверили и какой результат"
+                                onChange={(event) =>
+                                  setSupportNotes((current) => ({
+                                    ...current,
+                                    [ticket.id]: event.target.value,
+                                  }))
+                                }
+                              />
+                            </label>
+                            {ticket.status !== 'closed' && (
+                              <div className="support-queue-actions">
+                                {ticket.status === 'new' && (
+                                  <button
+                                    type="button"
+                                    disabled={
+                                      submitting === `support-${ticket.id}`
+                                    }
+                                    onClick={() =>
+                                      void updateSupportTicket(
+                                        ticket.id,
+                                        'reviewing',
+                                      )
+                                    }
+                                  >
+                                    Взять в работу
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  className="complete"
+                                  disabled={
+                                    submitting === `support-${ticket.id}`
+                                  }
+                                  onClick={() =>
+                                    void updateSupportTicket(
+                                      ticket.id,
+                                      'closed',
+                                    )
+                                  }
+                                >
+                                  Закрыть с ответом
+                                </button>
+                              </div>
+                            )}
+                          </article>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="notification-empty support-empty">
+                        <CheckCircle2 />
+                        <b>Очередь пуста</b>
+                        <span>
+                          Новые обращения появятся здесь автоматически.
+                        </span>
+                      </div>
+                    )}
+                  </section>
+                )}
               </>
             )}
           </dialog>

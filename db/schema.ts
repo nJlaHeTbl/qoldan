@@ -487,3 +487,34 @@ export const messages = sqliteTable(
     ),
   ],
 );
+
+export const supportTickets = sqliteTable(
+  'support_tickets',
+  {
+    id: text('id').primaryKey(),
+    ownerId: text('owner_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    category: text('category').notNull(),
+    message: text('message').notNull(),
+    pageContext: text('page_context'),
+    status: text('status').notNull().default('new'),
+    reviewNote: text('review_note'),
+    reviewedBy: text('reviewed_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+    reviewedAt: integer('reviewed_at'),
+  },
+  (table) => [
+    index('support_tickets_owner_created_at_idx').on(
+      table.ownerId,
+      table.createdAt,
+    ),
+    index('support_tickets_status_created_at_idx').on(
+      table.status,
+      table.createdAt,
+    ),
+  ],
+);
