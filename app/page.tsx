@@ -39,6 +39,7 @@ import {
   ScrollText,
   Scale,
   Send,
+  Share2,
 } from 'lucide-react';
 import {
   MarketplaceMap,
@@ -1719,6 +1720,34 @@ export default function Home() {
   const openListing = (item: Listing) => {
     setSelectedListing(item);
     setModal('detail');
+  };
+  const shareListing = async (item: Listing) => {
+    const url = new URL(
+      `/listing/${encodeURIComponent(String(item.id))}`,
+      window.location.origin,
+    ).toString();
+    const shareData = {
+      title: `${item.title} — Qoldan`,
+      text: `${item.title} · ${item.price}${item.unit ? ` ${item.unit}` : ''}`,
+      url,
+    };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        notify('Объявление отправлено');
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      notify('Ссылка на объявление скопирована');
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      try {
+        await navigator.clipboard.writeText(url);
+        notify('Ссылка на объявление скопирована');
+      } catch {
+        notify('Не удалось скопировать ссылку — попробуйте ещё раз');
+      }
+    }
   };
   const openProviderProfile = async (providerId?: string) => {
     if (!providerId) {
@@ -4980,9 +5009,20 @@ export default function Home() {
                   )}
                 </div>
                 <div className="detail-content">
-                  <small className="kicker">
-                    {selectedListing.category} · {selectedListing.region}
-                  </small>
+                  <div className="detail-heading-row">
+                    <small className="kicker">
+                      {selectedListing.category} · {selectedListing.region}
+                    </small>
+                    {!isDemoListing(selectedListing.id) && (
+                      <button
+                        className="share-listing-button"
+                        type="button"
+                        onClick={() => void shareListing(selectedListing)}
+                      >
+                        <Share2 /> Поделиться
+                      </button>
+                    )}
+                  </div>
                   <h2>{selectedListing.title}</h2>
                   <div className="detail-price">
                     {selectedListing.price} <span>{selectedListing.unit}</span>
