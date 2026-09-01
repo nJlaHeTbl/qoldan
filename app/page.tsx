@@ -1013,6 +1013,432 @@ const aboutContent = {
     ],
   },
 } as const;
+type AppLanguage = keyof typeof aboutContent;
+const UI_LANGUAGE_KEY = 'qoldan-ui-language-v1';
+const uiContent = {
+  ru: {
+    country: 'КАЗАХСТАН',
+    navListings: 'Объявления',
+    navRequests: 'Мне нужно',
+    navRecycle: 'Вторсырьё',
+    navAbout: 'О приложении',
+    publish: 'Подать объявление',
+    heroEyebrow: 'Ресурсы, аренда и услуги по всему Казахстану',
+    heroTitle: 'Всё нужное для дела —',
+    heroAccent: 'рядом',
+    heroLead:
+      'Найдите технику, возьмите оборудование в аренду или купите материалы рядом — в любом регионе страны.',
+    searchPlaceholder: 'Трактор, кирпич, генератор или город',
+    search: 'Найти',
+    popular: 'Часто ищут:',
+    popularItems: [
+      ['Комбайн', 'Комбайн'],
+      ['Перфоратор', 'Перфоратор'],
+      ['Кирпич', 'Кирпич'],
+      ['Сено', 'Сено'],
+      ['Проектор', 'Проектор'],
+      ['Лошади', 'Лошади'],
+    ],
+    allKazakhstan: 'Весь Казахстан',
+    regionsCaption: '20 регионов и городов в одном сервисе',
+    nearbyOffers: 'Предложения рядом',
+    peopleAndCompanies: 'Частные лица и компании',
+    categoriesKicker: 'КАТЕГОРИИ',
+    categoriesTitle: 'Что нужно сегодня?',
+    seeAll: 'Смотреть всё',
+    openSection: 'Открыть раздел',
+    categories: [
+      {
+        title: 'Сельхозтехника|и услуги',
+        description: 'Вспашка, уборка, перевозка, аренда техники',
+      },
+      {
+        title: 'Аренда инструментов|и оборудования',
+        description: 'От дрели до генератора — берите на нужный срок',
+      },
+      {
+        title: 'Остатки и|стройматериалы',
+        description: 'Кирпич, плитка, смеси и другие остатки рядом',
+      },
+      {
+        title: 'Скот и|животные',
+        description: 'Продайте одну голову или целое стадо простым объявлением',
+      },
+    ],
+    mapKicker: 'КАРТА РЕСУРСОВ КАЗАХСТАНА',
+    mapTitle: 'Одна площадка для всей страны',
+    mapLead:
+      'Выберите регион или направление — Qoldan покажет подходящие ресурсы, технику и исполнителей.',
+    allRegions: 'Все регионы и города',
+    catalogCountry: 'ПРЕДЛОЖЕНИЯ ПО СТРАНЕ',
+    catalogRegion: 'ПРЕДЛОЖЕНИЯ В РЕГИОНЕ',
+    myOffers: 'ВАШИ ПРЕДЛОЖЕНИЯ',
+    favoritesKicker: 'ВАШЕ ИЗБРАННОЕ',
+    myListings: 'Мои объявления',
+    savedListings: 'Сохранённые объявления',
+    list: 'Список',
+    onMap: 'На карте',
+    transparentFeed: 'Прозрачная лента',
+    transparentFeedText:
+      'Настоящие публикации хранятся в общей базе. Примеры всегда отмечены словом «ДЕМО».',
+    all: 'Все',
+    real: 'Реальные',
+    demo: 'Демо',
+    sale: 'Продам',
+    rent: 'Сдам',
+    service: 'Окажу услугу',
+    nearest: 'Сначала ближайшие',
+    recommended: 'Сначала подходящие',
+    newest: 'Сначала новые',
+    cheapest: 'Сначала дешевле',
+    expensive: 'Сначала дороже',
+    locating: 'Определяем…',
+    nearMe: 'Рядом со мной',
+    filters: 'Фильтры',
+    shown: 'Показано',
+    of: 'из',
+    showMore: 'Показать ещё',
+    viewedAll: 'Вы посмотрели все подходящие предложения',
+    requestKicker: 'НЕ НАШЛИ НУЖНОЕ?',
+    requestTitle: 'Расскажите, что вам нужно',
+    requestLead:
+      'Оставьте заявку — владельцы техники и продавцы сами предложат цену. Это бесплатно.',
+    createRequest: 'Создать заявку',
+    realRequests: 'реальных заявок в общей базе',
+    demoNearby: 'демо-примеров рядом:',
+    activeRequests: 'Актуальные заявки',
+    myRequests: 'Мои заявки',
+    showAll: 'Показать все',
+    autoUpdate: 'Обновляется автоматически',
+    agro: 'Сельхоз',
+    rental: 'Аренда',
+    build: 'Стройка',
+    recycle: 'Вторсырьё',
+    request: 'ЗАЯВКА',
+    demoExample: 'ДЕМО-ПРИМЕР',
+    realRequest: 'РЕАЛЬНАЯ',
+    responses: 'откликов',
+    noRequests: 'Пока нет подходящих заявок',
+    noRequestsText: 'Измените направление или создайте новую заявку.',
+    recycleKicker: 'B2B · ДЕМО НАПРАВЛЕНИЯ',
+    recycleTitle: 'Биржа вторсырья Казахстана',
+    recycleLead:
+      'Карта цен и обратный аукцион для картона, пластика, металла, паллет и плёнки. Выставляете объём — приёмщики предлагают свою цену и вывоз.',
+    listBatch: 'Выставить партию',
+    easyStart: 'ПРОСТОЙ СТАРТ',
+    stepsTitle: 'Три шага — и дело сделано',
+    steps: [
+      [
+        'Найдите или опишите',
+        'Ищите готовое предложение или создайте свою заявку.',
+      ],
+      ['Свяжитесь напрямую', 'Обсудите цену, сроки и детали без посредников.'],
+      [
+        'Договоритесь на месте',
+        'Оплата и передача — так, как удобно вам обоим.',
+      ],
+    ],
+    footerLead: 'Казахстанский маркетплейс ресурсов, аренды и услуг рядом.',
+    platform: 'Площадка',
+    requests: 'Заявки',
+    recycleExchange: 'Биржа вторсырья',
+    kazakhstan: 'Казахстан',
+    allRegionsShort: 'Все регионы',
+    help: 'Помощь',
+    rules: 'Правила сервиса',
+    contact: 'Связаться с нами',
+    safety: 'Безопасность',
+    madeIn: 'Сделано в Казахстане.',
+    mobileSearch: 'Поиск',
+    favorites: 'Избранное',
+    profile: 'Профиль',
+    messages: 'Сообщения',
+    notifications: 'Уведомления',
+  },
+  kk: {
+    country: 'ҚАЗАҚСТАН',
+    navListings: 'Хабарландырулар',
+    navRequests: 'Маған керек',
+    navRecycle: 'Қайталама шикізат',
+    navAbout: 'Қосымша туралы',
+    publish: 'Хабарландыру беру',
+    heroEyebrow: 'Қазақстан бойынша ресурстар, жалға беру және қызметтер',
+    heroTitle: 'Іске қажет нәрсенің бәрі —',
+    heroAccent: 'жақын жерде',
+    heroLead:
+      'Техника табыңыз, жабдықты жалға алыңыз немесе материалды еліміздің кез келген өңірінен сатып алыңыз.',
+    searchPlaceholder: 'Трактор, кірпіш, генератор немесе қала',
+    search: 'Іздеу',
+    popular: 'Жиі іздейді:',
+    popularItems: [
+      ['Комбайн', 'Комбайн'],
+      ['Перфоратор', 'Перфоратор'],
+      ['Кирпич', 'Кірпіш'],
+      ['Сено', 'Шөп'],
+      ['Проектор', 'Проектор'],
+      ['Лошади', 'Жылқы'],
+    ],
+    allKazakhstan: 'Бүкіл Қазақстан',
+    regionsCaption: '20 өңір мен қала бір сервисте',
+    nearbyOffers: 'Жақын ұсыныстар',
+    peopleAndCompanies: 'Жеке тұлғалар мен компаниялар',
+    categoriesKicker: 'САНАТТАР',
+    categoriesTitle: 'Бүгін не қажет?',
+    seeAll: 'Барлығын көру',
+    openSection: 'Бөлімді ашу',
+    categories: [
+      {
+        title: 'Ауыл шаруашылық техникасы|және қызметтер',
+        description: 'Жер жырту, жинау, тасымалдау және техника жалдау',
+      },
+      {
+        title: 'Құралдар мен жабдықтарды|жалға алу',
+        description: 'Бұрғыдан генераторға дейін — керекті мерзімге алыңыз',
+      },
+      {
+        title: 'Қалған және|құрылыс материалдары',
+        description: 'Кірпіш, плитка, қоспалар және басқа қалдықтар',
+      },
+      {
+        title: 'Мал және|жануарлар',
+        description: 'Бір малды немесе толық табынды оңай жариялаңыз',
+      },
+    ],
+    mapKicker: 'ҚАЗАҚСТАН РЕСУРСТАР КАРТАСЫ',
+    mapTitle: 'Бүкіл елге арналған бір алаң',
+    mapLead:
+      'Өңірді немесе бағытты таңдаңыз — Qoldan қажетті ресурс, техника және орындаушыларды көрсетеді.',
+    allRegions: 'Барлық өңірлер мен қалалар',
+    catalogCountry: 'ЕЛ БОЙЫНША ҰСЫНЫСТАР',
+    catalogRegion: 'ӨҢІРДЕГІ ҰСЫНЫСТАР',
+    myOffers: 'СІЗДІҢ ҰСЫНЫСТАРЫҢЫЗ',
+    favoritesKicker: 'ТАҢДАУЛЫЛАРЫҢЫЗ',
+    myListings: 'Менің хабарландыруларым',
+    savedListings: 'Сақталған хабарландырулар',
+    list: 'Тізім',
+    onMap: 'Картада',
+    transparentFeed: 'Ашық лента',
+    transparentFeedText:
+      'Нақты жарияланымдар ортақ базада сақталады. Мысалдар әрқашан «ДЕМО» деп белгіленеді.',
+    all: 'Барлығы',
+    real: 'Нақты',
+    demo: 'Демо',
+    sale: 'Сатамын',
+    rent: 'Жалға беремін',
+    service: 'Қызмет көрсетемін',
+    nearest: 'Алдымен жақындары',
+    recommended: 'Алдымен сәйкестері',
+    newest: 'Алдымен жаңалары',
+    cheapest: 'Алдымен арзандары',
+    expensive: 'Алдымен қымбаттары',
+    locating: 'Анықтап жатырмыз…',
+    nearMe: 'Маған жақын',
+    filters: 'Сүзгілер',
+    shown: 'Көрсетілді',
+    of: '/',
+    showMore: 'Тағы көрсету',
+    viewedAll: 'Барлық сәйкес ұсынысты көрдіңіз',
+    requestKicker: 'КЕРЕГІН ТАППАДЫҢЫЗ БА?',
+    requestTitle: 'Не қажет екенін жазыңыз',
+    requestLead:
+      'Өтінім қалдырыңыз — техника иелері мен сатушылар өз бағасын ұсынады. Бұл тегін.',
+    createRequest: 'Өтінім жасау',
+    realRequests: 'ортақ базадағы нақты өтінім',
+    demoNearby: 'жанындағы демо-мысалдар:',
+    activeRequests: 'Өзекті өтінімдер',
+    myRequests: 'Менің өтінімдерім',
+    showAll: 'Барлығын көрсету',
+    autoUpdate: 'Автоматты жаңартылады',
+    agro: 'Ауыл шаруашылығы',
+    rental: 'Жалға алу',
+    build: 'Құрылыс',
+    recycle: 'Қайталама шикізат',
+    request: 'ӨТІНІМ',
+    demoExample: 'ДЕМО-МЫСАЛ',
+    realRequest: 'НАҚТЫ',
+    responses: 'ұсыныс',
+    noRequests: 'Сәйкес өтінімдер әзірге жоқ',
+    noRequestsText: 'Бағытты өзгертіңіз немесе жаңа өтінім жасаңыз.',
+    recycleKicker: 'B2B · БАҒЫТ ДЕМОСЫ',
+    recycleTitle: 'Қазақстанның қайталама шикізат биржасы',
+    recycleLead:
+      'Картон, пластик, металл, паллет және үлдірге арналған баға картасы мен кері аукцион. Көлемді көрсетесіз — қабылдаушылар баға мен алып кетуді ұсынады.',
+    listBatch: 'Партияны жариялау',
+    easyStart: 'ОҢАЙ БАСТАУ',
+    stepsTitle: 'Үш қадам — жұмыс дайын',
+    steps: [
+      [
+        'Табыңыз немесе сипаттаңыз',
+        'Дайын ұсынысты іздеңіз немесе өз өтініміңізді жасаңыз.',
+      ],
+      [
+        'Тікелей байланысыңыз',
+        'Баға, мерзім және егжей-тегжейін делдалсыз талқылаңыз.',
+      ],
+      ['Орнында келісіңіз', 'Төлем мен тапсыруды екі жаққа ыңғайлы етіңіз.'],
+    ],
+    footerLead:
+      'Қазақстандық ресурстар, жалға беру және қызметтер маркетплейсі.',
+    platform: 'Алаң',
+    requests: 'Өтінімдер',
+    recycleExchange: 'Шикізат биржасы',
+    kazakhstan: 'Қазақстан',
+    allRegionsShort: 'Барлық өңірлер',
+    help: 'Көмек',
+    rules: 'Сервис ережелері',
+    contact: 'Бізге жазу',
+    safety: 'Қауіпсіздік',
+    madeIn: 'Қазақстанда жасалған.',
+    mobileSearch: 'Іздеу',
+    favorites: 'Таңдаулы',
+    profile: 'Профиль',
+    messages: 'Хабарламалар',
+    notifications: 'Хабарландырулар',
+  },
+  en: {
+    country: 'KAZAKHSTAN',
+    navListings: 'Listings',
+    navRequests: 'I need',
+    navRecycle: 'Recyclables',
+    navAbout: 'About',
+    publish: 'Post a listing',
+    heroEyebrow: 'Resources, rentals, and services across Kazakhstan',
+    heroTitle: 'Everything you need to get it done —',
+    heroAccent: 'nearby',
+    heroLead:
+      'Find machinery, rent equipment, or buy materials nearby in any region of the country.',
+    searchPlaceholder: 'Tractor, bricks, generator, or city',
+    search: 'Search',
+    popular: 'Popular:',
+    popularItems: [
+      ['Комбайн', 'Combine'],
+      ['Перфоратор', 'Rotary hammer'],
+      ['Кирпич', 'Bricks'],
+      ['Сено', 'Hay'],
+      ['Проектор', 'Projector'],
+      ['Лошади', 'Horses'],
+    ],
+    allKazakhstan: 'All Kazakhstan',
+    regionsCaption: '20 regions and cities in one service',
+    nearbyOffers: 'Nearby offers',
+    peopleAndCompanies: 'Individuals and companies',
+    categoriesKicker: 'CATEGORIES',
+    categoriesTitle: 'What do you need today?',
+    seeAll: 'View all',
+    openSection: 'Open section',
+    categories: [
+      {
+        title: 'Farm machinery|and services',
+        description: 'Ploughing, harvesting, hauling, and equipment rental',
+      },
+      {
+        title: 'Tool and equipment|rental',
+        description: 'From drills to generators — rent for as long as needed',
+      },
+      {
+        title: 'Surplus and|building materials',
+        description: 'Bricks, tiles, mixes, and other leftovers nearby',
+      },
+      {
+        title: 'Livestock and|animals',
+        description: 'List one animal or an entire herd in a simple post',
+      },
+    ],
+    mapKicker: 'KAZAKHSTAN RESOURCE MAP',
+    mapTitle: 'One marketplace for the whole country',
+    mapLead:
+      'Choose a region or direction and Qoldan will show relevant resources, machinery, and providers.',
+    allRegions: 'All regions and cities',
+    catalogCountry: 'OFFERS ACROSS THE COUNTRY',
+    catalogRegion: 'OFFERS IN THIS REGION',
+    myOffers: 'YOUR OFFERS',
+    favoritesKicker: 'YOUR FAVORITES',
+    myListings: 'My listings',
+    savedListings: 'Saved listings',
+    list: 'List',
+    onMap: 'Map',
+    transparentFeed: 'Transparent feed',
+    transparentFeedText:
+      'Real posts are stored in the shared database. Examples are always marked “DEMO”.',
+    all: 'All',
+    real: 'Real',
+    demo: 'Demo',
+    sale: 'For sale',
+    rent: 'For rent',
+    service: 'Service',
+    nearest: 'Nearest first',
+    recommended: 'Best matches first',
+    newest: 'Newest first',
+    cheapest: 'Lowest price first',
+    expensive: 'Highest price first',
+    locating: 'Locating…',
+    nearMe: 'Near me',
+    filters: 'Filters',
+    shown: 'Showing',
+    of: 'of',
+    showMore: 'Show more',
+    viewedAll: 'You have seen every matching offer',
+    requestKicker: 'CAN’T FIND IT?',
+    requestTitle: 'Tell us what you need',
+    requestLead:
+      'Post a request and equipment owners or sellers will offer their price. It’s free.',
+    createRequest: 'Create request',
+    realRequests: 'real requests in the shared database',
+    demoNearby: 'demo examples alongside:',
+    activeRequests: 'Active requests',
+    myRequests: 'My requests',
+    showAll: 'Show all',
+    autoUpdate: 'Updates automatically',
+    agro: 'Agriculture',
+    rental: 'Rental',
+    build: 'Construction',
+    recycle: 'Recyclables',
+    request: 'REQUEST',
+    demoExample: 'DEMO EXAMPLE',
+    realRequest: 'REAL',
+    responses: 'responses',
+    noRequests: 'No matching requests yet',
+    noRequestsText: 'Change the category or create a new request.',
+    recycleKicker: 'B2B · DIRECTION DEMO',
+    recycleTitle: 'Kazakhstan recyclables exchange',
+    recycleLead:
+      'A price map and reverse auction for cardboard, plastic, metal, pallets, and film. List a quantity and recyclers offer a price and pickup.',
+    listBatch: 'List a batch',
+    easyStart: 'EASY START',
+    stepsTitle: 'Three steps to get it done',
+    steps: [
+      [
+        'Find it or describe it',
+        'Search existing offers or create your own request.',
+      ],
+      [
+        'Connect directly',
+        'Discuss price, timing, and details without intermediaries.',
+      ],
+      [
+        'Agree in person',
+        'Handle payment and handover in the way that suits both sides.',
+      ],
+    ],
+    footerLead:
+      'Kazakhstan’s marketplace for nearby resources, rentals, and services.',
+    platform: 'Marketplace',
+    requests: 'Requests',
+    recycleExchange: 'Recyclables exchange',
+    kazakhstan: 'Kazakhstan',
+    allRegionsShort: 'All regions',
+    help: 'Help',
+    rules: 'Service rules',
+    contact: 'Contact us',
+    safety: 'Safety',
+    madeIn: 'Made in Kazakhstan.',
+    mobileSearch: 'Search',
+    favorites: 'Favorites',
+    profile: 'Profile',
+    messages: 'Messages',
+    notifications: 'Notifications',
+  },
+} as const;
 export default function Home() {
   const [query, setQuery] = useState('');
   const [type, setType] = useState('Все');
@@ -1024,7 +1450,7 @@ export default function Home() {
   const [mapOpen, setMapOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toast, setToast] = useState('');
-  const [aboutLang, setAboutLang] = useState<'ru' | 'kk' | 'en'>('ru');
+  const [appLang, setAppLang] = useState<AppLanguage>('ru');
   const [aboutTopic, setAboutTopic] = useState(0);
   const [allListings, setAllListings] = useState<Listing[]>(defaultListings);
   const [allRequests, setAllRequests] =
@@ -1172,7 +1598,10 @@ export default function Home() {
   const [requestSeed, setRequestSeed] = useState('');
   const [requestSeedKind, setRequestSeedKind] =
     useState<RequestItem['kind']>('agro');
-  const about = aboutContent[aboutLang];
+  const about = aboutContent[appLang];
+  const tr = uiContent[appLang];
+  const selectedRegionLabel =
+    selectedRegion === 'Весь Казахстан' ? tr.allKazakhstan : selectedRegion;
   const aboutIcons = [Tractor, Wrench, PackageOpen];
   const viewerInitials = viewerName
     .split(/\s+/)
@@ -1287,6 +1716,26 @@ export default function Home() {
       livestockPriceModeFilter !== 'all' ||
       livestockQuantityGroup !== 'all',
     );
+  const chooseLanguage = (language: AppLanguage) => {
+    setAppLang(language);
+    document.documentElement.lang = language;
+    try {
+      window.localStorage.setItem(UI_LANGUAGE_KEY, language);
+    } catch {
+      // Выбранный язык всё равно останется активным в текущем окне.
+    }
+  };
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(UI_LANGUAGE_KEY);
+      if (stored === 'ru' || stored === 'kk' || stored === 'en') {
+        setAppLang(stored);
+        document.documentElement.lang = stored;
+      }
+    } catch {
+      // По умолчанию интерфейс остаётся на русском языке.
+    }
+  }, []);
   useEffect(() => {
     try {
       const stored = window.localStorage.getItem(RECENT_VIEWS_KEY);
@@ -3440,7 +3889,7 @@ export default function Home() {
             <Tractor size={21} />
           </span>
           <span>Qoldan</span>
-          <em>КАЗАХСТАН</em>
+          <em>{tr.country}</em>
         </a>
         <nav className={menuOpen ? 'nav open' : 'nav'}>
           <a
@@ -3451,7 +3900,7 @@ export default function Home() {
               setMyOnly(false);
             }}
           >
-            Объявления
+            {tr.navListings}
           </a>
           <a
             href="#requests"
@@ -3460,20 +3909,39 @@ export default function Home() {
               setRequestOwnerOnly(false);
             }}
           >
-            Мне нужно
+            {tr.navRequests}
           </a>
           <a href="#recycle" onClick={() => setMenuOpen(false)}>
-            Вторсырьё
+            {tr.navRecycle}
           </a>
           <a href="#about" onClick={() => setMenuOpen(false)}>
-            О приложении
+            {tr.navAbout}
           </a>
         </nav>
         <div className="header-actions">
+          <div className="header-language" aria-label="Тіл · Язык · Language">
+            {(
+              [
+                ['ru', 'RU'],
+                ['kk', 'QAZ'],
+                ['en', 'EN'],
+              ] as const
+            ).map(([code, label]) => (
+              <button
+                key={code}
+                type="button"
+                className={appLang === code ? 'active' : ''}
+                aria-pressed={appLang === code}
+                onClick={() => chooseLanguage(code)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <button
             className="icon-button hide-mobile"
             onClick={() => void openMessages()}
-            aria-label={`Сообщения${messagingUnreadCount ? `, непрочитанных: ${messagingUnreadCount}` : ''}`}
+            aria-label={`${tr.messages}${messagingUnreadCount ? `: ${messagingUnreadCount}` : ''}`}
           >
             <MessageCircle size={19} />
             {messagingUnreadCount > 0 && <i />}
@@ -3481,7 +3949,7 @@ export default function Home() {
           <button
             className="icon-button hide-mobile"
             onClick={() => setModal('notifications')}
-            aria-label="Уведомления"
+            aria-label={tr.notifications}
           >
             <Bell size={19} />
             {activities.length > 0 && <i />}
@@ -3495,7 +3963,7 @@ export default function Home() {
             <ChevronDown size={15} />
           </button>
           <button className="primary-button" onClick={openAddListing}>
-            <Plus size={18} /> Подать объявление
+            <Plus size={18} /> {tr.publish}
           </button>
           <button
             className="icon-button mobile-menu"
@@ -3510,24 +3978,22 @@ export default function Home() {
       <section className="hero" id="top">
         <div className="hero-copy">
           <span className="eyebrow">
-            <MapPin size={14} /> Ресурсы, аренда и услуги по всему Казахстану
+            <MapPin size={14} /> {tr.heroEyebrow}
           </span>
           <h1>
-            Всё нужное для дела — <span>рядом</span>
+            {tr.heroTitle} <span>{tr.heroAccent}</span>
           </h1>
-          <p>
-            Найдите технику, возьмите оборудование в аренду или купите материалы
-            рядом — в любом регионе страны.
-          </p>
+          <p>{tr.heroLead}</p>
           <div className="searchbox">
             <Search size={22} />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Трактор, кирпич, генератор или город"
+              placeholder={tr.searchPlaceholder}
             />
             <button className="location" onClick={() => setModal('regions')}>
-              <MapPin size={17} /> {selectedRegion} <ChevronDown size={15} />
+              <MapPin size={17} /> {selectedRegionLabel}{' '}
+              <ChevronDown size={15} />
             </button>
             <button
               className="search-button"
@@ -3539,29 +4005,22 @@ export default function Home() {
                   ?.scrollIntoView({ behavior: 'smooth' });
               }}
             >
-              Найти
+              {tr.search}
             </button>
           </div>
           <div className="quick-search">
-            <span>Часто ищут:</span>
-            {[
-              'Комбайн',
-              'Перфоратор',
-              'Кирпич',
-              'Сено',
-              'Проектор',
-              'Лошади',
-            ].map((x) => (
+            <span>{tr.popular}</span>
+            {tr.popularItems.map(([value, label]) => (
               <button
-                key={x}
+                key={value}
                 onClick={() => {
-                  if (x === 'Лошади') {
+                  if (value === 'Лошади') {
                     setQuery('');
                     setCategoryFilter('Скот и животные');
                     resetLivestockFilters();
                     setLivestockTypeFilter('Лошади');
                   } else {
-                    setQuery(x);
+                    setQuery(value);
                   }
                   setFavoriteOnly(false);
                   setMyOnly(false);
@@ -3570,7 +4029,7 @@ export default function Home() {
                     ?.scrollIntoView({ behavior: 'smooth' });
                 }}
               >
-                {x}
+                {label}
               </button>
             ))}
           </div>
@@ -3585,8 +4044,8 @@ export default function Home() {
               <Map size={20} />
             </span>
             <div>
-              <b>Весь Казахстан</b>
-              <small>20 регионов и городов в одном сервисе</small>
+              <b>{tr.allKazakhstan}</b>
+              <small>{tr.regionsCaption}</small>
             </div>
           </div>
           <div className="float-card fc-two">
@@ -3594,8 +4053,8 @@ export default function Home() {
               <CheckCircle2 size={20} />
             </span>
             <div>
-              <b>Предложения рядом</b>
-              <small>Частные лица и компании</small>
+              <b>{tr.nearbyOffers}</b>
+              <small>{tr.peopleAndCompanies}</small>
             </div>
           </div>
         </div>
@@ -3603,11 +4062,11 @@ export default function Home() {
       <section className="categories wrap">
         <div className="section-head">
           <div>
-            <span className="kicker">КАТЕГОРИИ</span>
-            <h2>Что нужно сегодня?</h2>
+            <span className="kicker">{tr.categoriesKicker}</span>
+            <h2>{tr.categoriesTitle}</h2>
           </div>
           <a href="#catalog">
-            Смотреть всё <ArrowRight size={17} />
+            {tr.seeAll} <ArrowRight size={17} />
           </a>
         </div>
         <div className="category-grid">
@@ -3615,33 +4074,33 @@ export default function Home() {
             [
               'green',
               Tractor,
-              'Сельхозтехника|и услуги',
-              'Вспашка, уборка, перевозка, аренда техники',
-              'Открыть раздел',
+              tr.categories[0].title,
+              tr.categories[0].description,
+              tr.openSection,
               'Сельхоз',
             ],
             [
               'orange',
               Wrench,
-              'Аренда инструментов|и оборудования',
-              'От дрели до генератора — берите на нужный срок',
-              'Открыть раздел',
+              tr.categories[1].title,
+              tr.categories[1].description,
+              tr.openSection,
               'Инструменты',
             ],
             [
               'sand',
               PackageOpen,
-              'Остатки и|стройматериалы',
-              'Кирпич, плитка, смеси и другие остатки рядом',
-              'Открыть раздел',
+              tr.categories[2].title,
+              tr.categories[2].description,
+              tr.openSection,
               'Стройматериалы',
             ],
             [
               'livestock',
               Beef,
-              'Скот и|животные',
-              'Продайте одну голову или целое стадо простым объявлением',
-              'Открыть раздел',
+              tr.categories[3].title,
+              tr.categories[3].description,
+              tr.openSection,
               'Скот и животные',
             ],
           ].map((c, i) => {
@@ -3691,15 +4150,12 @@ export default function Home() {
         <div className="wrap">
           <div className="national-top">
             <div>
-              <span className="kicker">КАРТА РЕСУРСОВ КАЗАХСТАНА</span>
-              <h2>Одна площадка для всей страны</h2>
-              <p>
-                Выберите регион или направление — Qoldan покажет подходящие
-                ресурсы, технику и исполнителей.
-              </p>
+              <span className="kicker">{tr.mapKicker}</span>
+              <h2>{tr.mapTitle}</h2>
+              <p>{tr.mapLead}</p>
             </div>
             <button onClick={() => setModal('regions')}>
-              <MapPin /> {selectedRegion}
+              <MapPin /> {selectedRegionLabel}
               <ChevronDown />
             </button>
           </div>
@@ -3728,7 +4184,7 @@ export default function Home() {
               </button>
             ))}
             <button onClick={() => setModal('regions')}>
-              Все регионы и города <ArrowRight />
+              {tr.allRegions} <ArrowRight />
             </button>
           </div>
           <div className="direction-columns">
@@ -3805,19 +4261,19 @@ export default function Home() {
             <div>
               <span className="kicker">
                 {myOnly
-                  ? 'ВАШИ ПРЕДЛОЖЕНИЯ'
+                  ? tr.myOffers
                   : favoriteOnly
-                    ? 'ВАШЕ ИЗБРАННОЕ'
+                    ? tr.favoritesKicker
                     : selectedRegion === 'Весь Казахстан'
-                      ? 'ПРЕДЛОЖЕНИЯ ПО СТРАНЕ'
-                      : 'ПРЕДЛОЖЕНИЯ В РЕГИОНЕ'}
+                      ? tr.catalogCountry
+                      : tr.catalogRegion}
               </span>
               <h2>
                 {myOnly
-                  ? 'Мои объявления'
+                  ? tr.myListings
                   : favoriteOnly
-                    ? 'Сохранённые объявления'
-                    : selectedRegion}
+                    ? tr.savedListings
+                    : selectedRegionLabel}
               </h2>
             </div>
             <div className="view-controls">
@@ -3825,13 +4281,13 @@ export default function Home() {
                 className={!mapOpen ? 'active' : ''}
                 onClick={() => setMapOpen(false)}
               >
-                <Menu size={17} /> Список
+                <Menu size={17} /> {tr.list}
               </button>
               <button
                 className={mapOpen ? 'active' : ''}
                 onClick={() => setMapOpen(true)}
               >
-                <Map size={17} /> На карте
+                <Map size={17} /> {tr.onMap}
               </button>
             </div>
           </div>
@@ -3840,9 +4296,8 @@ export default function Home() {
               <div>
                 <CheckCircle2 />
                 <span>
-                  <b>Прозрачная лента</b>
-                  Настоящие публикации хранятся в общей базе. Примеры всегда
-                  отмечены словом «ДЕМО».
+                  <b>{tr.transparentFeed}</b>
+                  {tr.transparentFeedText}
                 </span>
               </div>
               <div
@@ -3851,9 +4306,9 @@ export default function Home() {
               >
                 {(
                   [
-                    ['all', `Все · ${allListings.length}`],
-                    ['real', `Реальные · ${realListingCount}`],
-                    ['demo', `Демо · ${demoListingCount}`],
+                    ['all', `${tr.all} · ${allListings.length}`],
+                    ['real', `${tr.real} · ${realListingCount}`],
+                    ['demo', `${tr.demo} · ${demoListingCount}`],
                   ] as const
                 ).map(([value, label]) => (
                   <button
@@ -3870,13 +4325,20 @@ export default function Home() {
           )}
           <div className="filter-row">
             <div className="pills">
-              {['Все', 'Продам', 'Сдам', 'Окажу услугу'].map((x) => (
+              {(
+                [
+                  ['Все', tr.all],
+                  ['Продам', tr.sale],
+                  ['Сдам', tr.rent],
+                  ['Окажу услугу', tr.service],
+                ] as const
+              ).map(([value, label]) => (
                 <button
-                  key={x}
-                  className={type === x ? 'active' : ''}
-                  onClick={() => setType(x)}
+                  key={value}
+                  className={type === value ? 'active' : ''}
+                  onClick={() => setType(value)}
                 >
-                  {x}
+                  {label}
                 </button>
               ))}
             </div>
@@ -3891,11 +4353,11 @@ export default function Home() {
                   }
                 >
                   <option value="recommended">
-                    {userCoords ? 'Сначала ближайшие' : 'Сначала подходящие'}
+                    {userCoords ? tr.nearest : tr.recommended}
                   </option>
-                  <option value="newest">Сначала новые</option>
-                  <option value="price_asc">Сначала дешевле</option>
-                  <option value="price_desc">Сначала дороже</option>
+                  <option value="newest">{tr.newest}</option>
+                  <option value="price_asc">{tr.cheapest}</option>
+                  <option value="price_desc">{tr.expensive}</option>
                 </select>
               </label>
               <button
@@ -3907,10 +4369,10 @@ export default function Home() {
               >
                 <Navigation />
                 {userLocationLoading
-                  ? 'Определяем…'
+                  ? tr.locating
                   : userCoords
-                    ? `Рядом · ${maxDistance} км`
-                    : 'Рядом со мной'}
+                    ? `${tr.nearMe} · ${maxDistance} км`
+                    : tr.nearMe}
                 {userCoords && <X />}
               </button>
               {favoriteOnly && (
@@ -3955,7 +4417,7 @@ export default function Home() {
                 className="filter-button"
                 onClick={() => setFiltersOpen(!filtersOpen)}
               >
-                <SlidersHorizontal size={17} /> Фильтры{' '}
+                <SlidersHorizontal size={17} /> {tr.filters}{' '}
                 {activeFilterCount > 0 && <span>{activeFilterCount}</span>}
               </button>
             </div>
@@ -4235,7 +4697,7 @@ export default function Home() {
           {!mapOpen && filtered.length > 0 && (
             <div className="catalog-pagination" aria-live="polite">
               <p>
-                Показано <b>{visibleListings.length}</b> из{' '}
+                {tr.shown} <b>{visibleListings.length}</b> {tr.of}{' '}
                 <b>{filtered.length}</b>
               </p>
               {remainingListingCount > 0 ? (
@@ -4248,10 +4710,10 @@ export default function Home() {
                     )
                   }
                 >
-                  Показать ещё {nextListingCount}
+                  {tr.showMore} {nextListingCount}
                 </button>
               ) : (
-                <span>Вы посмотрели все подходящие предложения</span>
+                <span>{tr.viewedAll}</span>
               )}
             </div>
           )}
@@ -4259,35 +4721,32 @@ export default function Home() {
       </section>
       <section className="requests wrap" id="requests">
         <div className="request-intro">
-          <span className="kicker">НЕ НАШЛИ НУЖНОЕ?</span>
-          <h2>Расскажите, что вам нужно</h2>
-          <p>
-            Оставьте заявку — владельцы техники и продавцы сами предложат цену.
-            Это бесплатно.
-          </p>
+          <span className="kicker">{tr.requestKicker}</span>
+          <h2>{tr.requestTitle}</h2>
+          <p>{tr.requestLead}</p>
           <button className="dark-button" onClick={() => openRequestForm()}>
-            <Plus size={18} /> Создать заявку
+            <Plus size={18} /> {tr.createRequest}
           </button>
           <div className="intro-stat">
             <b>{realRequestCount}</b>
             <span>
-              реальных заявок в общей базе
+              {tr.realRequests}
               <br />
-              демо-примеров рядом: {demoRequestCount}
+              {tr.demoNearby} {demoRequestCount}
             </span>
           </div>
         </div>
         <div className="request-list">
           <div className="request-list-head">
             <div>
-              <h3>{requestOwnerOnly ? 'Мои заявки' : 'Актуальные заявки'}</h3>
+              <h3>{requestOwnerOnly ? tr.myRequests : tr.activeRequests}</h3>
               {requestOwnerOnly && (
                 <button onClick={() => setRequestOwnerOnly(false)}>
-                  Показать все
+                  {tr.showAll}
                 </button>
               )}
             </div>
-            <span className="live-dot">Обновляется автоматически</span>
+            <span className="live-dot">{tr.autoUpdate}</span>
           </div>
           {!requestOwnerOnly && (
             <div className="data-source-bar compact request-source-bar">
@@ -4301,9 +4760,9 @@ export default function Home() {
               <div className="data-source-switch" aria-label="Источник заявок">
                 {(
                   [
-                    ['all', `Все · ${allRequests.length}`],
-                    ['real', `Реальные · ${realRequestCount}`],
-                    ['demo', `Демо · ${demoRequestCount}`],
+                    ['all', `${tr.all} · ${allRequests.length}`],
+                    ['real', `${tr.real} · ${realRequestCount}`],
+                    ['demo', `${tr.demo} · ${demoRequestCount}`],
                   ] as const
                 ).map(([value, label]) => (
                   <button
@@ -4321,11 +4780,11 @@ export default function Home() {
           <div className="request-filters" aria-label="Фильтр заявок">
             {(
               [
-                ['all', 'Все'],
-                ['agro', 'Сельхоз'],
-                ['rent', 'Аренда'],
-                ['build', 'Стройка'],
-                ['recycle', 'Вторсырьё'],
+                ['all', tr.all],
+                ['agro', tr.agro],
+                ['rent', tr.rental],
+                ['build', tr.build],
+                ['recycle', tr.recycle],
               ] as const
             ).map(([value, label]) => (
               <button
@@ -4353,11 +4812,11 @@ export default function Home() {
                 </span>
                 <div className="request-main">
                   <span>
-                    ЗАЯВКА #{r.id}
+                    {tr.request} #{r.id}
                     <em
                       className={`request-source-badge ${isDemoRequest(r.id) ? 'demo' : 'real'}`}
                     >
-                      {isDemoRequest(r.id) ? 'ДЕМО-ПРИМЕР' : 'РЕАЛЬНАЯ'}
+                      {isDemoRequest(r.id) ? tr.demoExample : tr.realRequest}
                     </em>
                     {r.selection && r.selection.status !== 'cancelled' ? (
                       <em className="inline-status selected-work">
@@ -4387,7 +4846,7 @@ export default function Home() {
                   <b>{r.budget}</b>
                   <button onClick={() => openRequest(r)}>
                     <MessageCircle size={14} />
-                    {r.responses} откликов
+                    {r.responses} {tr.responses}
                   </button>
                 </div>
               </article>
@@ -4396,9 +4855,11 @@ export default function Home() {
           {visibleRequests.length === 0 && (
             <div className="request-empty">
               <MessageCircle />
-              <b>Пока нет подходящих заявок</b>
-              <span>Измените направление или создайте новую заявку.</span>
-              <button onClick={() => openRequestForm()}>Создать заявку</button>
+              <b>{tr.noRequests}</b>
+              <span>{tr.noRequestsText}</span>
+              <button onClick={() => openRequestForm()}>
+                {tr.createRequest}
+              </button>
             </div>
           )}
         </div>
@@ -4407,16 +4868,12 @@ export default function Home() {
         <div className="wrap">
           <div className="recycle-head">
             <div>
-              <span className="kicker">B2B · ДЕМО НАПРАВЛЕНИЯ</span>
-              <h2>Биржа вторсырья Казахстана</h2>
-              <p>
-                Карта цен и обратный аукцион для картона, пластика, металла,
-                паллет и плёнки. Выставляете объём — приёмщики предлагают свою
-                цену и вывоз.
-              </p>
+              <span className="kicker">{tr.recycleKicker}</span>
+              <h2>{tr.recycleTitle}</h2>
+              <p>{tr.recycleLead}</p>
             </div>
             <button onClick={() => setModal('recycle')}>
-              <Plus /> Выставить партию
+              <Plus /> {tr.listBatch}
             </button>
           </div>
           <div className="recycle-grid">
@@ -4473,7 +4930,7 @@ export default function Home() {
               <h2>{about.title}</h2>
               <p>{about.lead}</p>
             </div>
-            <div className="language-switch" aria-label="Язык раздела">
+            <div className="language-switch" aria-label="Тіл · Язык · Language">
               {(
                 [
                   ['ru', 'Русский'],
@@ -4483,8 +4940,8 @@ export default function Home() {
               ).map(([code, label]) => (
                 <button
                   key={code}
-                  className={aboutLang === code ? 'active' : ''}
-                  onClick={() => setAboutLang(code)}
+                  className={appLang === code ? 'active' : ''}
+                  onClick={() => chooseLanguage(code)}
                 >
                   {label}
                 </button>
@@ -4533,9 +4990,9 @@ export default function Home() {
               <p className="about-main-text">{about.items[aboutTopic].text}</p>
               <div className="about-example">
                 <b>
-                  {aboutLang === 'ru'
+                  {appLang === 'ru'
                     ? 'Как это работает'
-                    : aboutLang === 'kk'
+                    : appLang === 'kk'
                       ? 'Қалай жұмыс істейді'
                       : 'How it works'}
                 </b>
@@ -4570,31 +5027,15 @@ export default function Home() {
       </section>
       <section className="how" id="how">
         <div className="wrap">
-          <span className="kicker">ПРОСТОЙ СТАРТ</span>
-          <h2>Три шага — и дело сделано</h2>
+          <span className="kicker">{tr.easyStart}</span>
+          <h2>{tr.stepsTitle}</h2>
           <div className="steps">
-            {[
-              [
-                '1',
-                'Найдите или опишите',
-                'Ищите готовое предложение или создайте свою заявку.',
-              ],
-              [
-                '2',
-                'Свяжитесь напрямую',
-                'Обсудите цену, сроки и детали без посредников.',
-              ],
-              [
-                '3',
-                'Договоритесь на месте',
-                'Оплата и передача — так, как удобно вам обоим.',
-              ],
-            ].map((s, i) => (
-              <div className="step-fragment" key={s[0]}>
+            {tr.steps.map((step, i) => (
+              <div className="step-fragment" key={step[0]}>
                 <div>
-                  <span>{s[0]}</span>
-                  <h3>{s[1]}</h3>
-                  <p>{s[2]}</p>
+                  <span>{i + 1}</span>
+                  <h3>{step[0]}</h3>
+                  <p>{step[1]}</p>
                 </div>
                 {i < 2 && <ArrowRight />}
               </div>
@@ -4611,10 +5052,10 @@ export default function Home() {
               </span>
               <span>Qoldan</span>
             </a>
-            <p>Казахстанский маркетплейс ресурсов, аренды и услуг рядом.</p>
+            <p>{tr.footerLead}</p>
           </div>
           <div>
-            <b>Площадка</b>
+            <b>{tr.platform}</b>
             <a
               href="#catalog"
               onClick={() => {
@@ -4622,16 +5063,16 @@ export default function Home() {
                 setMyOnly(false);
               }}
             >
-              Объявления
+              {tr.navListings}
             </a>
             <a href="#requests" onClick={() => setRequestOwnerOnly(false)}>
-              Заявки
+              {tr.requests}
             </a>
-            <a href="#recycle">Биржа вторсырья</a>
-            <a href="#about">О приложении</a>
+            <a href="#recycle">{tr.recycleExchange}</a>
+            <a href="#about">{tr.navAbout}</a>
           </div>
           <div>
-            <b>Казахстан</b>
+            <b>{tr.kazakhstan}</b>
             <button
               onClick={() => {
                 setSelectedRegion('Алматы');
@@ -4652,24 +5093,43 @@ export default function Home() {
             >
               Астана
             </button>
-            <button onClick={() => setModal('regions')}>Все регионы</button>
+            <button onClick={() => setModal('regions')}>
+              {tr.allRegionsShort}
+            </button>
           </div>
           <div>
-            <b>Помощь</b>
+            <b>{tr.help}</b>
             <button onClick={() => void openSupport('rules')}>
-              Правила сервиса
+              {tr.rules}
             </button>
             <button onClick={() => void openSupport('feedback')}>
-              Связаться с нами
+              {tr.contact}
             </button>
             <button onClick={() => void openSupport('safety')}>
-              Безопасность
+              {tr.safety}
             </button>
           </div>
         </div>
         <div className="wrap foot-bottom">
-          <span>© 2026 Qoldan. Сделано в Казахстане.</span>
-          <a href="#about">Русский · Қазақша · English</a>
+          <span>© 2026 Qoldan. {tr.madeIn}</span>
+          <div className="footer-languages" aria-label="Тіл · Язык · Language">
+            {(
+              [
+                ['ru', 'Русский'],
+                ['kk', 'Қазақша'],
+                ['en', 'English'],
+              ] as const
+            ).map(([code, label]) => (
+              <button
+                key={code}
+                type="button"
+                className={appLang === code ? 'active' : ''}
+                onClick={() => chooseLanguage(code)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </footer>
       <nav className="mobile-bottom">
@@ -4681,11 +5141,11 @@ export default function Home() {
           }}
         >
           <Search />
-          <span>Поиск</span>
+          <span>{tr.mobileSearch}</span>
         </a>
         <a href="#requests" onClick={() => setRequestOwnerOnly(false)}>
           <MessageCircle />
-          <span>Заявки</span>
+          <span>{tr.requests}</span>
         </a>
         <button onClick={openAddListing} aria-label="Подать объявление">
           <Plus />
@@ -4698,11 +5158,11 @@ export default function Home() {
           }}
         >
           <Heart />
-          <span>Избранное</span>
+          <span>{tr.favorites}</span>
         </a>
         <button className="mobile-profile" onClick={() => setModal('profile')}>
           <UserRound />
-          <span>Профиль</span>
+          <span>{tr.profile}</span>
         </button>
       </nav>
       {modal && (
