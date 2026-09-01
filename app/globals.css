@@ -1731,6 +1731,46 @@ footer {
 .product-form textarea {
   resize: vertical;
 }
+.product-form .form-draft-note {
+  min-height: 54px;
+  border: 1px solid #dbe7db;
+  border-radius: 12px;
+  padding: 10px 11px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  background: #f5f9f3;
+}
+.form-draft-note > svg {
+  width: 18px;
+  color: var(--green);
+}
+.form-draft-note > span {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.form-draft-note b {
+  color: var(--green);
+  font-size: 9px;
+}
+.form-draft-note small {
+  color: var(--muted);
+  font-size: 8px;
+  line-height: 1.4;
+}
+.form-draft-note > button {
+  min-height: 31px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 9px;
+  background: #e5eee3;
+  color: var(--green);
+  font-size: 8px;
+  font-weight: 800;
+}
 .listing-mode-switch {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -6484,6 +6524,13 @@ footer {
   .listing-mode-switch,
   .livestock-fields {
     grid-template-columns: 1fr;
+  }
+  .product-form .form-draft-note {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .form-draft-note > button {
+    grid-column: 2;
+    width: max-content;
   }
   .livestock-fields-head {
     grid-column: 1;

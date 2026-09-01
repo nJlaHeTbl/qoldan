@@ -360,7 +360,16 @@ type RecentView = {
 type RecentItem =
   | { kind: 'listing'; viewedAt: number; listing: Listing }
   | { kind: 'request'; viewedAt: number; request: RequestItem };
+type FormDraft = {
+  fields: Record<string, string>;
+  savedAt: number;
+};
+type ListingFormDraft = FormDraft & {
+  flow: 'standard' | 'livestock';
+};
 const RECENT_VIEWS_KEY = 'qoldan-recent-views-v1';
+const LISTING_DRAFT_KEY = 'qoldan-listing-draft-v1';
+const REQUEST_DRAFT_KEY = 'qoldan-request-draft-v1';
 type SubmitFormEvent = {
   preventDefault: () => void;
   currentTarget: HTMLFormElement;
@@ -368,6 +377,41 @@ type SubmitFormEvent = {
 const fieldText = (data: FormData, key: string, fallback = '') => {
   const value = data.get(key);
   return typeof value === 'string' ? value : fallback;
+};
+const collectDraftFields = (form: HTMLFormElement) => {
+  const fields: Record<string, string> = {};
+  new FormData(form).forEach((value, key) => {
+    if (typeof value === 'string') fields[key] = value;
+  });
+  form
+    .querySelectorAll<HTMLInputElement>('input[type="checkbox"][name]')
+    .forEach((input) => {
+      fields[input.name] = input.checked ? 'on' : '';
+    });
+  return fields;
+};
+const sanitizeDraftFields = (value: unknown) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  return Object.fromEntries(
+    Object.entries(value).filter((entry): entry is [string, string] =>
+      entry.every((part) => typeof part === 'string'),
+    ),
+  );
+};
+const clearFormFields = (form: HTMLFormElement) => {
+  form.querySelectorAll('input, select, textarea').forEach((control) => {
+    if (control instanceof HTMLInputElement) {
+      if (control.type === 'checkbox' || control.type === 'radio') {
+        control.checked = false;
+      } else {
+        control.value = '';
+      }
+    } else if (control instanceof HTMLSelectElement) {
+      control.selectedIndex = 0;
+    } else if (control instanceof HTMLTextAreaElement) {
+      control.value = '';
+    }
+  });
 };
 const apiError = async (response: Response) => {
   try {
@@ -958,6 +1002,10 @@ export default function Home() {
   const [allRequests, setAllRequests] =
     useState<RequestItem[]>(initialRequests);
   const [recentViews, setRecentViews] = useState<RecentView[]>([]);
+  const [listingDraft, setListingDraft] = useState<ListingFormDraft | null>(
+    null,
+  );
+  const [requestDraft, setRequestDraft] = useState<FormDraft | null>(null);
   const [allResponses, setAllResponses] = useState<ResponseItem[]>([]);
   const [bookings, setBookings] = useState<BookingItem[]>([]);
   const [reviews, setReviews] = useState<ReviewItem[]>([]);
@@ -1221,6 +1269,36 @@ export default function Home() {
       );
     } catch {
       // Ограниченное хранилище не должно мешать работе каталога.
+    }
+  }, []);
+  useEffect(() => {
+    try {
+      const storedListing = window.localStorage.getItem(LISTING_DRAFT_KEY);
+      if (storedListing) {
+        const parsed = JSON.parse(storedListing) as Partial<ListingFormDraft>;
+        const fields = sanitizeDraftFields(parsed.fields);
+        if (
+          fields &&
+          typeof parsed.savedAt === 'number' &&
+          (parsed.flow === 'standard' || parsed.flow === 'livestock')
+        ) {
+          setListingDraft({
+            fields,
+            flow: parsed.flow,
+            savedAt: parsed.savedAt,
+          });
+        }
+      }
+      const storedRequest = window.localStorage.getItem(REQUEST_DRAFT_KEY);
+      if (storedRequest) {
+        const parsed = JSON.parse(storedRequest) as Partial<FormDraft>;
+        const fields = sanitizeDraftFields(parsed.fields);
+        if (fields && typeof parsed.savedAt === 'number') {
+          setRequestDraft({ fields, savedAt: parsed.savedAt });
+        }
+      }
+    } catch {
+      // Ограниченное хранилище не должно мешать публикации.
     }
   }, []);
   useEffect(() => {
@@ -1559,6 +1637,66 @@ export default function Home() {
     }
     notify('История просмотров очищена');
   };
+  const storeDraft = (key: string, value: FormDraft | ListingFormDraft) => {
+    try {
+      window.localStorage.setItem(key, JSON.stringify(value));
+    } catch {
+      // Поля остаются в текущем окне, даже если хранилище недоступно.
+    }
+  };
+  const removeDraft = (key: string) => {
+    try {
+      window.localStorage.removeItem(key);
+    } catch {
+      // Локальное состояние всё равно очищается.
+    }
+  };
+  const saveListingDraft = (
+    form: HTMLFormElement,
+    flow: ListingFormDraft['flow'] = listingFlow,
+  ) => {
+    setListingDraft((current) => {
+      const next: ListingFormDraft = {
+        flow,
+        fields: { ...current?.fields, ...collectDraftFields(form) },
+        savedAt: Date.now(),
+      };
+      storeDraft(LISTING_DRAFT_KEY, next);
+      return next;
+    });
+  };
+  const saveRequestDraft = (form: HTMLFormElement) => {
+    setRequestDraft((current) => {
+      const next: FormDraft = {
+        fields: { ...current?.fields, ...collectDraftFields(form) },
+        savedAt: Date.now(),
+      };
+      storeDraft(REQUEST_DRAFT_KEY, next);
+      return next;
+    });
+  };
+  const clearListingDraft = (form?: HTMLFormElement | null) => {
+    setListingDraft(null);
+    removeDraft(LISTING_DRAFT_KEY);
+    if (form) clearFormFields(form);
+    setListingFlow('standard');
+    setListingImage('');
+    setListingCoords(null);
+    notify('Черновик объявления очищен');
+  };
+  const clearRequestDraft = (form?: HTMLFormElement | null) => {
+    setRequestDraft(null);
+    removeDraft(REQUEST_DRAFT_KEY);
+    if (form) clearFormFields(form);
+    notify('Черновик заявки очищен');
+  };
+  const changeListingFlow = (
+    flow: ListingFormDraft['flow'],
+    form?: HTMLFormElement | null,
+  ) => {
+    if (form) saveListingDraft(form, flow);
+    setListingFlow(flow);
+  };
   useEffect(() => {
     if (!storageReady || requestLinkHandled) return;
     const linkedRequestId = new URLSearchParams(window.location.search).get(
@@ -1740,7 +1878,7 @@ export default function Home() {
   };
   const openAddListing = () => {
     setListingImage('');
-    setListingFlow('standard');
+    setListingFlow(listingDraft?.flow || 'standard');
     setListingCoords(null);
     setModal('listing');
   };
@@ -2564,6 +2702,8 @@ export default function Home() {
       if (!response.ok) throw new Error(await apiError(response));
       const data = (await response.json()) as { listing: Listing };
       setAllListings((previous) => [data.listing, ...previous]);
+      setListingDraft(null);
+      removeDraft(LISTING_DRAFT_KEY);
       setListingImage('');
       setServerConnected(true);
       setModal(null);
@@ -2598,6 +2738,8 @@ export default function Home() {
       if (!response.ok) throw new Error(await apiError(response));
       const data = (await response.json()) as { request: RequestItem };
       setAllRequests((previous) => [data.request, ...previous]);
+      setRequestDraft(null);
+      removeDraft(REQUEST_DRAFT_KEY);
       setServerConnected(true);
       setModal(null);
       notify('Заявка опубликована — отклики будут общими для всех устройств');
@@ -4448,13 +4590,19 @@ export default function Home() {
                     </p>
                   </div>
                 </div>
-                <form className="product-form" onSubmit={addListing}>
+                <form
+                  className="product-form"
+                  onSubmit={addListing}
+                  onChange={(event) => saveListingDraft(event.currentTarget)}
+                >
                   <div className="listing-mode-switch wide">
                     <button
                       type="button"
                       className={listingFlow === 'standard' ? 'active' : ''}
                       aria-pressed={listingFlow === 'standard'}
-                      onClick={() => setListingFlow('standard')}
+                      onClick={(event) =>
+                        changeListingFlow('standard', event.currentTarget.form)
+                      }
                     >
                       <PackageOpen />
                       <span>
@@ -4466,7 +4614,9 @@ export default function Home() {
                       type="button"
                       className={listingFlow === 'livestock' ? 'active' : ''}
                       aria-pressed={listingFlow === 'livestock'}
-                      onClick={() => setListingFlow('livestock')}
+                      onClick={(event) =>
+                        changeListingFlow('livestock', event.currentTarget.form)
+                      }
                     >
                       <Beef />
                       <span>
@@ -4475,11 +4625,39 @@ export default function Home() {
                       </span>
                     </button>
                   </div>
+                  <div className="form-draft-note wide">
+                    <CheckCircle2 />
+                    <span>
+                      <b>
+                        {listingDraft
+                          ? 'Черновик сохранён на устройстве'
+                          : 'Черновик сохранится автоматически'}
+                      </b>
+                      <small>
+                        Текст и контакты не пропадут. Фото и точную геопозицию
+                        нужно выбрать повторно.
+                      </small>
+                    </span>
+                    {listingDraft && (
+                      <button
+                        type="button"
+                        onClick={(event) =>
+                          clearListingDraft(event.currentTarget.form)
+                        }
+                      >
+                        Очистить
+                      </button>
+                    )}
+                  </div>
                   {listingFlow === 'standard' ? (
                     <>
                       <label>
                         Тип предложения
-                        <select name="type" required>
+                        <select
+                          name="type"
+                          required
+                          defaultValue={listingDraft?.fields.type || 'Продам'}
+                        >
                           <option>Продам</option>
                           <option>Сдам</option>
                           <option>Окажу услугу</option>
@@ -4487,7 +4665,13 @@ export default function Home() {
                       </label>
                       <label>
                         Категория
-                        <select name="category" required>
+                        <select
+                          name="category"
+                          required
+                          defaultValue={
+                            listingDraft?.fields.category || 'Сельхозуслуги'
+                          }
+                        >
                           <option>Сельхозуслуги</option>
                           <option>Спецтехника</option>
                           <option>Корма и сено</option>
@@ -4520,7 +4704,13 @@ export default function Home() {
                       </div>
                       <label>
                         Вид скота
-                        <select name="livestockType" required>
+                        <select
+                          name="livestockType"
+                          required
+                          defaultValue={
+                            listingDraft?.fields.livestockType || 'Лошади'
+                          }
+                        >
                           <option>Лошади</option>
                           <option>Крупный рогатый скот</option>
                           <option>Овцы</option>
@@ -4536,13 +4726,22 @@ export default function Home() {
                           type="number"
                           min="1"
                           max="10000"
-                          defaultValue="1"
+                          defaultValue={
+                            listingDraft?.fields.livestockQuantity || '1'
+                          }
                           required
                         />
                       </label>
                       <label>
                         Как указана цена
-                        <select name="livestockPriceMode" required>
+                        <select
+                          name="livestockPriceMode"
+                          required
+                          defaultValue={
+                            listingDraft?.fields.livestockPriceMode ||
+                            'per_head'
+                          }
+                        >
                           <option value="per_head">За одну голову</option>
                           <option value="whole_group">За всё стадо</option>
                         </select>
@@ -4552,6 +4751,9 @@ export default function Home() {
                         <input
                           name="livestockBreed"
                           maxLength={120}
+                          defaultValue={
+                            listingDraft?.fields.livestockBreed || ''
+                          }
                           placeholder="Например, казахская белоголовая"
                         />
                       </label>
@@ -4562,6 +4764,7 @@ export default function Home() {
                     <input
                       name="title"
                       required
+                      defaultValue={listingDraft?.fields.title || ''}
                       placeholder={
                         listingFlow === 'livestock'
                           ? 'Например, табун лошадей — 12 голов'
@@ -4594,13 +4797,17 @@ export default function Home() {
                       type="number"
                       min="0"
                       required
+                      defaultValue={listingDraft?.fields.price || ''}
                       placeholder="18000"
                     />
                   </label>
                   {listingFlow === 'standard' && (
                     <label>
                       Единица
-                      <select name="unit">
+                      <select
+                        name="unit"
+                        defaultValue={listingDraft?.fields.unit || '/ услуга'}
+                      >
                         <option>/ услуга</option>
                         <option>/ га</option>
                         <option>/ час</option>
@@ -4617,9 +4824,10 @@ export default function Home() {
                       name="region"
                       required
                       defaultValue={
-                        selectedRegion === 'Весь Казахстан'
+                        listingDraft?.fields.region ||
+                        (selectedRegion === 'Весь Казахстан'
                           ? 'Область Жетісу'
-                          : selectedRegion
+                          : selectedRegion)
                       }
                     >
                       {kzRegions.slice(1).map((r) => (
@@ -4633,14 +4841,15 @@ export default function Home() {
                       name="location"
                       required
                       defaultValue={
-                        selectedRegion === 'Алматы' ||
+                        listingDraft?.fields.location ||
+                        (selectedRegion === 'Алматы' ||
                         selectedRegion === 'Астана' ||
                         selectedRegion === 'Шымкент'
                           ? selectedRegion
                           : selectedRegion === 'Весь Казахстан' ||
                               selectedRegion === 'Область Жетісу'
                             ? 'Талдыкорган'
-                            : ''
+                            : '')
                       }
                     />
                   </label>
@@ -4674,19 +4883,29 @@ export default function Home() {
                       type="tel"
                       inputMode="tel"
                       required
+                      defaultValue={listingDraft?.fields.phone || ''}
                       placeholder="+7 700 123 45 67"
                     />
                   </label>
                   <label>
                     Кто размещает
-                    <select name="sellerType">
+                    <select
+                      name="sellerType"
+                      defaultValue={
+                        listingDraft?.fields.sellerType || 'Частное лицо'
+                      }
+                    >
                       <option>Частное лицо</option>
                       <option>Компания</option>
                       <option>Магазин</option>
                     </select>
                   </label>
                   <label className="check-line form-delivery">
-                    <input name="delivery" type="checkbox" />{' '}
+                    <input
+                      name="delivery"
+                      type="checkbox"
+                      defaultChecked={listingDraft?.fields.delivery === 'on'}
+                    />{' '}
                     {listingFlow === 'livestock'
                       ? 'Помогу с перевозкой'
                       : 'Возможна доставка или выезд'}
@@ -4696,6 +4915,7 @@ export default function Home() {
                       Когда доступно
                       <input
                         name="available"
+                        defaultValue={listingDraft?.fields.available || ''}
                         placeholder="Например, 2–7 сентября"
                       />
                     </label>
@@ -4705,6 +4925,7 @@ export default function Home() {
                     <textarea
                       name="description"
                       rows={3}
+                      defaultValue={listingDraft?.fields.description || ''}
                       placeholder={
                         listingFlow === 'livestock'
                           ? 'Возраст, состояние, документы и условия осмотра'
@@ -4740,10 +4961,45 @@ export default function Home() {
                     </p>
                   </div>
                 </div>
-                <form className="product-form" onSubmit={addRequest}>
+                <form
+                  className="product-form"
+                  onSubmit={addRequest}
+                  onChange={(event) => saveRequestDraft(event.currentTarget)}
+                >
+                  <div className="form-draft-note wide">
+                    <CheckCircle2 />
+                    <span>
+                      <b>
+                        {!requestSeed && requestDraft
+                          ? 'Черновик заявки восстановлен'
+                          : 'Черновик сохраняется автоматически'}
+                      </b>
+                      <small>
+                        Заполненные поля останутся на этом устройстве, даже если
+                        пропадёт интернет.
+                      </small>
+                    </span>
+                    {!requestSeed && requestDraft && (
+                      <button
+                        type="button"
+                        onClick={(event) =>
+                          clearRequestDraft(event.currentTarget.form)
+                        }
+                      >
+                        Очистить
+                      </button>
+                    )}
+                  </div>
                   <label>
                     Направление
-                    <select name="kind" defaultValue={requestSeedKind}>
+                    <select
+                      name="kind"
+                      defaultValue={
+                        requestSeed
+                          ? requestSeedKind
+                          : requestDraft?.fields.kind || requestSeedKind
+                      }
+                    >
                       <option value="agro">Сельхозтехника и услуги</option>
                       <option value="rent">Аренда</option>
                       <option value="build">Материалы и стройка</option>
@@ -4754,6 +5010,9 @@ export default function Home() {
                     Бюджет
                     <input
                       name="budget"
+                      defaultValue={
+                        requestSeed ? '' : requestDraft?.fields.budget || ''
+                      }
                       placeholder="До 50 000 ₸ или договорная"
                     />
                   </label>
@@ -4762,7 +5021,9 @@ export default function Home() {
                     <input
                       name="title"
                       required
-                      defaultValue={requestSeed}
+                      defaultValue={
+                        requestSeed || requestDraft?.fields.title || ''
+                      }
                       placeholder="Например, убрать 70 га пшеницы"
                     />
                   </label>
@@ -4772,9 +5033,10 @@ export default function Home() {
                       name="region"
                       required
                       defaultValue={
-                        selectedRegion === 'Весь Казахстан'
+                        (!requestSeed && requestDraft?.fields.region) ||
+                        (selectedRegion === 'Весь Казахстан'
                           ? 'Область Жетісу'
-                          : selectedRegion
+                          : selectedRegion)
                       }
                     >
                       {kzRegions.slice(1).map((region) => (
@@ -4788,9 +5050,10 @@ export default function Home() {
                       name="place"
                       required
                       defaultValue={
-                        selectedRegion === 'Весь Казахстан'
+                        (!requestSeed && requestDraft?.fields.place) ||
+                        (selectedRegion === 'Весь Казахстан'
                           ? 'Талдыкорган'
-                          : selectedRegion
+                          : selectedRegion)
                       }
                     />
                   </label>
@@ -4799,6 +5062,9 @@ export default function Home() {
                     <input
                       name="when"
                       required
+                      defaultValue={
+                        requestSeed ? '' : requestDraft?.fields.when || ''
+                      }
                       placeholder="Завтра или точная дата"
                     />
                   </label>
