@@ -465,17 +465,6 @@ const businessProfileLabels: Record<BusinessProfileType, string> = {
   store: 'Магазин или склад',
   service_company: 'Сервисная компания',
 };
-const supportCategoryLabels: Record<SupportTicket['category'], string> = {
-  bug: 'Ошибка в приложении',
-  idea: 'Идея для Qoldan',
-  safety: 'Безопасность',
-  other: 'Другой вопрос',
-};
-const supportStatusLabels: Record<SupportTicket['status'], string> = {
-  new: 'Получено',
-  reviewing: 'Разбираемся',
-  closed: 'Готово',
-};
 const formatActivityDate = (timestamp: number) =>
   new Intl.DateTimeFormat('ru-RU', {
     day: 'numeric',
@@ -1439,6 +1428,675 @@ const uiContent = {
     notifications: 'Notifications',
   },
 } as const;
+const internalContent = {
+  ru: {
+    close: 'Закрыть',
+    listing: {
+      eyebrow: 'НОВОЕ ПРЕДЛОЖЕНИЕ',
+      title: 'Подать объявление',
+      lead: 'Предложение появится в выбранном регионе и будет доступно в вашем профиле на других устройствах.',
+      standard: 'Обычное объявление',
+      standardHint: 'Техника, аренда, услуги и материалы',
+      livestock: 'Скот или стадо',
+      livestockHint: 'Одна голова или несколько животных',
+      draftSaved: 'Черновик сохранён на устройстве',
+      draftAuto: 'Черновик сохранится автоматически',
+      draftHint:
+        'Текст и контакты не пропадут. Фото и точную геопозицию нужно выбрать повторно.',
+      clear: 'Очистить',
+      offerType: 'Тип предложения',
+      category: 'Категория',
+      livestockSale: 'Продажа животных',
+      livestockFieldsHint:
+        'Заполните четыре коротких поля — остальное как в обычном объявлении',
+      livestockType: 'Вид скота',
+      quantity: 'Количество голов',
+      priceMode: 'Как указана цена',
+      perHead: 'За одну голову',
+      wholeGroup: 'За всё стадо',
+      breed: 'Порода',
+      optional: 'необязательно',
+      breedPlaceholder: 'Например, казахская белоголовая',
+      name: 'Название',
+      livestockTitlePlaceholder: 'Например, табун лошадей — 12 голов',
+      standardTitlePlaceholder: 'Например, вспашка полей МТЗ-82',
+      photo: 'Фотография',
+      choosePhoto: 'Выбрать реальное фото',
+      photoHint: 'JPG, PNG или WebP · до 5 МБ, сожмём сами',
+      previewAlt: 'Предпросмотр объявления',
+      price: 'Цена',
+      unit: 'Единица',
+      region: 'Регион',
+      city: 'Город или район',
+      locating: 'Определяем точку…',
+      pointAdded: 'Точная точка добавлена',
+      addPoint: 'Добавить точку с устройства',
+      updatePoint: 'нажмите, чтобы обновить',
+      pointHint: 'Необязательно — город и регион всё равно останутся видны',
+      phone: 'Телефон для связи',
+      seller: 'Кто размещает',
+      person: 'Частное лицо',
+      company: 'Компания',
+      store: 'Магазин',
+      livestockDelivery: 'Помогу с перевозкой',
+      delivery: 'Возможна доставка или выезд',
+      available: 'Когда доступно',
+      availablePlaceholder: 'Например, 2–7 сентября',
+      description: 'Описание',
+      livestockDescription: 'Возраст, состояние, документы и условия осмотра',
+      standardDescription: 'Расскажите о состоянии, условиях и радиусе выезда',
+      publishing: 'Публикуем…',
+      publish: 'Опубликовать объявление',
+      categories: [
+        ['Сельхозуслуги', 'Сельхозуслуги'],
+        ['Спецтехника', 'Спецтехника'],
+        ['Корма и сено', 'Корма и сено'],
+        ['Зерно', 'Зерно'],
+        ['Пастбища', 'Пастбища'],
+        ['Перевозка скота', 'Перевозка скота'],
+        ['Инструменты', 'Инструменты'],
+        ['Электроника', 'Электроника'],
+        ['Оборудование', 'Оборудование'],
+        ['Для мероприятий', 'Для мероприятий'],
+        ['Стройматериалы', 'Стройматериалы'],
+        ['Остатки партий', 'Остатки партий'],
+        ['Доставка', 'Доставка'],
+      ],
+      livestockTypes: [
+        ['Лошади', 'Лошади'],
+        ['Крупный рогатый скот', 'Крупный рогатый скот'],
+        ['Овцы', 'Овцы'],
+        ['Козы', 'Козы'],
+        ['Верблюды', 'Верблюды'],
+        ['Другое', 'Другое'],
+      ],
+    },
+    requestForm: {
+      eyebrow: 'МНЕ НУЖНО',
+      title: 'Создать заявку',
+      lead: 'Опишите задачу — исполнители увидят её и смогут предложить цену.',
+      draftRestored: 'Черновик заявки восстановлен',
+      draftAuto: 'Черновик сохраняется автоматически',
+      draftHint:
+        'Заполненные поля останутся на этом устройстве, даже если пропадёт интернет.',
+      direction: 'Направление',
+      agro: 'Сельхозтехника и услуги',
+      rent: 'Аренда',
+      build: 'Материалы и стройка',
+      recycle: 'Вторсырьё и вывоз',
+      budget: 'Бюджет',
+      budgetPlaceholder: 'До 50 000 ₸ или договорная',
+      need: 'Что вам нужно?',
+      needPlaceholder: 'Например, убрать 70 га пшеницы',
+      region: 'Регион',
+      where: 'Где?',
+      when: 'Когда?',
+      whenPlaceholder: 'Завтра или точная дата',
+      publishing: 'Публикуем…',
+      publish: 'Опубликовать заявку',
+    },
+    regions: {
+      eyebrow: 'ГЕОГРАФИЯ QOLDAN',
+      title: 'Выберите регион',
+      lead: 'Покажем предложения и заявки в нужной части Казахстана.',
+    },
+    profile: {
+      synced: 'Профиль синхронизирован',
+      demo: 'Демонстрационный режим',
+      connecting: 'Подключаем профиль…',
+      listings: 'объявлений',
+      requests: 'заявок',
+      bookingsPending: 'броней ожидают',
+      reputation: 'РЕПУТАЦИЯ ИСПОЛНИТЕЛЯ',
+      noRatings: 'Пока без оценок',
+      outOfFive: 'из 5',
+      verifiedReviews: 'проверенных отзывов после выполненных заявок.',
+      firstRating:
+        'Первая оценка появится после завершённой работы через мини‑тендер Qoldan.',
+      moderation: 'Модерация',
+      savedSearches: 'Сохранённые поиски',
+      recent: 'Недавно просмотренные',
+      favorites: 'Избранное',
+      messages: 'Сообщения',
+      bookings: 'Бронирования',
+      appeals: 'Мои апелляции',
+      help: 'Помощь и безопасность',
+      myListings: 'Мои объявления',
+      myRequests: 'Мои заявки',
+    },
+    support: {
+      eyebrow: 'ПОМОЩЬ И БЕЗОПАСНОСТЬ',
+      title: 'Qoldan рядом, когда нужно',
+      lead: 'Короткие правила без мелкого шрифта и настоящее обращение в команду с номером и статусом.',
+      safety: 'Безопасность',
+      rules: 'Правила',
+      privacy: 'Приватность',
+      feedback: 'Написать нам',
+      queue: 'Очередь',
+      mainRule: 'ГЛАВНОЕ ПРАВИЛО',
+      mainRuleTitle: 'Сначала проверьте — потом рассчитывайтесь',
+      mainRuleText:
+        'Qoldan пока не принимает оплату и не просит код из SMS. Договорённость и расчёт происходят напрямую между участниками.',
+      safetyItems: [
+        [
+          'Обсудите всё в сообщениях',
+          'Зафиксируйте цену, объём работы, дату, доставку и условия отмены до встречи.',
+        ],
+        [
+          'Осмотрите товар или технику',
+          'Сверьте состояние, комплектность и документы. Для скота уточните здоровье и ветдокументы.',
+        ],
+        [
+          'Не спешите с предоплатой',
+          'Не переводите деньги незнакомому человеку только из-за скидки или срочности.',
+        ],
+        [
+          'Для аренды сделайте передачу',
+          'Встроенный чек-лист сохранит состояние, комплект и залог при выдаче и возврате.',
+        ],
+      ],
+      reportProblem: 'Сообщить о проблеме',
+      honest: 'Публикуйте честно',
+      honestText:
+        'Реальные фото, понятная цена, верная категория, населённый пункт и актуальное описание.',
+      oneOffer: 'Одно предложение — одно объявление',
+      oneOfferText:
+        'Не создавайте повторы, спам и заголовки, которые не соответствуют содержанию.',
+      prohibited: 'Что запрещено',
+      prohibitedText:
+        'Обман, краденые и незаконные товары, опасные услуги, ложные сведения о животных и чужие фотографии.',
+      moderationNote:
+        'При жалобе публикация не исчезает автоматически: модератор проверяет контекст, фиксирует решение и даёт автору возможность подать апелляцию.',
+      dataEyebrow: 'ПРОСТО О ДАННЫХ',
+      dataTitle: 'Публично — только то, что нужно для объявления',
+      dataLead:
+        'Перед публикацией проверяйте, какие контакты и сведения вы оставляете в открытом описании.',
+      privacyItems: [
+        [
+          'Видят другие',
+          'Название, фото, цена, описание, регион, имя автора и контакт для связи.',
+        ],
+        [
+          'Не публикуется',
+          'БИН, заметки модерации, личные сообщения и данные проверки бизнес-профиля.',
+        ],
+        [
+          'Точная геопозиция',
+          'Добавляется только по вашему действию. Населённый пункт всё равно остаётся виден.',
+        ],
+      ],
+      privacyNote:
+        'Не пишите в открытом описании ИИН, номер документа, банковские данные, домашний адрес или коды из SMS.',
+      writeTeam: 'Напишите команде Qoldan',
+      writeTeamHint: 'Мы сохраним обращение и покажем его статус здесь.',
+      topic: 'Тема',
+      bug: 'Ошибка в приложении',
+      idea: 'Идея для Qoldan',
+      safetyQuestion: 'Вопрос безопасности',
+      other: 'Другой вопрос',
+      messageLabel: 'Что произошло или что хотите предложить',
+      messagePlaceholder:
+        'Опишите своими словами. Если это ошибка — напишите, что нажали и что ожидали увидеть.',
+      formHint:
+        'Страница прикрепится автоматически. Не указывайте ИИН и банковские данные.',
+      sending: 'Отправляем…',
+      send: 'Отправить обращение',
+      myTickets: 'МОИ ОБРАЩЕНИЯ',
+      history: 'История и статусы',
+      updating: 'Обновляем…',
+      teamReply: 'ОТВЕТ КОМАНДЫ',
+      noTickets: 'Обращений пока нет',
+      noTicketsText: 'Первое обращение появится здесь сразу после отправки.',
+      statusNew: 'Новое',
+      statusReviewing: 'Проверяется',
+      statusClosed: 'Закрыто',
+    },
+  },
+  kk: {
+    close: 'Жабу',
+    listing: {
+      eyebrow: 'ЖАҢА ҰСЫНЫС',
+      title: 'Хабарландыру беру',
+      lead: 'Ұсыныс таңдалған өңірде жарияланып, басқа құрылғылардағы профиліңізде қолжетімді болады.',
+      standard: 'Қарапайым хабарландыру',
+      standardHint: 'Техника, жалға беру, қызметтер және материалдар',
+      livestock: 'Мал немесе табын',
+      livestockHint: 'Бір мал немесе бірнеше жануар',
+      draftSaved: 'Нобай құрылғыда сақталды',
+      draftAuto: 'Нобай автоматты сақталады',
+      draftHint:
+        'Мәтін мен байланыс жоғалмайды. Фото мен нақты орынды қайта таңдау керек.',
+      clear: 'Тазарту',
+      offerType: 'Ұсыныс түрі',
+      category: 'Санат',
+      livestockSale: 'Мал сату',
+      livestockFieldsHint:
+        'Төрт қысқа өрісті толтырыңыз — қалғаны кәдімгі хабарландыру сияқты',
+      livestockType: 'Мал түрі',
+      quantity: 'Мал саны',
+      priceMode: 'Баға қалай көрсетілген',
+      perHead: 'Бір бас үшін',
+      wholeGroup: 'Бүкіл табын үшін',
+      breed: 'Тұқымы',
+      optional: 'міндетті емес',
+      breedPlaceholder: 'Мысалы, қазақтың ақбас сиыры',
+      name: 'Атауы',
+      livestockTitlePlaceholder: 'Мысалы, 12 бас жылқы табыны',
+      standardTitlePlaceholder: 'Мысалы, МТЗ-82 тракторымен жер жырту',
+      photo: 'Фотосурет',
+      choosePhoto: 'Нақты фото таңдау',
+      photoHint: 'JPG, PNG немесе WebP · 5 МБ дейін',
+      previewAlt: 'Хабарландыру көрінісі',
+      price: 'Бағасы',
+      unit: 'Өлшем бірлігі',
+      region: 'Өңір',
+      city: 'Қала немесе аудан',
+      locating: 'Орын анықталуда…',
+      pointAdded: 'Нақты орын қосылды',
+      addPoint: 'Құрылғыдан орынды қосу',
+      updatePoint: 'жаңарту үшін басыңыз',
+      pointHint: 'Міндетті емес — қала мен өңір бәрібір көрінеді',
+      phone: 'Байланыс телефоны',
+      seller: 'Кім жариялайды',
+      person: 'Жеке тұлға',
+      company: 'Компания',
+      store: 'Дүкен',
+      livestockDelivery: 'Тасымалдауға көмектесемін',
+      delivery: 'Жеткізу немесе барып қызмет көрсету мүмкін',
+      available: 'Қашан қолжетімді',
+      availablePlaceholder: 'Мысалы, 2–7 қыркүйек',
+      description: 'Сипаттама',
+      livestockDescription: 'Жасы, күйі, құжаттары және көру шарттары',
+      standardDescription: 'Күйі, шарттары және бару қашықтығын жазыңыз',
+      publishing: 'Жариялануда…',
+      publish: 'Хабарландыруды жариялау',
+      categories: [
+        ['Сельхозуслуги', 'Ауыл шаруашылық қызметтері'],
+        ['Спецтехника', 'Арнайы техника'],
+        ['Корма и сено', 'Жем және шөп'],
+        ['Зерно', 'Астық'],
+        ['Пастбища', 'Жайылым'],
+        ['Перевозка скота', 'Мал тасымалдау'],
+        ['Инструменты', 'Құралдар'],
+        ['Электроника', 'Электроника'],
+        ['Оборудование', 'Жабдық'],
+        ['Для мероприятий', 'Іс-шараларға'],
+        ['Стройматериалы', 'Құрылыс материалдары'],
+        ['Остатки партий', 'Партия қалдықтары'],
+        ['Доставка', 'Жеткізу'],
+      ],
+      livestockTypes: [
+        ['Лошади', 'Жылқы'],
+        ['Крупный рогатый скот', 'Ірі қара'],
+        ['Овцы', 'Қой'],
+        ['Козы', 'Ешкі'],
+        ['Верблюды', 'Түйе'],
+        ['Другое', 'Басқа'],
+      ],
+    },
+    requestForm: {
+      eyebrow: 'МАҒАН КЕРЕК',
+      title: 'Өтінім жасау',
+      lead: 'Тапсырманы сипаттаңыз — орындаушылар көріп, өз бағасын ұсынады.',
+      draftRestored: 'Өтінім нобайы қалпына келтірілді',
+      draftAuto: 'Нобай автоматты сақталады',
+      draftHint: 'Интернет өшсе де, толтырылған өрістер осы құрылғыда қалады.',
+      direction: 'Бағыт',
+      agro: 'Ауыл шаруашылық техникасы мен қызметтер',
+      rent: 'Жалға алу',
+      build: 'Материалдар мен құрылыс',
+      recycle: 'Қайталама шикізат және алып кету',
+      budget: 'Бюджет',
+      budgetPlaceholder: '50 000 ₸ дейін немесе келісімді',
+      need: 'Сізге не қажет?',
+      needPlaceholder: 'Мысалы, 70 га бидай жинау',
+      region: 'Өңір',
+      where: 'Қайда?',
+      when: 'Қашан?',
+      whenPlaceholder: 'Ертең немесе нақты күн',
+      publishing: 'Жариялануда…',
+      publish: 'Өтінімді жариялау',
+    },
+    regions: {
+      eyebrow: 'QOLDAN ГЕОГРАФИЯСЫ',
+      title: 'Өңірді таңдаңыз',
+      lead: 'Қазақстанның қажетті бөлігіндегі ұсыныстар мен өтінімдерді көрсетеміз.',
+    },
+    profile: {
+      synced: 'Профиль синхрондалды',
+      demo: 'Демонстрациялық режим',
+      connecting: 'Профиль қосылуда…',
+      listings: 'хабарландыру',
+      requests: 'өтінім',
+      bookingsPending: 'бронь күтуде',
+      reputation: 'ОРЫНДАУШЫ БЕДЕЛІ',
+      noRatings: 'Әзірге баға жоқ',
+      outOfFive: '5-тен',
+      verifiedReviews: 'орындалған өтінімнен кейінгі расталған пікір.',
+      firstRating:
+        'Алғашқы баға Qoldan мини-тендері арқылы аяқталған жұмыстан кейін шығады.',
+      moderation: 'Модерация',
+      savedSearches: 'Сақталған іздеулер',
+      recent: 'Жақында қаралғандар',
+      favorites: 'Таңдаулы',
+      messages: 'Хабарламалар',
+      bookings: 'Броньдар',
+      appeals: 'Менің апелляцияларым',
+      help: 'Көмек және қауіпсіздік',
+      myListings: 'Менің хабарландыруларым',
+      myRequests: 'Менің өтінімдерім',
+    },
+    support: {
+      eyebrow: 'КӨМЕК ЖӘНЕ ҚАУІПСІЗДІК',
+      title: 'Қажет кезде Qoldan жаныңызда',
+      lead: 'Ұсақ қаріпсіз қысқа ережелер және нөмірі мен мәртебесі бар нақты өтініш.',
+      safety: 'Қауіпсіздік',
+      rules: 'Ережелер',
+      privacy: 'Құпиялық',
+      feedback: 'Бізге жазу',
+      queue: 'Кезек',
+      mainRule: 'БАСТЫ ЕРЕЖЕ',
+      mainRuleTitle: 'Алдымен тексеріңіз — кейін есептесіңіз',
+      mainRuleText:
+        'Qoldan әзірге төлем қабылдамайды және SMS кодын сұрамайды. Келісім мен есеп айырысу қатысушылар арасында тікелей өтеді.',
+      safetyItems: [
+        [
+          'Бәрін хабарламада талқылаңыз',
+          'Баға, жұмыс көлемі, күн, жеткізу және бас тарту шарттарын алдын ала жазыңыз.',
+        ],
+        [
+          'Тауарды немесе техниканы қараңыз',
+          'Күйін, жиынтығын және құжаттарын тексеріңіз. Мал үшін ветқұжаттарды нақтылаңыз.',
+        ],
+        [
+          'Алдын ала төлемге асықпаңыз',
+          'Жеңілдік немесе асығыстық үшін бейтаныс адамға ақша жібермеңіз.',
+        ],
+        [
+          'Жалға бергенде тапсыруды рәсімдеңіз',
+          'Кіріктірілген чек-лист күйін, жиынтығын және кепілді сақтайды.',
+        ],
+      ],
+      reportProblem: 'Мәселе туралы хабарлау',
+      honest: 'Шынайы жариялаңыз',
+      honestText:
+        'Нақты фото, түсінікті баға, дұрыс санат, елді мекен және өзекті сипаттама.',
+      oneOffer: 'Бір ұсыныс — бір хабарландыру',
+      oneOfferText: 'Қайталау, спам және мазмұнға сай емес тақырып жасамаңыз.',
+      prohibited: 'Не тыйым салынған',
+      prohibitedText:
+        'Алаяқтық, ұрланған және заңсыз тауар, қауіпті қызмет, мал туралы жалған ақпарат және бөтен фото.',
+      moderationNote:
+        'Шағым түскенде жарияланым автоматты өшпейді: модератор тексеріп, шешімді тіркейді және авторға апелляция беруге мүмкіндік береді.',
+      dataEyebrow: 'ДЕРЕКТЕР ТУРАЛЫ ҚАРАПАЙЫМ',
+      dataTitle: 'Ашық жерде — тек хабарландыруға қажеттісі',
+      dataLead:
+        'Жарияламас бұрын ашық сипаттамада қандай байланыс пен мәлімет қалдырғаныңызды тексеріңіз.',
+      privacyItems: [
+        [
+          'Басқалар көреді',
+          'Атауы, фото, баға, сипаттама, өңір, автор аты және байланыс нөмірі.',
+        ],
+        [
+          'Жарияланбайды',
+          'БСН, модерация жазбалары, жеке хабарламалар және бизнес тексеру деректері.',
+        ],
+        [
+          'Нақты геопозиция',
+          'Тек сіздің әрекетіңізбен қосылады. Елді мекен бәрібір көрінеді.',
+        ],
+      ],
+      privacyNote:
+        'Ашық сипаттамада ЖСН, құжат нөмірі, банк деректері, үй мекенжайы немесе SMS кодын жазбаңыз.',
+      writeTeam: 'Qoldan командасына жазыңыз',
+      writeTeamHint: 'Өтінішті сақтап, мәртебесін осы жерде көрсетеміз.',
+      topic: 'Тақырып',
+      bug: 'Қосымшадағы қате',
+      idea: 'Qoldan үшін идея',
+      safetyQuestion: 'Қауіпсіздік сұрағы',
+      other: 'Басқа сұрақ',
+      messageLabel: 'Не болды немесе не ұсынғыңыз келеді',
+      messagePlaceholder:
+        'Өз сөзіңізбен жазыңыз. Қате болса, не басқаныңызды және не күткеніңізді айтыңыз.',
+      formHint: 'Бет автоматты тіркеледі. ЖСН мен банк деректерін көрсетпеңіз.',
+      sending: 'Жіберілуде…',
+      send: 'Өтінішті жіберу',
+      myTickets: 'МЕНІҢ ӨТІНІШТЕРІМ',
+      history: 'Тарих және мәртебелер',
+      updating: 'Жаңартылуда…',
+      teamReply: 'КОМАНДА ЖАУАБЫ',
+      noTickets: 'Өтініштер әзірге жоқ',
+      noTicketsText: 'Алғашқы өтініш жіберілгеннен кейін бірден осында шығады.',
+      statusNew: 'Жаңа',
+      statusReviewing: 'Тексерілуде',
+      statusClosed: 'Жабық',
+    },
+  },
+  en: {
+    close: 'Close',
+    listing: {
+      eyebrow: 'NEW OFFER',
+      title: 'Post a listing',
+      lead: 'Your offer will appear in the selected region and remain available in your profile on other devices.',
+      standard: 'Regular listing',
+      standardHint: 'Machinery, rentals, services, and materials',
+      livestock: 'Livestock or herd',
+      livestockHint: 'One animal or a whole group',
+      draftSaved: 'Draft saved on this device',
+      draftAuto: 'Draft saves automatically',
+      draftHint:
+        'Your text and contact details will remain. Select the photo and exact location again.',
+      clear: 'Clear',
+      offerType: 'Offer type',
+      category: 'Category',
+      livestockSale: 'Livestock sale',
+      livestockFieldsHint:
+        'Fill in four short fields — the rest works like a regular listing',
+      livestockType: 'Livestock type',
+      quantity: 'Number of animals',
+      priceMode: 'Price applies to',
+      perHead: 'One animal',
+      wholeGroup: 'The whole group',
+      breed: 'Breed',
+      optional: 'optional',
+      breedPlaceholder: 'For example, Kazakh Whiteheaded',
+      name: 'Title',
+      livestockTitlePlaceholder: 'For example, herd of 12 horses',
+      standardTitlePlaceholder: 'For example, MTZ-82 field ploughing',
+      photo: 'Photo',
+      choosePhoto: 'Choose a real photo',
+      photoHint: 'JPG, PNG, or WebP · up to 5 MB',
+      previewAlt: 'Listing preview',
+      price: 'Price',
+      unit: 'Unit',
+      region: 'Region',
+      city: 'City or district',
+      locating: 'Locating…',
+      pointAdded: 'Exact location added',
+      addPoint: 'Add location from device',
+      updatePoint: 'tap to update',
+      pointHint: 'Optional — the city and region will still remain visible',
+      phone: 'Contact phone',
+      seller: 'Posted by',
+      person: 'Individual',
+      company: 'Company',
+      store: 'Store',
+      livestockDelivery: 'I can help with transport',
+      delivery: 'Delivery or travel available',
+      available: 'Availability',
+      availablePlaceholder: 'For example, September 2–7',
+      description: 'Description',
+      livestockDescription: 'Age, condition, documents, and viewing terms',
+      standardDescription: 'Describe the condition, terms, and travel radius',
+      publishing: 'Publishing…',
+      publish: 'Publish listing',
+      categories: [
+        ['Сельхозуслуги', 'Farm services'],
+        ['Спецтехника', 'Heavy machinery'],
+        ['Корма и сено', 'Feed and hay'],
+        ['Зерно', 'Grain'],
+        ['Пастбища', 'Pastures'],
+        ['Перевозка скота', 'Livestock transport'],
+        ['Инструменты', 'Tools'],
+        ['Электроника', 'Electronics'],
+        ['Оборудование', 'Equipment'],
+        ['Для мероприятий', 'Event equipment'],
+        ['Стройматериалы', 'Building materials'],
+        ['Остатки партий', 'Surplus batches'],
+        ['Доставка', 'Delivery'],
+      ],
+      livestockTypes: [
+        ['Лошади', 'Horses'],
+        ['Крупный рогатый скот', 'Cattle'],
+        ['Овцы', 'Sheep'],
+        ['Козы', 'Goats'],
+        ['Верблюды', 'Camels'],
+        ['Другое', 'Other'],
+      ],
+    },
+    requestForm: {
+      eyebrow: 'I NEED',
+      title: 'Create a request',
+      lead: 'Describe the task and providers will see it and offer their price.',
+      draftRestored: 'Request draft restored',
+      draftAuto: 'Draft saves automatically',
+      draftHint:
+        'Completed fields will stay on this device even if your connection drops.',
+      direction: 'Category',
+      agro: 'Farm machinery and services',
+      rent: 'Rental',
+      build: 'Materials and construction',
+      recycle: 'Recyclables and pickup',
+      budget: 'Budget',
+      budgetPlaceholder: 'Up to 50,000 ₸ or negotiable',
+      need: 'What do you need?',
+      needPlaceholder: 'For example, harvest 70 ha of wheat',
+      region: 'Region',
+      where: 'Where?',
+      when: 'When?',
+      whenPlaceholder: 'Tomorrow or a specific date',
+      publishing: 'Publishing…',
+      publish: 'Publish request',
+    },
+    regions: {
+      eyebrow: 'QOLDAN GEOGRAPHY',
+      title: 'Choose a region',
+      lead: 'We will show offers and requests in the relevant part of Kazakhstan.',
+    },
+    profile: {
+      synced: 'Profile synced',
+      demo: 'Demo mode',
+      connecting: 'Connecting profile…',
+      listings: 'listings',
+      requests: 'requests',
+      bookingsPending: 'bookings pending',
+      reputation: 'PROVIDER REPUTATION',
+      noRatings: 'No ratings yet',
+      outOfFive: 'out of 5',
+      verifiedReviews: 'verified reviews after completed requests.',
+      firstRating:
+        'The first rating appears after work completed through a Qoldan mini-tender.',
+      moderation: 'Moderation',
+      savedSearches: 'Saved searches',
+      recent: 'Recently viewed',
+      favorites: 'Favorites',
+      messages: 'Messages',
+      bookings: 'Bookings',
+      appeals: 'My appeals',
+      help: 'Help and safety',
+      myListings: 'My listings',
+      myRequests: 'My requests',
+    },
+    support: {
+      eyebrow: 'HELP AND SAFETY',
+      title: 'Qoldan is here when you need it',
+      lead: 'Short, plain-language rules and real support requests with a reference number and status.',
+      safety: 'Safety',
+      rules: 'Rules',
+      privacy: 'Privacy',
+      feedback: 'Contact us',
+      queue: 'Queue',
+      mainRule: 'THE MAIN RULE',
+      mainRuleTitle: 'Check first, pay afterwards',
+      mainRuleText:
+        'Qoldan does not take payments yet and never asks for an SMS code. Participants agree and settle directly.',
+      safetyItems: [
+        [
+          'Discuss everything in messages',
+          'Record the price, scope, date, delivery, and cancellation terms before meeting.',
+        ],
+        [
+          'Inspect the item or machinery',
+          'Check condition, completeness, and documents. For livestock, ask for veterinary records.',
+        ],
+        [
+          'Do not rush into prepayment',
+          'Do not send money to a stranger just because of a discount or urgency.',
+        ],
+        [
+          'Use a rental handover',
+          'The built-in checklist records condition, included items, and deposit at handover and return.',
+        ],
+      ],
+      reportProblem: 'Report a problem',
+      honest: 'Post honestly',
+      honestText:
+        'Use real photos, a clear price, the correct category, location, and an up-to-date description.',
+      oneOffer: 'One offer, one listing',
+      oneOfferText:
+        'Do not create duplicates, spam, or headlines that do not match the content.',
+      prohibited: 'What is prohibited',
+      prohibitedText:
+        'Fraud, stolen or illegal goods, unsafe services, false livestock details, and other people’s photos.',
+      moderationNote:
+        'A report does not remove a post automatically. A moderator reviews the context, records a decision, and allows the author to appeal.',
+      dataEyebrow: 'DATA IN PLAIN LANGUAGE',
+      dataTitle: 'Only listing essentials are public',
+      dataLead:
+        'Before posting, check which contact details and information you leave in the public description.',
+      privacyItems: [
+        [
+          'Others can see',
+          'Title, photo, price, description, region, author name, and chosen contact details.',
+        ],
+        [
+          'Not published',
+          'BIN, moderation notes, private messages, and business verification details.',
+        ],
+        [
+          'Exact location',
+          'Added only when you choose to share it. The city or town still remains visible.',
+        ],
+      ],
+      privacyNote:
+        'Do not put your IIN, document number, banking details, home address, or SMS codes in a public description.',
+      writeTeam: 'Write to the Qoldan team',
+      writeTeamHint: 'We will save your request and show its status here.',
+      topic: 'Topic',
+      bug: 'App issue',
+      idea: 'Idea for Qoldan',
+      safetyQuestion: 'Safety question',
+      other: 'Other question',
+      messageLabel: 'What happened or what would you like to suggest?',
+      messagePlaceholder:
+        'Describe it in your own words. For an issue, tell us what you tapped and what you expected.',
+      formHint:
+        'The current page is attached automatically. Do not include identity or banking details.',
+      sending: 'Sending…',
+      send: 'Send request',
+      myTickets: 'MY REQUESTS',
+      history: 'History and status',
+      updating: 'Updating…',
+      teamReply: 'TEAM REPLY',
+      noTickets: 'No requests yet',
+      noTicketsText:
+        'Your first request will appear here immediately after sending.',
+      statusNew: 'New',
+      statusReviewing: 'Under review',
+      statusClosed: 'Closed',
+    },
+  },
+} as const;
 export default function Home() {
   const [query, setQuery] = useState('');
   const [type, setType] = useState('Все');
@@ -1600,6 +2258,20 @@ export default function Home() {
     useState<RequestItem['kind']>('agro');
   const about = aboutContent[appLang];
   const tr = uiContent[appLang];
+  const internal = internalContent[appLang];
+  const localizedSupportCategory = (category: SupportTicket['category']) =>
+    ({
+      bug: internal.support.bug,
+      idea: internal.support.idea,
+      safety: internal.support.safetyQuestion,
+      other: internal.support.other,
+    })[category];
+  const localizedSupportStatus = (status: SupportTicket['status']) =>
+    ({
+      new: internal.support.statusNew,
+      reviewing: internal.support.statusReviewing,
+      closed: internal.support.statusClosed,
+    })[status];
   const selectedRegionLabel =
     selectedRegion === 'Весь Казахстан' ? tr.allKazakhstan : selectedRegion;
   const aboutIcons = [Tractor, Wrench, PackageOpen];
@@ -5147,7 +5819,7 @@ export default function Home() {
           <MessageCircle />
           <span>{tr.requests}</span>
         </a>
-        <button onClick={openAddListing} aria-label="Подать объявление">
+        <button onClick={openAddListing} aria-label={internal.listing.title}>
           <Plus />
         </button>
         <a
@@ -5181,7 +5853,7 @@ export default function Home() {
             <button
               className="modal-close"
               onClick={() => setModal(null)}
-              aria-label="Закрыть"
+              aria-label={internal.close}
             >
               <X />
             </button>
@@ -5192,12 +5864,9 @@ export default function Home() {
                     <Plus />
                   </span>
                   <div>
-                    <small>НОВОЕ ПРЕДЛОЖЕНИЕ</small>
-                    <h2>Подать объявление</h2>
-                    <p>
-                      Предложение появится в выбранном регионе и будет доступно
-                      в вашем профиле на других устройствах.
-                    </p>
+                    <small>{internal.listing.eyebrow}</small>
+                    <h2>{internal.listing.title}</h2>
+                    <p>{internal.listing.lead}</p>
                   </div>
                 </div>
                 <form
@@ -5216,8 +5885,8 @@ export default function Home() {
                     >
                       <PackageOpen />
                       <span>
-                        <b>Обычное объявление</b>
-                        <small>Техника, аренда, услуги и материалы</small>
+                        <b>{internal.listing.standard}</b>
+                        <small>{internal.listing.standardHint}</small>
                       </span>
                     </button>
                     <button
@@ -5230,8 +5899,8 @@ export default function Home() {
                     >
                       <Beef />
                       <span>
-                        <b>Скот или стадо</b>
-                        <small>Одна голова или несколько животных</small>
+                        <b>{internal.listing.livestock}</b>
+                        <small>{internal.listing.livestockHint}</small>
                       </span>
                     </button>
                   </div>
@@ -5240,13 +5909,10 @@ export default function Home() {
                     <span>
                       <b>
                         {listingDraft
-                          ? 'Черновик сохранён на устройстве'
-                          : 'Черновик сохранится автоматически'}
+                          ? internal.listing.draftSaved
+                          : internal.listing.draftAuto}
                       </b>
-                      <small>
-                        Текст и контакты не пропадут. Фото и точную геопозицию
-                        нужно выбрать повторно.
-                      </small>
+                      <small>{internal.listing.draftHint}</small>
                     </span>
                     {listingDraft && (
                       <button
@@ -5255,26 +5921,26 @@ export default function Home() {
                           clearListingDraft(event.currentTarget.form)
                         }
                       >
-                        Очистить
+                        {internal.listing.clear}
                       </button>
                     )}
                   </div>
                   {listingFlow === 'standard' ? (
                     <>
                       <label>
-                        Тип предложения
+                        {internal.listing.offerType}
                         <select
                           name="type"
                           required
                           defaultValue={listingDraft?.fields.type || 'Продам'}
                         >
-                          <option>Продам</option>
-                          <option>Сдам</option>
-                          <option>Окажу услугу</option>
+                          <option value="Продам">{tr.sale}</option>
+                          <option value="Сдам">{tr.rent}</option>
+                          <option value="Окажу услугу">{tr.service}</option>
                         </select>
                       </label>
                       <label>
-                        Категория
+                        {internal.listing.category}
                         <select
                           name="category"
                           required
@@ -5282,19 +5948,11 @@ export default function Home() {
                             listingDraft?.fields.category || 'Сельхозуслуги'
                           }
                         >
-                          <option>Сельхозуслуги</option>
-                          <option>Спецтехника</option>
-                          <option>Корма и сено</option>
-                          <option>Зерно</option>
-                          <option>Пастбища</option>
-                          <option>Перевозка скота</option>
-                          <option>Инструменты</option>
-                          <option>Электроника</option>
-                          <option>Оборудование</option>
-                          <option>Для мероприятий</option>
-                          <option>Стройматериалы</option>
-                          <option>Остатки партий</option>
-                          <option>Доставка</option>
+                          {internal.listing.categories.map(([value, label]) => (
+                            <option key={value} value={value}>
+                              {label}
+                            </option>
+                          ))}
                         </select>
                       </label>
                     </>
@@ -5305,15 +5963,12 @@ export default function Home() {
                           <Beef />
                         </span>
                         <div>
-                          <b>Продажа животных</b>
-                          <small>
-                            Заполните четыре коротких поля — остальное как в
-                            обычном объявлении
-                          </small>
+                          <b>{internal.listing.livestockSale}</b>
+                          <small>{internal.listing.livestockFieldsHint}</small>
                         </div>
                       </div>
                       <label>
-                        Вид скота
+                        {internal.listing.livestockType}
                         <select
                           name="livestockType"
                           required
@@ -5321,16 +5976,17 @@ export default function Home() {
                             listingDraft?.fields.livestockType || 'Лошади'
                           }
                         >
-                          <option>Лошади</option>
-                          <option>Крупный рогатый скот</option>
-                          <option>Овцы</option>
-                          <option>Козы</option>
-                          <option>Верблюды</option>
-                          <option>Другое</option>
+                          {internal.listing.livestockTypes.map(
+                            ([value, label]) => (
+                              <option key={value} value={value}>
+                                {label}
+                              </option>
+                            ),
+                          )}
                         </select>
                       </label>
                       <label>
-                        Количество голов
+                        {internal.listing.quantity}
                         <input
                           name="livestockQuantity"
                           type="number"
@@ -5343,7 +5999,7 @@ export default function Home() {
                         />
                       </label>
                       <label>
-                        Как указана цена
+                        {internal.listing.priceMode}
                         <select
                           name="livestockPriceMode"
                           required
@@ -5352,38 +6008,43 @@ export default function Home() {
                             'per_head'
                           }
                         >
-                          <option value="per_head">За одну голову</option>
-                          <option value="whole_group">За всё стадо</option>
+                          <option value="per_head">
+                            {internal.listing.perHead}
+                          </option>
+                          <option value="whole_group">
+                            {internal.listing.wholeGroup}
+                          </option>
                         </select>
                       </label>
                       <label>
-                        Порода <small>необязательно</small>
+                        {internal.listing.breed}{' '}
+                        <small>{internal.listing.optional}</small>
                         <input
                           name="livestockBreed"
                           maxLength={120}
                           defaultValue={
                             listingDraft?.fields.livestockBreed || ''
                           }
-                          placeholder="Например, казахская белоголовая"
+                          placeholder={internal.listing.breedPlaceholder}
                         />
                       </label>
                     </div>
                   )}
                   <label className="wide">
-                    Название
+                    {internal.listing.name}
                     <input
                       name="title"
                       required
                       defaultValue={listingDraft?.fields.title || ''}
                       placeholder={
                         listingFlow === 'livestock'
-                          ? 'Например, табун лошадей — 12 голов'
-                          : 'Например, вспашка полей МТЗ-82'
+                          ? internal.listing.livestockTitlePlaceholder
+                          : internal.listing.standardTitlePlaceholder
                       }
                     />
                   </label>
                   <label className="wide photo-upload">
-                    Фотография
+                    {internal.listing.photo}
                     <input
                       name="image"
                       type="file"
@@ -5393,15 +6054,19 @@ export default function Home() {
                     />
                     <span>
                       <Plus />
-                      <b>Выбрать реальное фото</b>
-                      <small>JPG, PNG или WebP · до 5 МБ, сожмём сами</small>
+                      <b>{internal.listing.choosePhoto}</b>
+                      <small>{internal.listing.photoHint}</small>
                     </span>
                     {listingImage && (
-                      <img src={listingImage} alt="Предпросмотр объявления" />
+                      <img
+                        src={listingImage}
+                        alt={internal.listing.previewAlt}
+                      />
                     )}
                   </label>
                   <label>
-                    {listingFlow === 'livestock' ? 'Цена, ₸' : 'Цена'}
+                    {internal.listing.price}
+                    {listingFlow === 'livestock' ? ', ₸' : ''}
                     <input
                       name="price"
                       type="number"
@@ -5413,7 +6078,7 @@ export default function Home() {
                   </label>
                   {listingFlow === 'standard' && (
                     <label>
-                      Единица
+                      {internal.listing.unit}
                       <select
                         name="unit"
                         defaultValue={listingDraft?.fields.unit || '/ услуга'}
@@ -5429,7 +6094,7 @@ export default function Home() {
                     </label>
                   )}
                   <label>
-                    Регион
+                    {internal.listing.region}
                     <select
                       name="region"
                       required
@@ -5446,7 +6111,7 @@ export default function Home() {
                     </select>
                   </label>
                   <label>
-                    Город или район
+                    {internal.listing.city}
                     <input
                       name="location"
                       required
@@ -5473,21 +6138,21 @@ export default function Home() {
                     <span>
                       <b>
                         {submitting === 'geolocation'
-                          ? 'Определяем точку…'
+                          ? internal.listing.locating
                           : listingCoords
-                            ? 'Точная точка добавлена'
-                            : 'Добавить точку с устройства'}
+                            ? internal.listing.pointAdded
+                            : internal.listing.addPoint}
                       </b>
                       <small>
                         {listingCoords
-                          ? `${listingCoords.latitude.toFixed(4)}, ${listingCoords.longitude.toFixed(4)} · нажмите, чтобы обновить`
-                          : 'Необязательно — город и регион всё равно останутся видны'}
+                          ? `${listingCoords.latitude.toFixed(4)}, ${listingCoords.longitude.toFixed(4)} · ${internal.listing.updatePoint}`
+                          : internal.listing.pointHint}
                       </small>
                     </span>
                     {listingCoords && <CheckCircle2 />}
                   </button>
                   <label>
-                    Телефон для связи
+                    {internal.listing.phone}
                     <input
                       name="phone"
                       type="tel"
@@ -5498,16 +6163,20 @@ export default function Home() {
                     />
                   </label>
                   <label>
-                    Кто размещает
+                    {internal.listing.seller}
                     <select
                       name="sellerType"
                       defaultValue={
                         listingDraft?.fields.sellerType || 'Частное лицо'
                       }
                     >
-                      <option>Частное лицо</option>
-                      <option>Компания</option>
-                      <option>Магазин</option>
+                      <option value="Частное лицо">
+                        {internal.listing.person}
+                      </option>
+                      <option value="Компания">
+                        {internal.listing.company}
+                      </option>
+                      <option value="Магазин">{internal.listing.store}</option>
                     </select>
                   </label>
                   <label className="check-line form-delivery">
@@ -5517,29 +6186,29 @@ export default function Home() {
                       defaultChecked={listingDraft?.fields.delivery === 'on'}
                     />{' '}
                     {listingFlow === 'livestock'
-                      ? 'Помогу с перевозкой'
-                      : 'Возможна доставка или выезд'}
+                      ? internal.listing.livestockDelivery
+                      : internal.listing.delivery}
                   </label>
                   {listingFlow === 'standard' && (
                     <label className="wide">
-                      Когда доступно
+                      {internal.listing.available}
                       <input
                         name="available"
                         defaultValue={listingDraft?.fields.available || ''}
-                        placeholder="Например, 2–7 сентября"
+                        placeholder={internal.listing.availablePlaceholder}
                       />
                     </label>
                   )}
                   <label className="wide">
-                    Описание
+                    {internal.listing.description}
                     <textarea
                       name="description"
                       rows={3}
                       defaultValue={listingDraft?.fields.description || ''}
                       placeholder={
                         listingFlow === 'livestock'
-                          ? 'Возраст, состояние, документы и условия осмотра'
-                          : 'Расскажите о состоянии, условиях и радиусе выезда'
+                          ? internal.listing.livestockDescription
+                          : internal.listing.standardDescription
                       }
                     />
                   </label>
@@ -5549,8 +6218,8 @@ export default function Home() {
                     disabled={submitting === 'listing'}
                   >
                     {submitting === 'listing'
-                      ? 'Публикуем…'
-                      : 'Опубликовать объявление'}{' '}
+                      ? internal.listing.publishing
+                      : internal.listing.publish}{' '}
                     <ArrowRight />
                   </button>
                 </form>
@@ -5563,12 +6232,9 @@ export default function Home() {
                     <MessageCircle />
                   </span>
                   <div>
-                    <small>МНЕ НУЖНО</small>
-                    <h2>Создать заявку</h2>
-                    <p>
-                      Опишите задачу — исполнители увидят её и смогут предложить
-                      цену.
-                    </p>
+                    <small>{internal.requestForm.eyebrow}</small>
+                    <h2>{internal.requestForm.title}</h2>
+                    <p>{internal.requestForm.lead}</p>
                   </div>
                 </div>
                 <form
@@ -5581,13 +6247,10 @@ export default function Home() {
                     <span>
                       <b>
                         {!requestSeed && requestDraft
-                          ? 'Черновик заявки восстановлен'
-                          : 'Черновик сохраняется автоматически'}
+                          ? internal.requestForm.draftRestored
+                          : internal.requestForm.draftAuto}
                       </b>
-                      <small>
-                        Заполненные поля останутся на этом устройстве, даже если
-                        пропадёт интернет.
-                      </small>
+                      <small>{internal.requestForm.draftHint}</small>
                     </span>
                     {!requestSeed && requestDraft && (
                       <button
@@ -5596,12 +6259,12 @@ export default function Home() {
                           clearRequestDraft(event.currentTarget.form)
                         }
                       >
-                        Очистить
+                        {internal.listing.clear}
                       </button>
                     )}
                   </div>
                   <label>
-                    Направление
+                    {internal.requestForm.direction}
                     <select
                       name="kind"
                       defaultValue={
@@ -5610,35 +6273,39 @@ export default function Home() {
                           : requestDraft?.fields.kind || requestSeedKind
                       }
                     >
-                      <option value="agro">Сельхозтехника и услуги</option>
-                      <option value="rent">Аренда</option>
-                      <option value="build">Материалы и стройка</option>
-                      <option value="recycle">Вторсырьё и вывоз</option>
+                      <option value="agro">{internal.requestForm.agro}</option>
+                      <option value="rent">{internal.requestForm.rent}</option>
+                      <option value="build">
+                        {internal.requestForm.build}
+                      </option>
+                      <option value="recycle">
+                        {internal.requestForm.recycle}
+                      </option>
                     </select>
                   </label>
                   <label>
-                    Бюджет
+                    {internal.requestForm.budget}
                     <input
                       name="budget"
                       defaultValue={
                         requestSeed ? '' : requestDraft?.fields.budget || ''
                       }
-                      placeholder="До 50 000 ₸ или договорная"
+                      placeholder={internal.requestForm.budgetPlaceholder}
                     />
                   </label>
                   <label className="wide">
-                    Что вам нужно?
+                    {internal.requestForm.need}
                     <input
                       name="title"
                       required
                       defaultValue={
                         requestSeed || requestDraft?.fields.title || ''
                       }
-                      placeholder="Например, убрать 70 га пшеницы"
+                      placeholder={internal.requestForm.needPlaceholder}
                     />
                   </label>
                   <label>
-                    Регион
+                    {internal.requestForm.region}
                     <select
                       name="region"
                       required
@@ -5655,7 +6322,7 @@ export default function Home() {
                     </select>
                   </label>
                   <label>
-                    Где?
+                    {internal.requestForm.where}
                     <input
                       name="place"
                       required
@@ -5668,14 +6335,14 @@ export default function Home() {
                     />
                   </label>
                   <label>
-                    Когда?
+                    {internal.requestForm.when}
                     <input
                       name="when"
                       required
                       defaultValue={
                         requestSeed ? '' : requestDraft?.fields.when || ''
                       }
-                      placeholder="Завтра или точная дата"
+                      placeholder={internal.requestForm.whenPlaceholder}
                     />
                   </label>
                   <button
@@ -5684,8 +6351,8 @@ export default function Home() {
                     disabled={submitting === 'request'}
                   >
                     {submitting === 'request'
-                      ? 'Публикуем…'
-                      : 'Опубликовать заявку'}{' '}
+                      ? internal.requestForm.publishing
+                      : internal.requestForm.publish}{' '}
                     <ArrowRight />
                   </button>
                 </form>
@@ -6784,11 +7451,9 @@ export default function Home() {
                     <MapPin />
                   </span>
                   <div>
-                    <small>ГЕОГРАФИЯ QOLDAN</small>
-                    <h2>Выберите регион</h2>
-                    <p>
-                      Покажем предложения и заявки в нужной части Казахстана.
-                    </p>
+                    <small>{internal.regions.eyebrow}</small>
+                    <h2>{internal.regions.title}</h2>
+                    <p>{internal.regions.lead}</p>
                   </div>
                 </div>
                 <div className="region-modal-grid">
@@ -6809,7 +7474,7 @@ export default function Home() {
                       }}
                     >
                       <span>{i === 0 ? '🇰🇿' : String(i).padStart(2, '0')}</span>
-                      {r}
+                      {r === 'Весь Казахстан' ? tr.allKazakhstan : r}
                       {selectedRegion === r && <CheckCircle2 />}
                     </button>
                   ))}
@@ -7026,27 +7691,27 @@ export default function Home() {
                     <p>
                       <MapPin />{' '}
                       {serverConnected
-                        ? 'Профиль синхронизирован'
+                        ? internal.profile.synced
                         : storageReady
-                          ? 'Демонстрационный режим'
-                          : 'Подключаем профиль…'}
+                          ? internal.profile.demo
+                          : internal.profile.connecting}
                     </p>
                   </div>
                 </div>
                 <div className="profile-stats">
                   <div>
                     <b>{allListings.filter((x) => x.mine).length}</b>
-                    <span>объявлений</span>
+                    <span>{internal.profile.listings}</span>
                   </div>
                   <div>
                     <b>{allRequests.filter((x) => x.mine).length}</b>
-                    <span>заявок</span>
+                    <span>{internal.profile.requests}</span>
                   </div>
                   <div>
                     <b>
                       {bookings.filter((x) => x.status === 'pending').length}
                     </b>
-                    <span>броней ожидают</span>
+                    <span>{internal.profile.bookingsPending}</span>
                   </div>
                 </div>
                 <section className="service-reputation-card">
@@ -7054,16 +7719,16 @@ export default function Home() {
                     <Star fill="currentColor" />
                   </span>
                   <div>
-                    <small>РЕПУТАЦИЯ ИСПОЛНИТЕЛЯ</small>
+                    <small>{internal.profile.reputation}</small>
                     <b>
                       {serviceTrust.serviceReviewCount > 0
-                        ? `${serviceTrust.serviceRating} из 5`
-                        : 'Пока без оценок'}
+                        ? `${serviceTrust.serviceRating} ${internal.profile.outOfFive}`
+                        : internal.profile.noRatings}
                     </b>
                     <p>
                       {serviceTrust.serviceReviewCount > 0
-                        ? `${serviceTrust.serviceReviewCount} проверенных отзывов после выполненных заявок.`
-                        : 'Первая оценка появится только после завершённой работы через мини‑тендер Qoldan.'}
+                        ? `${serviceTrust.serviceReviewCount} ${internal.profile.verifiedReviews}`
+                        : internal.profile.firstRating}
                     </p>
                   </div>
                 </section>
@@ -7119,16 +7784,16 @@ export default function Home() {
                       className="moderation-entry"
                       onClick={() => void openModeration()}
                     >
-                      <ShieldCheck /> Модерация
+                      <ShieldCheck /> {internal.profile.moderation}
                       <b>{moderationPendingCount}</b>
                     </button>
                   )}
                   <button onClick={() => setModal('saved-searches')}>
-                    <Bookmark /> Сохранённые поиски
+                    <Bookmark /> {internal.profile.savedSearches}
                     <b>{savedSearchNewCount || savedSearches.length}</b>
                   </button>
                   <button onClick={() => setModal('recent')}>
-                    <History /> Недавно просмотренные
+                    <History /> {internal.profile.recent}
                     <b>{recentItems.length}</b>
                   </button>
                   <button
@@ -7141,20 +7806,22 @@ export default function Home() {
                         ?.scrollIntoView({ behavior: 'smooth' });
                     }}
                   >
-                    <Heart /> Избранное <b>{favorites.length}</b>
+                    <Heart /> {internal.profile.favorites}{' '}
+                    <b>{favorites.length}</b>
                   </button>
                   <button onClick={() => void openMessages()}>
-                    <MessageCircle /> Сообщения
+                    <MessageCircle /> {internal.profile.messages}
                     <b>{messagingUnreadCount}</b>
                   </button>
                   <button onClick={() => setModal('bookings')}>
-                    <Clock3 /> Бронирования <b>{bookings.length}</b>
+                    <Clock3 /> {internal.profile.bookings}{' '}
+                    <b>{bookings.length}</b>
                   </button>
                   <button onClick={() => setModal('appeals')}>
-                    <Scale /> Мои апелляции <b>{appeals.length}</b>
+                    <Scale /> {internal.profile.appeals} <b>{appeals.length}</b>
                   </button>
                   <button onClick={() => void openSupport('safety')}>
-                    <LifeBuoy /> Помощь и безопасность
+                    <LifeBuoy /> {internal.profile.help}
                     <b>{openSupportCount}</b>
                   </button>
                   <button
@@ -7167,7 +7834,7 @@ export default function Home() {
                         ?.scrollIntoView({ behavior: 'smooth' });
                     }}
                   >
-                    <PackageOpen /> Мои объявления <ArrowRight />
+                    <PackageOpen /> {internal.profile.myListings} <ArrowRight />
                   </button>
                   <button
                     onClick={() => {
@@ -7179,7 +7846,8 @@ export default function Home() {
                         ?.scrollIntoView({ behavior: 'smooth' });
                     }}
                   >
-                    <MessageCircle /> Мои заявки <ArrowRight />
+                    <MessageCircle /> {internal.profile.myRequests}{' '}
+                    <ArrowRight />
                   </button>
                 </div>
               </>
@@ -8862,21 +9530,18 @@ export default function Home() {
                     <LifeBuoy />
                   </span>
                   <div>
-                    <small>ПОМОЩЬ И БЕЗОПАСНОСТЬ</small>
-                    <h2>Qoldan рядом, когда нужно</h2>
-                    <p>
-                      Короткие правила без мелкого шрифта и настоящее обращение
-                      в команду с номером и статусом.
-                    </p>
+                    <small>{internal.support.eyebrow}</small>
+                    <h2>{internal.support.title}</h2>
+                    <p>{internal.support.lead}</p>
                   </div>
                 </div>
                 <div className="support-tabs" aria-label="Разделы помощи">
                   {(
                     [
-                      ['safety', 'Безопасность'],
-                      ['rules', 'Правила'],
-                      ['privacy', 'Приватность'],
-                      ['feedback', 'Написать нам'],
+                      ['safety', internal.support.safety],
+                      ['rules', internal.support.rules],
+                      ['privacy', internal.support.privacy],
+                      ['feedback', internal.support.feedback],
                     ] as const
                   ).map(([value, label]) => (
                     <button
@@ -8897,7 +9562,7 @@ export default function Home() {
                       className={supportTopic === 'queue' ? 'active' : ''}
                       onClick={() => setSupportTopic('queue')}
                     >
-                      Очередь <b>{pendingSupportCount}</b>
+                      {internal.support.queue} <b>{pendingSupportCount}</b>
                     </button>
                   )}
                 </div>
@@ -8906,63 +9571,30 @@ export default function Home() {
                     <div className="support-lead">
                       <ShieldCheck />
                       <div>
-                        <small>ГЛАВНОЕ ПРАВИЛО</small>
-                        <b>Сначала проверьте — потом рассчитывайтесь</b>
-                        <p>
-                          Qoldan пока не принимает оплату и не просит код из
-                          SMS. Договорённость и расчёт происходят напрямую между
-                          участниками.
-                        </p>
+                        <small>{internal.support.mainRule}</small>
+                        <b>{internal.support.mainRuleTitle}</b>
+                        <p>{internal.support.mainRuleText}</p>
                       </div>
                     </div>
                     <div className="support-checklist">
-                      <article>
-                        <span>1</span>
-                        <div>
-                          <b>Обсудите всё в сообщениях</b>
-                          <p>
-                            Зафиксируйте цену, объём работы, дату, доставку и
-                            условия отмены до встречи.
-                          </p>
-                        </div>
-                      </article>
-                      <article>
-                        <span>2</span>
-                        <div>
-                          <b>Осмотрите товар или технику</b>
-                          <p>
-                            Сверьте состояние, комплектность и документы. Для
-                            скота уточните возраст, здоровье и ветдокументы.
-                          </p>
-                        </div>
-                      </article>
-                      <article>
-                        <span>3</span>
-                        <div>
-                          <b>Не спешите с предоплатой</b>
-                          <p>
-                            Не переводите деньги незнакомому человеку только
-                            из-за обещания скидки или срочности.
-                          </p>
-                        </div>
-                      </article>
-                      <article>
-                        <span>4</span>
-                        <div>
-                          <b>Для аренды сделайте передачу</b>
-                          <p>
-                            Встроенный чек-лист сохранит состояние, комплект и
-                            залог при выдаче и возврате.
-                          </p>
-                        </div>
-                      </article>
+                      {internal.support.safetyItems.map(
+                        ([title, copy], index) => (
+                          <article key={title}>
+                            <span>{index + 1}</span>
+                            <div>
+                              <b>{title}</b>
+                              <p>{copy}</p>
+                            </div>
+                          </article>
+                        ),
+                      )}
                     </div>
                     <button
                       type="button"
                       className="support-action"
                       onClick={() => setSupportTopic('feedback')}
                     >
-                      Сообщить о проблеме <ArrowRight />
+                      {internal.support.reportProblem} <ArrowRight />
                     </button>
                   </section>
                 )}
@@ -8971,36 +9603,23 @@ export default function Home() {
                     <div className="info-grid support-rule-grid">
                       <article>
                         <CheckCircle2 />
-                        <b>Публикуйте честно</b>
-                        <p>
-                          Реальные фото, понятная цена, верная категория,
-                          населённый пункт и актуальное описание.
-                        </p>
+                        <b>{internal.support.honest}</b>
+                        <p>{internal.support.honestText}</p>
                       </article>
                       <article>
                         <ScrollText />
-                        <b>Одно предложение — одно объявление</b>
-                        <p>
-                          Не создавайте повторы, спам и заголовки, которые не
-                          соответствуют содержанию.
-                        </p>
+                        <b>{internal.support.oneOffer}</b>
+                        <p>{internal.support.oneOfferText}</p>
                       </article>
                       <article>
                         <ShieldAlert />
-                        <b>Что запрещено</b>
-                        <p>
-                          Обман, краденые и незаконные товары, опасные услуги,
-                          ложные сведения о животных и чужие фотографии.
-                        </p>
+                        <b>{internal.support.prohibited}</b>
+                        <p>{internal.support.prohibitedText}</p>
                       </article>
                     </div>
                     <div className="support-note">
                       <CircleAlert />
-                      <p>
-                        При жалобе публикация не исчезает автоматически:
-                        модератор проверяет контекст, фиксирует решение и даёт
-                        автору возможность подать апелляцию.
-                      </p>
+                      <p>{internal.support.moderationNote}</p>
                     </div>
                   </section>
                 )}
@@ -9009,43 +9628,22 @@ export default function Home() {
                     <div className="support-lead privacy">
                       <LockKeyhole />
                       <div>
-                        <small>ПРОСТО О ДАННЫХ</small>
-                        <b>Публично — только то, что нужно для объявления</b>
-                        <p>
-                          Перед публикацией проверяйте, какие контакты и
-                          сведения вы оставляете в открытом описании.
-                        </p>
+                        <small>{internal.support.dataEyebrow}</small>
+                        <b>{internal.support.dataTitle}</b>
+                        <p>{internal.support.dataLead}</p>
                       </div>
                     </div>
                     <div className="privacy-list">
-                      <article>
-                        <b>Видят другие</b>
-                        <p>
-                          Название, фото, цена, описание, регион, имя автора и
-                          контакт, который автор указал для связи.
-                        </p>
-                      </article>
-                      <article>
-                        <b>Не публикуется</b>
-                        <p>
-                          БИН, заметки модерации, содержание личных сообщений и
-                          данные проверки бизнес-профиля.
-                        </p>
-                      </article>
-                      <article>
-                        <b>Точная геопозиция</b>
-                        <p>
-                          Добавляется только по вашему действию. В объявлении
-                          всё равно показывается понятный населённый пункт.
-                        </p>
-                      </article>
+                      {internal.support.privacyItems.map(([title, copy]) => (
+                        <article key={title}>
+                          <b>{title}</b>
+                          <p>{copy}</p>
+                        </article>
+                      ))}
                     </div>
                     <div className="support-note">
                       <LockKeyhole />
-                      <p>
-                        Не пишите в открытом описании ИИН, номер документа,
-                        банковские данные, домашний адрес или коды из SMS.
-                      </p>
+                      <p>{internal.support.privacyNote}</p>
                     </div>
                   </section>
                 )}
@@ -9058,54 +9656,55 @@ export default function Home() {
                       <div className="support-form-head">
                         <LifeBuoy />
                         <div>
-                          <b>Напишите команде Qoldan</b>
-                          <p>
-                            Мы сохраним обращение и покажем его статус здесь.
-                          </p>
+                          <b>{internal.support.writeTeam}</b>
+                          <p>{internal.support.writeTeamHint}</p>
                         </div>
                       </div>
                       <label>
-                        Тема
+                        {internal.support.topic}
                         <select name="category" defaultValue="bug">
-                          <option value="bug">Ошибка в приложении</option>
-                          <option value="idea">Идея для Qoldan</option>
-                          <option value="safety">Вопрос безопасности</option>
-                          <option value="other">Другой вопрос</option>
+                          <option value="bug">{internal.support.bug}</option>
+                          <option value="idea">{internal.support.idea}</option>
+                          <option value="safety">
+                            {internal.support.safetyQuestion}
+                          </option>
+                          <option value="other">
+                            {internal.support.other}
+                          </option>
                         </select>
                       </label>
                       <label>
-                        Что произошло или что хотите предложить
+                        {internal.support.messageLabel}
                         <textarea
                           name="message"
                           rows={5}
                           minLength={10}
                           maxLength={1500}
                           required
-                          placeholder="Опишите своими словами. Если это ошибка — напишите, что нажали и что ожидали увидеть."
+                          placeholder={internal.support.messagePlaceholder}
                         />
                       </label>
-                      <small>
-                        Страница, с которой отправлено обращение, прикрепится
-                        автоматически. Не указывайте ИИН и банковские данные.
-                      </small>
+                      <small>{internal.support.formHint}</small>
                       <button
                         className="submit-button"
                         type="submit"
                         disabled={submitting === 'support-ticket'}
                       >
                         {submitting === 'support-ticket'
-                          ? 'Отправляем…'
-                          : 'Отправить обращение'}{' '}
+                          ? internal.support.sending
+                          : internal.support.send}{' '}
                         <Send />
                       </button>
                     </form>
                     <div className="support-history">
                       <div className="support-history-title">
                         <div>
-                          <small>МОИ ОБРАЩЕНИЯ</small>
-                          <b>История и статусы</b>
+                          <small>{internal.support.myTickets}</small>
+                          <b>{internal.support.history}</b>
                         </div>
-                        {supportLoading && <span>Обновляем…</span>}
+                        {supportLoading && (
+                          <span>{internal.support.updating}</span>
+                        )}
                       </div>
                       {supportTickets.length > 0 ? (
                         <div className="support-ticket-list">
@@ -9118,13 +9717,13 @@ export default function Home() {
                                     {formatActivityDate(ticket.createdAt)}
                                   </small>
                                   <b>
-                                    {supportCategoryLabels[ticket.category]}
+                                    {localizedSupportCategory(ticket.category)}
                                   </b>
                                 </div>
                                 <span
                                   className={`support-status ${ticket.status}`}
                                 >
-                                  {supportStatusLabels[ticket.status]}
+                                  {localizedSupportStatus(ticket.status)}
                                 </span>
                               </div>
                               <p>{ticket.message}</p>
@@ -9132,7 +9731,7 @@ export default function Home() {
                                 <div className="support-reply">
                                   <CheckCircle2 />
                                   <span>
-                                    <small>ОТВЕТ КОМАНДЫ</small>
+                                    <small>{internal.support.teamReply}</small>
                                     {ticket.reviewNote}
                                   </span>
                                 </div>
@@ -9143,11 +9742,8 @@ export default function Home() {
                       ) : (
                         <div className="notification-empty support-empty">
                           <MessageCircle />
-                          <b>Обращений пока нет</b>
-                          <span>
-                            Первое обращение появится здесь сразу после
-                            отправки.
-                          </span>
+                          <b>{internal.support.noTickets}</b>
+                          <span>{internal.support.noTicketsText}</span>
                         </div>
                       )}
                     </div>
@@ -9172,12 +9768,14 @@ export default function Home() {
                                   № {ticket.id.slice(0, 8).toUpperCase()} ·{' '}
                                   {ticket.ownerName}
                                 </small>
-                                <b>{supportCategoryLabels[ticket.category]}</b>
+                                <b>
+                                  {localizedSupportCategory(ticket.category)}
+                                </b>
                               </div>
                               <span
                                 className={`support-status ${ticket.status}`}
                               >
-                                {supportStatusLabels[ticket.status]}
+                                {localizedSupportStatus(ticket.status)}
                               </span>
                             </div>
                             <p>{ticket.message}</p>
