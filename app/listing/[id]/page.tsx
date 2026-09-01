@@ -15,6 +15,7 @@ import {
   ensureMarketplaceSchema,
   getMarketplaceDb,
 } from '@/lib/server/marketplace-db';
+import { RecentViewTracker } from '@/components/RecentViewTracker';
 
 const SITE_ORIGIN = 'https://qoldan-zhetisu.nuc9i218.chatgpt.site';
 
@@ -149,6 +150,7 @@ export default async function ListingPage({ params }: ListingPageProps) {
 
   return (
     <main className="listing-page">
+      <RecentViewTracker kind="listing" itemId={listing.id} />
       <header className="listing-page-header">
         <Link className="listing-page-brand" href="/#top" aria-label="Qoldan">
           <span>Q</span>

@@ -14,6 +14,7 @@ import {
   Clock3,
   Construction,
   Heart,
+  History,
   Map,
   MapPin,
   Menu,
@@ -351,6 +352,15 @@ type AppealTarget = {
   action: 'warn' | 'restrict';
 };
 type ContentMode = 'all' | 'real' | 'demo';
+type RecentView = {
+  kind: 'listing' | 'request';
+  id: string;
+  viewedAt: number;
+};
+type RecentItem =
+  | { kind: 'listing'; viewedAt: number; listing: Listing }
+  | { kind: 'request'; viewedAt: number; request: RequestItem };
+const RECENT_VIEWS_KEY = 'qoldan-recent-views-v1';
 type SubmitFormEvent = {
   preventDefault: () => void;
   currentTarget: HTMLFormElement;
@@ -947,6 +957,7 @@ export default function Home() {
   const [allListings, setAllListings] = useState<Listing[]>(defaultListings);
   const [allRequests, setAllRequests] =
     useState<RequestItem[]>(initialRequests);
+  const [recentViews, setRecentViews] = useState<RecentView[]>([]);
   const [allResponses, setAllResponses] = useState<ResponseItem[]>([]);
   const [bookings, setBookings] = useState<BookingItem[]>([]);
   const [reviews, setReviews] = useState<ReviewItem[]>([]);
@@ -1023,6 +1034,7 @@ export default function Home() {
     | 'profile'
     | 'provider'
     | 'saved-searches'
+    | 'recent'
     | 'verification'
     | 'notifications'
     | 'messages'
@@ -1131,6 +1143,34 @@ export default function Home() {
     (request) => !isDemoRequest(request.id),
   ).length;
   const demoRequestCount = allRequests.length - realRequestCount;
+  const recentItems = useMemo<RecentItem[]>(
+    () =>
+      recentViews.reduce<RecentItem[]>((items, view) => {
+        if (view.kind === 'listing') {
+          const listing = allListings.find(
+            (item) => String(item.id) === view.id,
+          );
+          if (
+            listing &&
+            !isDemoListing(listing.id) &&
+            listing.status !== 'paused'
+          ) {
+            items.push({ kind: 'listing', viewedAt: view.viewedAt, listing });
+          }
+          return items;
+        }
+        const request = allRequests.find((item) => String(item.id) === view.id);
+        if (
+          request &&
+          !isDemoRequest(request.id) &&
+          request.status !== 'closed'
+        ) {
+          items.push({ kind: 'request', viewedAt: view.viewedAt, request });
+        }
+        return items;
+      }, []),
+    [recentViews, allListings, allRequests],
+  );
   const activeFilterCount = [
     categoryFilter !== 'Все категории',
     maxDistance < 100 && selectedRegion !== 'Весь Казахстан',
@@ -1160,6 +1200,29 @@ export default function Home() {
       livestockPriceModeFilter !== 'all' ||
       livestockQuantityGroup !== 'all',
     );
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(RECENT_VIEWS_KEY);
+      if (!stored) return;
+      const parsed = JSON.parse(stored) as unknown;
+      if (!Array.isArray(parsed)) return;
+      setRecentViews(
+        parsed
+          .filter(
+            (item): item is RecentView =>
+              Boolean(item) &&
+              typeof item === 'object' &&
+              ((item as RecentView).kind === 'listing' ||
+                (item as RecentView).kind === 'request') &&
+              typeof (item as RecentView).id === 'string' &&
+              typeof (item as RecentView).viewedAt === 'number',
+          )
+          .slice(0, 12),
+      );
+    } catch {
+      // Ограниченное хранилище не должно мешать работе каталога.
+    }
+  }, []);
   useEffect(() => {
     let active = true;
     const loadMarketplace = async () => {
@@ -1463,6 +1526,39 @@ export default function Home() {
     setToast(m);
     setTimeout(() => setToast(''), 2600);
   };
+  const rememberRecentView = (
+    kind: RecentView['kind'],
+    id: string | number,
+  ) => {
+    const nextItem: RecentView = {
+      kind,
+      id: String(id),
+      viewedAt: Date.now(),
+    };
+    setRecentViews((current) => {
+      const next = [
+        nextItem,
+        ...current.filter(
+          (item) => item.kind !== kind || item.id !== nextItem.id,
+        ),
+      ].slice(0, 12);
+      try {
+        window.localStorage.setItem(RECENT_VIEWS_KEY, JSON.stringify(next));
+      } catch {
+        // История остаётся доступной до закрытия страницы.
+      }
+      return next;
+    });
+  };
+  const clearRecentViews = () => {
+    setRecentViews([]);
+    try {
+      window.localStorage.removeItem(RECENT_VIEWS_KEY);
+    } catch {
+      // Список уже очищен в текущем сеансе.
+    }
+    notify('История просмотров очищена');
+  };
   useEffect(() => {
     if (!storageReady || requestLinkHandled) return;
     const linkedRequestId = new URLSearchParams(window.location.search).get(
@@ -1497,6 +1593,7 @@ export default function Home() {
           ),
         ]);
         setSelectedRequest(data.request);
+        rememberRecentView('request', data.request.id);
         setRequestContentMode('real');
         setRequestOwnerOnly(false);
         setModal('response');
@@ -1770,8 +1867,18 @@ export default function Home() {
     );
   };
   const openListing = (item: Listing) => {
+    if (!isDemoListing(item.id)) rememberRecentView('listing', item.id);
     setSelectedListing(item);
     setModal('detail');
+  };
+  const openRequest = (item: RequestItem) => {
+    if (!isDemoRequest(item.id)) rememberRecentView('request', item.id);
+    setSelectedRequest(item);
+    setModal('response');
+  };
+  const openRecentItem = (item: RecentItem) => {
+    if (item.kind === 'listing') openListing(item.listing);
+    else openRequest(item.request);
   };
   const shareListing = async (item: Listing) => {
     const url = new URL(
@@ -3992,12 +4099,7 @@ export default function Home() {
                 </div>
                 <div className="request-side">
                   <b>{r.budget}</b>
-                  <button
-                    onClick={() => {
-                      setSelectedRequest(r);
-                      setModal('response');
-                    }}
-                  >
+                  <button onClick={() => openRequest(r)}>
                     <MessageCircle size={14} />
                     {r.responses} откликов
                   </button>
@@ -4070,12 +4172,7 @@ export default function Home() {
                 <small>Предложений</small>
                 <b>6</b>
               </div>
-              <button
-                onClick={() => {
-                  setSelectedRequest(initialRequests[3]);
-                  setModal('response');
-                }}
-              >
+              <button onClick={() => openRequest(initialRequests[3])}>
                 Сделать ставку <ArrowRight />
               </button>
             </div>
@@ -6154,6 +6251,10 @@ export default function Home() {
                     <Bookmark /> Сохранённые поиски
                     <b>{savedSearchNewCount || savedSearches.length}</b>
                   </button>
+                  <button onClick={() => setModal('recent')}>
+                    <History /> Недавно просмотренные
+                    <b>{recentItems.length}</b>
+                  </button>
                   <button
                     onClick={() => {
                       setModal(null);
@@ -6201,6 +6302,92 @@ export default function Home() {
                     <MessageCircle /> Мои заявки <ArrowRight />
                   </button>
                 </div>
+              </>
+            )}
+            {modal === 'recent' && (
+              <>
+                <div className="recent-title-row">
+                  <div className="modal-title">
+                    <span>
+                      <History />
+                    </span>
+                    <div>
+                      <small>БЫСТРО ВЕРНУТЬСЯ</small>
+                      <h2>Недавно просмотренные</h2>
+                      <p>
+                        Последние реальные объявления и заявки на этом
+                        устройстве. Демо-примеры сюда не попадают.
+                      </p>
+                    </div>
+                  </div>
+                  {recentItems.length > 0 && (
+                    <button type="button" onClick={clearRecentViews}>
+                      Очистить
+                    </button>
+                  )}
+                </div>
+                {recentItems.length > 0 ? (
+                  <div className="recent-list">
+                    {recentItems.map((item) => {
+                      const id =
+                        item.kind === 'listing'
+                          ? String(item.listing.id)
+                          : String(item.request.id);
+                      const title =
+                        item.kind === 'listing'
+                          ? item.listing.title
+                          : item.request.title;
+                      const place =
+                        item.kind === 'listing'
+                          ? item.listing.location
+                          : item.request.place;
+                      const value =
+                        item.kind === 'listing'
+                          ? `${item.listing.price}${item.listing.unit ? ` ${item.listing.unit}` : ''}`
+                          : item.request.budget;
+                      return (
+                        <button
+                          type="button"
+                          key={`${item.kind}-${id}`}
+                          onClick={() => openRecentItem(item)}
+                        >
+                          {item.kind === 'listing' ? (
+                            <img
+                              src={item.listing.image}
+                              alt={item.listing.title}
+                            />
+                          ) : (
+                            <span className="recent-request-icon">
+                              <MessageCircle />
+                            </span>
+                          )}
+                          <span className="recent-copy">
+                            <small>
+                              {item.kind === 'listing'
+                                ? 'ОБЪЯВЛЕНИЕ'
+                                : 'ЗАЯВКА'}{' '}
+                              · {formatActivityDate(item.viewedAt)}
+                            </small>
+                            <b>{title}</b>
+                            <em>
+                              {place} · {value}
+                            </em>
+                          </span>
+                          <ArrowRight />
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="notification-empty recent-empty">
+                    <History />
+                    <b>История пока пустая</b>
+                    <span>
+                      Откройте настоящее объявление или заявку — и Qoldan
+                      сохранит быстрый переход на этом устройстве.
+                    </span>
+                  </div>
+                )}
               </>
             )}
             {modal === 'saved-searches' && (

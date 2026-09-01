@@ -17,6 +17,7 @@ import {
   ensureMarketplaceSchema,
   getMarketplaceDb,
 } from '@/lib/server/marketplace-db';
+import { RecentViewTracker } from '@/components/RecentViewTracker';
 
 type RequestDetailRow = {
   id: string;
@@ -147,6 +148,7 @@ export default async function RequestPage({ params }: RequestPageProps) {
 
   return (
     <main className="listing-page request-page">
+      <RecentViewTracker kind="request" itemId={item.id} />
       <header className="listing-page-header">
         <Link className="listing-page-brand" href="/#top" aria-label="Qoldan">
           <span>Q</span>
