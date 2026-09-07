@@ -2,7 +2,7 @@
 /* oxlint-disable next/no-img-element, react/react-compiler -- marketplace photos can be remote or user-uploaded; shared server data is hydrated after mount */
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { type DateRange } from 'react-day-picker';
-import { ru } from 'date-fns/locale';
+import { enUS, kk, ru } from 'date-fns/locale';
 import {
   ArrowRight,
   ArrowUpDown,
@@ -1564,6 +1564,115 @@ const internalContent = {
       myListings: 'Мои объявления',
       myRequests: 'Мои заявки',
     },
+    detail: {
+      demo: 'ДЕМО · ПРИМЕР',
+      share: 'Поделиться',
+      noDescription:
+        'Свяжитесь с владельцем, чтобы уточнить подробности предложения.',
+      negotiable: 'По договорённости',
+      delivery: 'Доставка или выезд доступны',
+      exactPoint: 'Точная точка добавлена владельцем',
+      demoOwner: 'Демонстрация Qoldan',
+      demoOwnerHint: 'Пример интерфейса · не реальный продавец',
+      user: 'Пользователь Qoldan',
+      verifiedBusiness: 'бизнес подтверждён Qoldan',
+      member: 'участник площадки',
+      profile: 'Профиль',
+      rentalVerified: 'ПОДТВЕРЖДЕНО АРЕНДОЙ',
+      reviews: 'Отзывы после реальных сделок',
+      noReviews:
+        'Проверенных отзывов пока нет. Оставить первый сможет арендатор после завершения бронирования.',
+      paused: 'Объявление на паузе',
+      active: 'Объявление активно',
+      pausedHint: 'Его видите только вы в разделе «Мои объявления».',
+      activeHint: 'Оно доступно покупателям и заказчикам в общем каталоге.',
+      saving: 'Сохраняем…',
+      resume: 'Возобновить',
+      pause: 'Поставить на паузу',
+      demoListing: 'Демонстрационное объявление',
+      demoListingHint:
+        'Контакты скрыты: карточка показывает сценарий сервиса и не принадлежит реальному продавцу.',
+      createRequest: 'Создать похожую реальную заявку',
+      needPrefix: 'Нужно',
+      call: 'Позвонить',
+      openingChat: 'Открываем диалог…',
+      write: 'Написать в Qoldan',
+      book: 'Забронировать',
+      counterRequest: 'Оставить встречную заявку',
+      report: 'Пожаловаться на объявление',
+    },
+    requestDetail: {
+      miniTender: 'МИНИ-ТЕНДЕР · ЗАЯВКА',
+      share: 'Поделиться заявкой',
+      demoTitle: 'Это демонстрационный сценарий',
+      demoText:
+        'Такой заявки нет в общей базе и за ней не стоит реальный заказчик. Отклики показаны как пример будущего мини-тендера.',
+      createReal: 'Создать похожую настоящую заявку',
+      openingChat: 'Открываем диалог…',
+      writeCustomer: 'Написать заказчику в Qoldan',
+      responseSent: 'Ваш отклик уже отправлен',
+      responseSentHint:
+        'Заказчик видит вашу цену и комментарий. Повторный отклик не нужен — детали можно обсудить в сообщениях.',
+      propose: 'Предложить свой вариант',
+      yourPrice: 'Ваша цена',
+      priceExample: 'Например, 48 000 ₸',
+      recyclePriceExample: 'Например, 64 ₸/кг',
+      comment: 'Комментарий',
+      commentPlaceholder: 'Когда сможете выполнить и что входит в цену',
+      sending: 'Отправляем…',
+      addResponse: 'Добавить отклик',
+      report: 'Сообщить о проблеме с заявкой',
+    },
+    booking: {
+      eyebrow: 'БРОНИРОВАНИЕ',
+      payOwner: 'оплата владельцу при получении',
+      availability: 'ДОСТУПНОСТЬ',
+      chooseDates: 'Выберите даты аренды',
+      checking: 'Проверяем…',
+      serverCheck: 'Проверит сервер',
+      occupiedCount: 'Занято периодов',
+      free: 'Свободно',
+      selected: 'Вы выбрали',
+      occupied: 'Уже занято',
+      oneDay: 'один день',
+      notSelected: 'Период ещё не выбран',
+      ownerGetsRequest: 'Владелец получит запрос на этот период.',
+      oneDayHint: 'Для аренды на один день нажмите дату один раз.',
+      nearestOccupied: 'Ближайшие занятые периоды',
+      phone: 'Телефон для ответа владельца',
+      delivery: 'Нужна доставка по городу',
+      comment: 'Комментарий',
+      commentPlaceholder: 'Удобное время и адрес',
+      sending: 'Отправляем…',
+      send: 'Отправить владельцу',
+    },
+    messages: {
+      eyebrow: 'СООБЩЕНИЯ QOLDAN',
+      title: 'Договоритесь напрямую',
+      lead: 'Каждый диалог привязан к реальному объявлению или заявке.',
+      safety:
+        'Не отправляйте коды из SMS, данные карты и предоплату незнакомому человеку.',
+      dialogs: 'Диалоги',
+      inbox: 'Входящие',
+      loading: 'Загружаем диалоги…',
+      start: 'Начните диалог',
+      empty: 'Диалогов пока нет',
+      emptyHint:
+        'Откройте реальное объявление или заявку и нажмите «Написать в Qoldan».',
+      correspondence: 'Переписка',
+      back: 'Вернуться к диалогам',
+      listing: 'Объявление',
+      request: 'Заявка',
+      loadingChat: 'Загружаем переписку…',
+      read: 'прочитано',
+      startTalk: 'Начните разговор',
+      startTalkHint: 'Уточните цену, сроки, состояние или условия выезда.',
+      placeholder: 'Напишите сообщение…',
+      message: 'Сообщение',
+      send: 'Отправить сообщение',
+      choose: 'Выберите диалог',
+      chooseHint: 'Переписка и контекст публикации будут здесь.',
+    },
     support: {
       eyebrow: 'ПОМОЩЬ И БЕЗОПАСНОСТЬ',
       title: 'Qoldan рядом, когда нужно',
@@ -1786,6 +1895,116 @@ const internalContent = {
       myListings: 'Менің хабарландыруларым',
       myRequests: 'Менің өтінімдерім',
     },
+    detail: {
+      demo: 'ДЕМО · ҮЛГІ',
+      share: 'Бөлісу',
+      noDescription: 'Ұсыныс туралы толық ақпаратты иесінен сұраңыз.',
+      negotiable: 'Келісім бойынша',
+      delivery: 'Жеткізу немесе барып қызмет көрсету бар',
+      exactPoint: 'Нақты орынды иесі қосты',
+      demoOwner: 'Qoldan демонстрациясы',
+      demoOwnerHint: 'Интерфейс үлгісі · нақты сатушы емес',
+      user: 'Qoldan қолданушысы',
+      verifiedBusiness: 'бизнес Qoldan арқылы расталған',
+      member: 'платформа қатысушысы',
+      profile: 'Профиль',
+      rentalVerified: 'ЖАЛҒА АЛУМЕН РАСТАЛҒАН',
+      reviews: 'Нақты мәмілелерден кейінгі пікірлер',
+      noReviews:
+        'Расталған пікірлер әзірге жоқ. Алғашқы пікірді бронь аяқталғаннан кейін жалға алушы қалдыра алады.',
+      paused: 'Хабарландыру кідіртілді',
+      active: 'Хабарландыру белсенді',
+      pausedHint: 'Оны «Менің хабарландыруларым» бөлімінде тек сіз көресіз.',
+      activeHint:
+        'Ол жалпы каталогта сатып алушылар мен тапсырыс берушілерге көрінеді.',
+      saving: 'Сақталуда…',
+      resume: 'Қайта қосу',
+      pause: 'Кідірту',
+      demoListing: 'Демонстрациялық хабарландыру',
+      demoListingHint:
+        'Байланыс жасырылған: карточка қызмет сценарийін көрсетеді және нақты сатушыға тиесілі емес.',
+      createRequest: 'Ұқсас нақты өтінім жасау',
+      needPrefix: 'Қажет',
+      call: 'Қоңырау шалу',
+      openingChat: 'Диалог ашылуда…',
+      write: 'Qoldan ішінде жазу',
+      book: 'Броньдау',
+      counterRequest: 'Қарсы өтінім қалдыру',
+      report: 'Хабарландыруға шағымдану',
+    },
+    requestDetail: {
+      miniTender: 'МИНИ-ТЕНДЕР · ӨТІНІМ',
+      share: 'Өтініммен бөлісу',
+      demoTitle: 'Бұл демонстрациялық сценарий',
+      demoText:
+        'Бұл өтінім ортақ базада жоқ және артында нақты тапсырыс беруші тұрмайды. Жауаптар болашақ мини-тендердің үлгісі ретінде көрсетілген.',
+      createReal: 'Ұқсас нақты өтінім жасау',
+      openingChat: 'Диалог ашылуда…',
+      writeCustomer: 'Тапсырыс берушіге Qoldan ішінде жазу',
+      responseSent: 'Жауабыңыз жіберілді',
+      responseSentHint:
+        'Тапсырыс беруші бағаңыз бен пікіріңізді көреді. Қайта жауап берудің қажеті жоқ — егжей-тегжейін хабарламада талқылауға болады.',
+      propose: 'Өз ұсынысыңызды беріңіз',
+      yourPrice: 'Сіздің бағаңыз',
+      priceExample: 'Мысалы, 48 000 ₸',
+      recyclePriceExample: 'Мысалы, 64 ₸/кг',
+      comment: 'Пікір',
+      commentPlaceholder: 'Қашан орындай аласыз және бағаға не кіреді',
+      sending: 'Жіберілуде…',
+      addResponse: 'Жауап қосу',
+      report: 'Өтінім мәселесі туралы хабарлау',
+    },
+    booking: {
+      eyebrow: 'БРОНЬДАУ',
+      payOwner: 'төлем алған кезде иесіне беріледі',
+      availability: 'ҚОЛЖЕТІМДІЛІК',
+      chooseDates: 'Жалға алу күндерін таңдаңыз',
+      checking: 'Тексерілуде…',
+      serverCheck: 'Сервер тексереді',
+      occupiedCount: 'Бос емес кезеңдер',
+      free: 'Бос',
+      selected: 'Сіз таңдадыңыз',
+      occupied: 'Бос емес',
+      oneDay: 'бір күн',
+      notSelected: 'Кезең әлі таңдалмады',
+      ownerGetsRequest: 'Иесі осы кезеңге сұраныс алады.',
+      oneDayHint: 'Бір күнге жалға алу үшін күнді бір рет басыңыз.',
+      nearestOccupied: 'Жақын бос емес кезеңдер',
+      phone: 'Иесінің жауабы үшін телефон',
+      delivery: 'Қала ішінде жеткізу қажет',
+      comment: 'Пікір',
+      commentPlaceholder: 'Ыңғайлы уақыт пен мекенжай',
+      sending: 'Жіберілуде…',
+      send: 'Иесіне жіберу',
+    },
+    messages: {
+      eyebrow: 'QOLDAN ХАБАРЛАМАЛАРЫ',
+      title: 'Тікелей келісіңіз',
+      lead: 'Әр диалог нақты хабарландыруға немесе өтінімге байланыстырылған.',
+      safety:
+        'SMS кодтарын, карта деректерін және бейтаныс адамға алдын ала төлем жібермеңіз.',
+      dialogs: 'Диалогтар',
+      inbox: 'Кіріс',
+      loading: 'Диалогтар жүктелуде…',
+      start: 'Диалогты бастаңыз',
+      empty: 'Диалогтар әзірге жоқ',
+      emptyHint:
+        'Нақты хабарландыруды немесе өтінімді ашып, «Qoldan ішінде жазу» түймесін басыңыз.',
+      correspondence: 'Хат алмасу',
+      back: 'Диалогтарға оралу',
+      listing: 'Хабарландыру',
+      request: 'Өтінім',
+      loadingChat: 'Хат алмасу жүктелуде…',
+      read: 'оқылды',
+      startTalk: 'Сөйлесуді бастаңыз',
+      startTalkHint:
+        'Бағаны, мерзімді, жағдайды немесе бару шарттарын нақтылаңыз.',
+      placeholder: 'Хабарлама жазыңыз…',
+      message: 'Хабарлама',
+      send: 'Хабарламаны жіберу',
+      choose: 'Диалогты таңдаңыз',
+      chooseHint: 'Хат алмасу мен жарияланым контексті осында көрсетіледі.',
+    },
     support: {
       eyebrow: 'КӨМЕК ЖӘНЕ ҚАУІПСІЗДІК',
       title: 'Қажет кезде Qoldan жаныңызда',
@@ -2006,6 +2225,114 @@ const internalContent = {
       help: 'Help and safety',
       myListings: 'My listings',
       myRequests: 'My requests',
+    },
+    detail: {
+      demo: 'DEMO · EXAMPLE',
+      share: 'Share',
+      noDescription: 'Contact the owner for more details about this offer.',
+      negotiable: 'By arrangement',
+      delivery: 'Delivery or travel is available',
+      exactPoint: 'Exact location added by the owner',
+      demoOwner: 'Qoldan demonstration',
+      demoOwnerHint: 'Interface example · not a real seller',
+      user: 'Qoldan user',
+      verifiedBusiness: 'business verified by Qoldan',
+      member: 'platform member',
+      profile: 'Profile',
+      rentalVerified: 'VERIFIED THROUGH RENTAL',
+      reviews: 'Reviews after real transactions',
+      noReviews:
+        'There are no verified reviews yet. The first renter can leave one after a completed booking.',
+      paused: 'Listing paused',
+      active: 'Listing active',
+      pausedHint: 'Only you can see it under My listings.',
+      activeHint: 'It is visible to buyers and customers in the main catalog.',
+      saving: 'Saving…',
+      resume: 'Resume',
+      pause: 'Pause listing',
+      demoListing: 'Demonstration listing',
+      demoListingHint:
+        'Contacts are hidden: this card demonstrates the service and does not belong to a real seller.',
+      createRequest: 'Create a similar real request',
+      needPrefix: 'Needed',
+      call: 'Call',
+      openingChat: 'Opening conversation…',
+      write: 'Message in Qoldan',
+      book: 'Book',
+      counterRequest: 'Create a matching request',
+      report: 'Report listing',
+    },
+    requestDetail: {
+      miniTender: 'MINI-TENDER · REQUEST',
+      share: 'Share request',
+      demoTitle: 'This is a demonstration scenario',
+      demoText:
+        'This request is not in the shared database and has no real customer. Responses are shown as an example of the future mini-tender.',
+      createReal: 'Create a similar real request',
+      openingChat: 'Opening conversation…',
+      writeCustomer: 'Message the customer in Qoldan',
+      responseSent: 'Your response has been sent',
+      responseSentHint:
+        'The customer can see your price and comment. No second response is needed — discuss details in messages.',
+      propose: 'Make your offer',
+      yourPrice: 'Your price',
+      priceExample: 'For example, 48,000 ₸',
+      recyclePriceExample: 'For example, 64 ₸/kg',
+      comment: 'Comment',
+      commentPlaceholder:
+        'When you can complete it and what the price includes',
+      sending: 'Sending…',
+      addResponse: 'Send response',
+      report: 'Report a problem with this request',
+    },
+    booking: {
+      eyebrow: 'BOOKING',
+      payOwner: 'pay the owner at pickup',
+      availability: 'AVAILABILITY',
+      chooseDates: 'Choose rental dates',
+      checking: 'Checking…',
+      serverCheck: 'Server will verify',
+      occupiedCount: 'Occupied periods',
+      free: 'Available',
+      selected: 'Your selection',
+      occupied: 'Already occupied',
+      oneDay: 'one day',
+      notSelected: 'No dates selected yet',
+      ownerGetsRequest: 'The owner will receive a request for this period.',
+      oneDayHint: 'For a one-day rental, select the date once.',
+      nearestOccupied: 'Upcoming occupied periods',
+      phone: 'Phone number for the owner to reply',
+      delivery: 'Delivery needed in',
+      comment: 'Comment',
+      commentPlaceholder: 'Preferred time and address',
+      sending: 'Sending…',
+      send: 'Send to owner',
+    },
+    messages: {
+      eyebrow: 'QOLDAN MESSAGES',
+      title: 'Agree directly',
+      lead: 'Every conversation is linked to a real listing or request.',
+      safety:
+        'Never send SMS codes, card details, or prepayment to a stranger.',
+      dialogs: 'Conversations',
+      inbox: 'Inbox',
+      loading: 'Loading conversations…',
+      start: 'Start a conversation',
+      empty: 'No conversations yet',
+      emptyHint: 'Open a real listing or request and choose Message in Qoldan.',
+      correspondence: 'Messages',
+      back: 'Back to conversations',
+      listing: 'Listing',
+      request: 'Request',
+      loadingChat: 'Loading messages…',
+      read: 'read',
+      startTalk: 'Start the conversation',
+      startTalkHint: 'Ask about the price, timing, condition, or travel terms.',
+      placeholder: 'Write a message…',
+      message: 'Message',
+      send: 'Send message',
+      choose: 'Choose a conversation',
+      chooseHint: 'Messages and the publication context will appear here.',
     },
     support: {
       eyebrow: 'HELP AND SAFETY',
@@ -2259,6 +2586,20 @@ export default function Home() {
   const about = aboutContent[appLang];
   const tr = uiContent[appLang];
   const internal = internalContent[appLang];
+  const calendarLocale = appLang === 'kk' ? kk : appLang === 'en' ? enUS : ru;
+  const formatLocalizedBookingDate = (date: string) =>
+    new Intl.DateTimeFormat(
+      appLang === 'kk' ? 'kk-KZ' : appLang === 'en' ? 'en-US' : 'ru-RU',
+      { day: 'numeric', month: 'short' },
+    ).format(new Date(`${date}T00:00:00`));
+  const localizedListingType = (value: Listing['type']) =>
+    value === 'Продам' ? tr.sale : value === 'Сдам' ? tr.rent : tr.service;
+  const localizedCategory = (value: string) =>
+    internal.listing.categories.find(([source]) => source === value)?.[1] ||
+    value;
+  const localizedLivestockType = (value: string) =>
+    internal.listing.livestockTypes.find(([source]) => source === value)?.[1] ||
+    value;
   const localizedSupportCategory = (category: SupportTicket['category']) =>
     ({
       bug: internal.support.bug,
@@ -6365,7 +6706,9 @@ export default function Home() {
                     <MessageCircle />
                   </span>
                   <div>
-                    <small>МИНИ-ТЕНДЕР · ЗАЯВКА #{selectedRequest.id}</small>
+                    <small>
+                      {internal.requestDetail.miniTender} #{selectedRequest.id}
+                    </small>
                     <h2>{selectedRequest.title}</h2>
                     <p>
                       {selectedRequest.place} · {selectedRequest.when}
@@ -6378,19 +6721,15 @@ export default function Home() {
                     type="button"
                     onClick={() => void shareRequest(selectedRequest)}
                   >
-                    <Share2 /> Поделиться заявкой
+                    <Share2 /> {internal.requestDetail.share}
                   </button>
                 )}
                 {isDemoRequest(selectedRequest.id) && (
                   <div className="demo-flow-note">
                     <CircleAlert />
                     <div>
-                      <b>Это демонстрационный сценарий</b>
-                      <span>
-                        Такой заявки нет в общей базе и за ней не стоит реальный
-                        заказчик. Цифра откликов показана только как пример
-                        будущего мини-тендера.
-                      </span>
+                      <b>{internal.requestDetail.demoTitle}</b>
+                      <span>{internal.requestDetail.demoText}</span>
                       <button
                         type="button"
                         onClick={() =>
@@ -6400,7 +6739,7 @@ export default function Home() {
                           )
                         }
                       >
-                        Создать похожую настоящую заявку <ArrowRight />
+                        {internal.requestDetail.createReal} <ArrowRight />
                       </button>
                     </div>
                   </div>
@@ -6618,8 +6957,8 @@ export default function Home() {
                       <MessageCircle />
                       {submitting ===
                       `conversation-request-${String(selectedRequest.id)}`
-                        ? 'Открываем диалог…'
-                        : 'Написать заказчику в Qoldan'}
+                        ? internal.requestDetail.openingChat
+                        : internal.requestDetail.writeCustomer}
                     </button>
                   )}
                 {selectedRequest.mine && !activeRequestSelection ? (
@@ -6656,11 +6995,8 @@ export default function Home() {
                   <div className="response-already-sent">
                     <CheckCircle2 />
                     <div>
-                      <b>Ваш отклик уже отправлен</b>
-                      <span>
-                        Заказчик видит вашу цену и комментарий. Повторный отклик
-                        не нужен — детали можно обсудить в сообщениях.
-                      </span>
+                      <b>{internal.requestDetail.responseSent}</b>
+                      <span>{internal.requestDetail.responseSentHint}</span>
                     </div>
                   </div>
                 ) : selectedRequest.status === 'closed' ? null : (
@@ -6668,25 +7004,25 @@ export default function Home() {
                     className="product-form response-form"
                     onSubmit={sendResponse}
                   >
-                    <h3>Предложить свой вариант</h3>
+                    <h3>{internal.requestDetail.propose}</h3>
                     <label className="wide">
-                      Ваша цена
+                      {internal.requestDetail.yourPrice}
                       <input
                         name="price"
                         required
                         placeholder={
                           selectedRequest.kind === 'recycle'
-                            ? 'Например, 64 ₸/кг'
-                            : 'Например, 48 000 ₸'
+                            ? internal.requestDetail.recyclePriceExample
+                            : internal.requestDetail.priceExample
                         }
                       />
                     </label>
                     <label className="wide">
-                      Комментарий
+                      {internal.requestDetail.comment}
                       <textarea
                         name="message"
                         rows={2}
-                        placeholder="Когда сможете выполнить и что входит в цену"
+                        placeholder={internal.requestDetail.commentPlaceholder}
                       />
                     </label>
                     <button
@@ -6695,8 +7031,8 @@ export default function Home() {
                       disabled={submitting === 'response'}
                     >
                       {submitting === 'response'
-                        ? 'Отправляем…'
-                        : 'Добавить отклик'}{' '}
+                        ? internal.requestDetail.sending
+                        : internal.requestDetail.addResponse}{' '}
                       <ArrowRight />
                     </button>
                   </form>
@@ -6714,7 +7050,7 @@ export default function Home() {
                         })
                       }
                     >
-                      <Flag /> Сообщить о проблеме с заявкой
+                      <Flag /> {internal.requestDetail.report}
                     </button>
                   )}
               </>
@@ -6729,18 +7065,19 @@ export default function Home() {
                   <span
                     className={`type ${selectedListing.type === 'Продам' ? 'sale' : selectedListing.type === 'Сдам' ? 'rent' : 'service'}`}
                   >
-                    {selectedListing.type}
+                    {localizedListingType(selectedListing.type)}
                   </span>
                   {isDemoListing(selectedListing.id) && (
                     <span className="source-chip demo detail-source-chip">
-                      ДЕМО · ПРИМЕР
+                      {internal.detail.demo}
                     </span>
                   )}
                 </div>
                 <div className="detail-content">
                   <div className="detail-heading-row">
                     <small className="kicker">
-                      {selectedListing.category} · {selectedListing.region}
+                      {localizedCategory(selectedListing.category)} ·{' '}
+                      {selectedListing.region}
                     </small>
                     {!isDemoListing(selectedListing.id) && (
                       <button
@@ -6748,7 +7085,7 @@ export default function Home() {
                         type="button"
                         onClick={() => void shareListing(selectedListing)}
                       >
-                        <Share2 /> Поделиться
+                        <Share2 /> {internal.detail.share}
                       </button>
                     )}
                   </div>
@@ -6758,7 +7095,7 @@ export default function Home() {
                   </div>
                   <p>
                     {selectedListing.description ||
-                      'Свяжитесь с владельцем, чтобы уточнить подробности предложения.'}
+                      internal.detail.noDescription}
                   </p>
                   <div className="detail-facts">
                     {selectedListing.livestockQuantity &&
@@ -6768,7 +7105,10 @@ export default function Home() {
                           {livestockQuantityLabel(
                             selectedListing.livestockQuantity,
                           )}{' '}
-                          · {selectedListing.livestockType}
+                          ·{' '}
+                          {localizedLivestockType(
+                            selectedListing.livestockType,
+                          )}
                           {selectedListing.livestockBreed
                             ? ` · ${selectedListing.livestockBreed}`
                             : ''}
@@ -6781,7 +7121,7 @@ export default function Home() {
                     </span>
                     <span>
                       <Clock3 />
-                      {selectedListing.available || 'По договорённости'}
+                      {selectedListing.available || internal.detail.negotiable}
                     </span>
                     {selectedListing.deposit && (
                       <span>
@@ -6791,13 +7131,13 @@ export default function Home() {
                     )}
                     {selectedListing.delivery && (
                       <span>
-                        <Construction /> Доставка или выезд доступны
+                        <Construction /> {internal.detail.delivery}
                       </span>
                     )}
                     {selectedListing.latitude !== undefined &&
                       selectedListing.longitude !== undefined && (
                         <span>
-                          <Navigation /> Точная точка добавлена владельцем
+                          <Navigation /> {internal.detail.exactPoint}
                         </span>
                       )}
                   </div>
@@ -6812,13 +7152,13 @@ export default function Home() {
                     <div>
                       <b>
                         {isDemoListing(selectedListing.id)
-                          ? 'Демонстрация Qoldan'
-                          : selectedListing.owner || 'Пользователь Qoldan'}
+                          ? internal.detail.demoOwner
+                          : selectedListing.owner || internal.detail.user}
                       </b>
                       <small>
                         {isDemoListing(selectedListing.id)
-                          ? 'Пример интерфейса · не реальный продавец'
-                          : `${selectedListing.sellerType || 'Частное лицо'} · ${selectedListing.verified ? 'бизнес подтверждён Qoldan' : 'участник площадки'}`}
+                          ? internal.detail.demoOwnerHint
+                          : `${selectedListing.sellerType === 'Компания' ? internal.listing.company : selectedListing.sellerType === 'Магазин' ? internal.listing.store : internal.listing.person} · ${selectedListing.verified ? internal.detail.verifiedBusiness : internal.detail.member}`}
                       </small>
                     </div>
                     {!isDemoListing(selectedListing.id) &&
@@ -6830,7 +7170,7 @@ export default function Home() {
                             void openProviderProfile(selectedListing.ownerId)
                           }
                         >
-                          <UserRound /> Профиль
+                          <UserRound /> {internal.detail.profile}
                         </button>
                       )}
                     {selectedListing.rating &&
@@ -6847,8 +7187,8 @@ export default function Home() {
                     <section className="listing-reviews">
                       <div className="listing-reviews-head">
                         <div>
-                          <small>ПОДТВЕРЖДЕНО АРЕНДОЙ</small>
-                          <h3>Отзывы после реальных сделок</h3>
+                          <small>{internal.detail.rentalVerified}</small>
+                          <h3>{internal.detail.reviews}</h3>
                         </div>
                         <ShieldCheck />
                       </div>
@@ -6880,8 +7220,7 @@ export default function Home() {
                         </div>
                       ) : (
                         <p className="reviews-empty">
-                          Проверенных отзывов пока нет. Оставить первый сможет
-                          арендатор после завершения бронирования.
+                          {internal.detail.noReviews}
                         </p>
                       )}
                     </section>
@@ -6891,13 +7230,13 @@ export default function Home() {
                       <div>
                         <b>
                           {selectedListing.status === 'paused'
-                            ? 'Объявление на паузе'
-                            : 'Объявление активно'}
+                            ? internal.detail.paused
+                            : internal.detail.active}
                         </b>
                         <span>
                           {selectedListing.status === 'paused'
-                            ? 'Его видите только вы в разделе «Мои объявления».'
-                            : 'Оно доступно покупателям и заказчикам в общем каталоге.'}
+                            ? internal.detail.pausedHint
+                            : internal.detail.activeHint}
                         </span>
                       </div>
                       <button
@@ -6906,10 +7245,10 @@ export default function Home() {
                         disabled={submitting === 'listing-status'}
                       >
                         {submitting === 'listing-status'
-                          ? 'Сохраняем…'
+                          ? internal.detail.saving
                           : selectedListing.status === 'paused'
-                            ? 'Возобновить'
-                            : 'Поставить на паузу'}
+                            ? internal.detail.resume
+                            : internal.detail.pause}
                       </button>
                     </div>
                   )}
@@ -6920,12 +7259,8 @@ export default function Home() {
                       selectedListing.phone.replace(/\D/g, '') ===
                         '77000000000' ? (
                         <div className="demo-contact">
-                          <b>Демонстрационное объявление</b>
-                          <span>
-                            Контакты скрыты: карточка показывает сценарий
-                            сервиса, не принадлежит реальному продавцу и не
-                            ведёт к случайному номеру.
-                          </span>
+                          <b>{internal.detail.demoListing}</b>
+                          <span>{internal.detail.demoListingHint}</span>
                           <button
                             type="button"
                             onClick={() => {
@@ -6939,12 +7274,12 @@ export default function Home() {
                                     ? 'build'
                                     : 'agro';
                               openRequestForm(
-                                `Нужно: ${selectedListing.title}`,
+                                `${internal.detail.needPrefix}: ${selectedListing.title}`,
                                 relatedKind,
                               );
                             }}
                           >
-                            Создать похожую реальную заявку <ArrowRight />
+                            {internal.detail.createRequest} <ArrowRight />
                           </button>
                         </div>
                       ) : (
@@ -6953,13 +7288,13 @@ export default function Home() {
                             className="call-button"
                             href={`tel:${selectedListing.phone}`}
                           >
-                            Позвонить
+                            {internal.detail.call}
                           </a>
                           <a
                             className="whatsapp-button"
                             target="_blank"
                             rel="noreferrer"
-                            href={`https://wa.me/${(selectedListing.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(`Здравствуйте! Пишу по объявлению Qoldan: ${selectedListing.title}`)}`}
+                            href={`https://wa.me/${(selectedListing.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(`${appLang === 'kk' ? 'Сәлеметсіз бе! Qoldan хабарландыруы бойынша жазып тұрмын' : appLang === 'en' ? 'Hello! I am contacting you about a Qoldan listing' : 'Здравствуйте! Пишу по объявлению Qoldan'}: ${selectedListing.title}`)}`}
                           >
                             <MessageCircle /> WhatsApp
                           </a>
@@ -6983,13 +7318,15 @@ export default function Home() {
                           <MessageCircle />
                           {submitting ===
                           `conversation-listing-${String(selectedListing.id)}`
-                            ? 'Открываем диалог…'
-                            : 'Написать в Qoldan'}
+                            ? internal.detail.openingChat
+                            : internal.detail.write}
                         </button>
                       )}
                       {!isDemoListing(selectedListing.id) &&
                         selectedListing.type === 'Сдам' && (
-                          <button onClick={openBooking}>Забронировать</button>
+                          <button onClick={openBooking}>
+                            {internal.detail.book}
+                          </button>
                         )}
                       {!isDemoListing(selectedListing.id) && (
                         <button
@@ -7005,12 +7342,12 @@ export default function Home() {
                                   ? 'build'
                                   : 'agro';
                             openRequestForm(
-                              `Нужно: ${selectedListing.title}`,
+                              `${internal.detail.needPrefix}: ${selectedListing.title}`,
                               relatedKind,
                             );
                           }}
                         >
-                          <MessageCircle /> Оставить встречную заявку
+                          <MessageCircle /> {internal.detail.counterRequest}
                         </button>
                       )}
                       {!isDemoListing(selectedListing.id) && (
@@ -7025,7 +7362,7 @@ export default function Home() {
                             })
                           }
                         >
-                          <Flag /> Пожаловаться на объявление
+                          <Flag /> {internal.detail.report}
                         </button>
                       )}
                     </div>
@@ -7267,11 +7604,11 @@ export default function Home() {
                     <Clock3 />
                   </span>
                   <div>
-                    <small>БРОНИРОВАНИЕ</small>
+                    <small>{internal.booking.eyebrow}</small>
                     <h2>{selectedListing.title}</h2>
                     <p>
-                      {selectedListing.price} {selectedListing.unit} · оплата
-                      владельцу при получении
+                      {selectedListing.price} {selectedListing.unit} ·{' '}
+                      {internal.booking.payOwner}
                     </p>
                   </div>
                 </div>
@@ -7279,24 +7616,24 @@ export default function Home() {
                   <div className="booking-calendar-card wide">
                     <div className="booking-calendar-head">
                       <div>
-                        <small>ДОСТУПНОСТЬ</small>
-                        <h3>Выберите даты аренды</h3>
+                        <small>{internal.booking.availability}</small>
+                        <h3>{internal.booking.chooseDates}</h3>
                       </div>
                       <span
                         className={`availability-status ${availabilityState}`}
                       >
                         {availabilityState === 'loading'
-                          ? 'Проверяем…'
+                          ? internal.booking.checking
                           : availabilityState === 'error'
-                            ? 'Проверит сервер'
+                            ? internal.booking.serverCheck
                             : availabilityRanges.length > 0
-                              ? `Занято периодов: ${availabilityRanges.length}`
-                              : 'Свободно'}
+                              ? `${internal.booking.occupiedCount}: ${availabilityRanges.length}`
+                              : internal.booking.free}
                       </span>
                     </div>
                     <Calendar
                       mode="range"
-                      locale={ru}
+                      locale={calendarLocale}
                       selected={bookingRange}
                       onSelect={setBookingRange}
                       defaultMonth={bookingRange?.from || calendarToday}
@@ -7312,13 +7649,13 @@ export default function Home() {
                     />
                     <div className="booking-calendar-legend">
                       <span>
-                        <i className="selected" /> Вы выбрали
+                        <i className="selected" /> {internal.booking.selected}
                       </span>
                       <span>
-                        <i className="booked" /> Уже занято
+                        <i className="booked" /> {internal.booking.occupied}
                       </span>
                       <span>
-                        <i className="free" /> Свободно
+                        <i className="free" /> {internal.booking.free}
                       </span>
                     </div>
                     <div className="booking-selection">
@@ -7326,24 +7663,24 @@ export default function Home() {
                       <div>
                         <b>
                           {bookingRange?.from
-                            ? `${formatBookingDate(toIsoDate(bookingRange.from))}${bookingRange.to ? ` — ${formatBookingDate(toIsoDate(bookingRange.to))}` : ' · один день'}`
-                            : 'Период ещё не выбран'}
+                            ? `${formatLocalizedBookingDate(toIsoDate(bookingRange.from))}${bookingRange.to ? ` — ${formatLocalizedBookingDate(toIsoDate(bookingRange.to))}` : ` · ${internal.booking.oneDay}`}`
+                            : internal.booking.notSelected}
                         </b>
                         <span>
                           {bookingRange?.from
-                            ? 'Владелец получит запрос на этот период.'
-                            : 'Для аренды на один день нажмите дату один раз.'}
+                            ? internal.booking.ownerGetsRequest
+                            : internal.booking.oneDayHint}
                         </span>
                       </div>
                     </div>
                     {availabilityRanges.length > 0 && (
                       <div className="busy-periods">
-                        <b>Ближайшие занятые периоды</b>
+                        <b>{internal.booking.nearestOccupied}</b>
                         <div>
                           {availabilityRanges.slice(0, 3).map((range) => (
                             <span key={`${range.dateFrom}-${range.dateTo}`}>
-                              {formatBookingDate(range.dateFrom)} —{' '}
-                              {formatBookingDate(range.dateTo)}
+                              {formatLocalizedBookingDate(range.dateFrom)} —{' '}
+                              {formatLocalizedBookingDate(range.dateTo)}
                             </span>
                           ))}
                         </div>
@@ -7351,7 +7688,7 @@ export default function Home() {
                     )}
                   </div>
                   <label className="wide">
-                    Телефон для ответа владельца
+                    {internal.booking.phone}
                     <input
                       name="customerPhone"
                       type="tel"
@@ -7361,15 +7698,15 @@ export default function Home() {
                     />
                   </label>
                   <label className="wide check-line">
-                    <input name="delivery" type="checkbox" /> Нужна доставка по
-                    городу {selectedListing.location}
+                    <input name="delivery" type="checkbox" />{' '}
+                    {internal.booking.delivery} {selectedListing.location}
                   </label>
                   <label className="wide">
-                    Комментарий
+                    {internal.booking.comment}
                     <textarea
                       name="comment"
                       rows={2}
-                      placeholder="Удобное время и адрес"
+                      placeholder={internal.booking.commentPlaceholder}
                     />
                   </label>
                   <button
@@ -7378,8 +7715,8 @@ export default function Home() {
                     disabled={submitting === 'booking'}
                   >
                     {submitting === 'booking'
-                      ? 'Отправляем…'
-                      : 'Отправить владельцу'}{' '}
+                      ? internal.booking.sending
+                      : internal.booking.send}{' '}
                     <ArrowRight />
                   </button>
                 </form>
@@ -8195,32 +8532,30 @@ export default function Home() {
                     <MessageCircle />
                   </span>
                   <div>
-                    <small>СООБЩЕНИЯ QOLDAN</small>
-                    <h2>Договоритесь напрямую</h2>
-                    <p>
-                      Каждый диалог привязан к реальному объявлению или заявке.
-                    </p>
+                    <small>{internal.messages.eyebrow}</small>
+                    <h2>{internal.messages.title}</h2>
+                    <p>{internal.messages.lead}</p>
                   </div>
                 </div>
                 <div className="chat-safety">
                   <ShieldCheck />
-                  <span>
-                    Не отправляйте коды из SMS, данные карты и предоплату
-                    незнакомому человеку.
-                  </span>
+                  <span>{internal.messages.safety}</span>
                 </div>
                 <div
                   className={`message-layout ${activeConversation ? 'has-active' : ''}`}
                 >
-                  <aside className="conversation-list" aria-label="Диалоги">
+                  <aside
+                    className="conversation-list"
+                    aria-label={internal.messages.dialogs}
+                  >
                     <div className="conversation-list-head">
-                      <b>Входящие</b>
+                      <b>{internal.messages.inbox}</b>
                       <span>{conversations.length}</span>
                     </div>
                     {messagingLoading && conversations.length === 0 ? (
                       <div className="conversation-empty compact">
                         <MessageCircle />
-                        <span>Загружаем диалоги…</span>
+                        <span>{internal.messages.loading}</span>
                       </div>
                     ) : conversations.length > 0 ? (
                       conversations.map((conversation) => (
@@ -8239,7 +8574,8 @@ export default function Home() {
                             <b>{conversation.counterparty}</b>
                             <small>{conversation.contextTitle}</small>
                             <em>
-                              {conversation.lastMessage || 'Начните диалог'}
+                              {conversation.lastMessage ||
+                                internal.messages.start}
                             </em>
                           </span>
                           <span className="conversation-meta">
@@ -8258,15 +8594,15 @@ export default function Home() {
                     ) : (
                       <div className="conversation-empty">
                         <MessageCircle />
-                        <b>Диалогов пока нет</b>
-                        <span>
-                          Откройте реальное объявление или заявку и нажмите
-                          «Написать в Qoldan».
-                        </span>
+                        <b>{internal.messages.empty}</b>
+                        <span>{internal.messages.emptyHint}</span>
                       </div>
                     )}
                   </aside>
-                  <section className="chat-panel" aria-label="Переписка">
+                  <section
+                    className="chat-panel"
+                    aria-label={internal.messages.correspondence}
+                  >
                     {activeConversation ? (
                       <>
                         <div className="chat-head">
@@ -8277,7 +8613,7 @@ export default function Home() {
                               setActiveConversation(null);
                               setChatMessages([]);
                             }}
-                            aria-label="Вернуться к диалогам"
+                            aria-label={internal.messages.back}
                           >
                             <ChevronLeft />
                           </button>
@@ -8290,8 +8626,8 @@ export default function Home() {
                             <b>{activeConversation.counterparty}</b>
                             <span>
                               {activeConversation.contextType === 'listing'
-                                ? 'Объявление'
-                                : 'Заявка'}{' '}
+                                ? internal.messages.listing
+                                : internal.messages.request}{' '}
                               · {activeConversation.contextTitle}
                             </span>
                           </div>
@@ -8299,7 +8635,7 @@ export default function Home() {
                         <div className="message-bubbles" aria-live="polite">
                           {messagingLoading && chatMessages.length === 0 ? (
                             <div className="chat-placeholder">
-                              Загружаем переписку…
+                              {internal.messages.loadingChat}
                             </div>
                           ) : chatMessages.length > 0 ? (
                             chatMessages.map((message) => (
@@ -8312,7 +8648,7 @@ export default function Home() {
                                 <small>
                                   {formatActivityDate(message.createdAt)}
                                   {message.mine && message.readAt
-                                    ? ' · прочитано'
+                                    ? ` · ${internal.messages.read}`
                                     : ''}
                                 </small>
                               </div>
@@ -8320,11 +8656,8 @@ export default function Home() {
                           ) : (
                             <div className="chat-placeholder welcome">
                               <MessageCircle />
-                              <b>Начните разговор</b>
-                              <span>
-                                Уточните цену, сроки, состояние или условия
-                                выезда.
-                              </span>
+                              <b>{internal.messages.startTalk}</b>
+                              <span>{internal.messages.startTalkHint}</span>
                             </div>
                           )}
                         </div>
@@ -8334,13 +8667,13 @@ export default function Home() {
                             rows={2}
                             maxLength={1200}
                             required
-                            placeholder="Напишите сообщение…"
-                            aria-label="Сообщение"
+                            placeholder={internal.messages.placeholder}
+                            aria-label={internal.messages.message}
                           />
                           <button
                             type="submit"
                             disabled={submitting === 'chat-message'}
-                            aria-label="Отправить сообщение"
+                            aria-label={internal.messages.send}
                           >
                             <Send />
                           </button>
@@ -8349,10 +8682,8 @@ export default function Home() {
                     ) : (
                       <div className="chat-placeholder select-chat">
                         <MessageCircle />
-                        <b>Выберите диалог</b>
-                        <span>
-                          Переписка и контекст публикации будут здесь.
-                        </span>
+                        <b>{internal.messages.choose}</b>
+                        <span>{internal.messages.chooseHint}</span>
                       </div>
                     )}
                   </section>
