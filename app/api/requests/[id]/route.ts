@@ -3,7 +3,6 @@ import {
   getMarketplaceDb,
   getViewer,
   serverError,
-  unauthorized,
   upsertViewer,
 } from '@/lib/server/marketplace-db';
 
@@ -26,8 +25,12 @@ type RequestRow = Record<string, unknown> & {
 };
 
 export async function GET(request: Request, context: RouteContext) {
-  const viewer = getViewer(request);
-  if (!viewer) return unauthorized();
+  const authenticatedViewer = getViewer(request);
+  const viewer = authenticatedViewer || {
+    id: '__qoldan_public_guest__',
+    email: '',
+    displayName: 'Гость',
+  };
 
   try {
     const { id } = await context.params;
@@ -40,7 +43,7 @@ export async function GET(request: Request, context: RouteContext) {
     }
 
     await ensureMarketplaceSchema();
-    await upsertViewer(viewer);
+    if (authenticatedViewer) await upsertViewer(authenticatedViewer);
     const db = getMarketplaceDb();
     const requestRow = await db
       .prepare(

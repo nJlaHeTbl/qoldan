@@ -61,7 +61,9 @@ const selectTickets = `SELECT support_tickets.id, support_tickets.owner_id,
 
 export async function GET(request: Request) {
   const viewer = getViewer(request);
-  if (!viewer) return unauthorized();
+  if (!viewer) {
+    return Response.json({ tickets: [], queue: [], canModerate: false });
+  }
   try {
     await ensureMarketplaceSchema();
     await upsertViewer(viewer);

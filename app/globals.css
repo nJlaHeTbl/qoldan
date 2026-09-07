@@ -3260,7 +3260,8 @@ footer {
   display: flex;
   flex-direction: column;
 }
-.profile-menu button {
+.profile-menu button,
+.profile-menu a {
   height: 49px;
   border: 0;
   border-bottom: 1px solid var(--line);
@@ -3271,7 +3272,8 @@ footer {
   font-size: 11px;
   text-align: left;
 }
-.profile-menu button > svg {
+.profile-menu button > svg,
+.profile-menu a > svg {
   width: 18px;
   color: var(--green);
 }
@@ -3298,6 +3300,52 @@ footer {
   display: grid;
   place-items: center;
   font-size: 9px;
+}
+.profile-menu a.profile-signout {
+  color: #7b4237;
+}
+.profile-menu a.profile-signout > svg {
+  color: #b25b49;
+}
+.signin-panel {
+  display: grid;
+  gap: 14px;
+  padding-top: 4px;
+}
+.signin-panel > a {
+  min-height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  background: var(--green);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+}
+.signin-panel > a:hover {
+  background: #095638;
+}
+.signin-panel > a svg,
+.signin-panel > p svg {
+  width: 18px;
+  flex: 0 0 auto;
+}
+.signin-panel > p {
+  margin: 0;
+  border-radius: 11px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: #f3f7f1;
+  color: #5f6d62;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.signin-panel > p svg {
+  color: var(--green);
 }
 .app-modal.provider-modal {
   width: min(940px, 100%);

@@ -4,7 +4,6 @@ import {
   getMarketplaceDb,
   getViewer,
   serverError,
-  unauthorized,
   upsertViewer,
 } from '@/lib/server/marketplace-db';
 import {
@@ -126,13 +125,19 @@ type MessageActivityRow = {
 };
 
 export async function GET(request: Request) {
-  const viewer = getViewer(request);
-  if (!viewer) return unauthorized();
+  const authenticatedViewer = getViewer(request);
+  const viewer = authenticatedViewer || {
+    id: '__qoldan_public_guest__',
+    email: '',
+    displayName: 'Гость',
+  };
   try {
     await ensureMarketplaceSchema();
-    await upsertViewer(viewer);
+    if (authenticatedViewer) await upsertViewer(authenticatedViewer);
     const db = getMarketplaceDb();
-    const viewerCanModerate = canModerate(viewer);
+    const viewerCanModerate = authenticatedViewer
+      ? canModerate(authenticatedViewer)
+      : false;
     const [
       listingResult,
       requestResult,
@@ -643,7 +648,9 @@ export async function GET(request: Request) {
       : null;
 
     return Response.json({
-      viewer,
+      viewer: authenticatedViewer
+        ? { displayName: authenticatedViewer.displayName }
+        : null,
       moderation: {
         canModerate: viewerCanModerate,
         pendingCount: Number(moderationCount?.count || 0),
