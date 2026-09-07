@@ -138,14 +138,105 @@ export async function GET(request: Request) {
     const viewerCanModerate = authenticatedViewer
       ? canModerate(authenticatedViewer)
       : false;
+    const [listingResult, requestResult, reviewResult] = await Promise.all([
+      db
+        .prepare(
+          `SELECT listings.id, listings.title, listings.price, listings.unit,
+                          listings.location, listings.region, listings.category,
+                          listings.offer_type, listings.image_url, listings.phone,
+                          listings.available, listings.description,
+                          listings.seller_type, listings.delivery, listings.owner_id,
+                          listings.livestock_type, listings.livestock_quantity,
+                          listings.livestock_price_mode, listings.livestock_breed,
+                          listings.status, listings.created_at,
+                          listing_locations.latitude, listing_locations.longitude,
+                          COALESCE(verified_business.organization_name,
+                                   users.display_name) AS owner_name,
+                          verified_business.id AS verified_business_id,
+                          verified_business.profile_type AS business_profile_type,
+                          review_stats.rating_average,
+                          review_stats.review_count
+                   FROM listings
+                   JOIN users ON users.id = listings.owner_id
+                   LEFT JOIN business_verifications verified_business
+                     ON verified_business.owner_id = listings.owner_id
+                    AND verified_business.status = 'verified'
+                   LEFT JOIN listing_locations ON listing_locations.listing_id = listings.id
+                   LEFT JOIN (
+                     SELECT listing_id, AVG(rating) AS rating_average,
+                            COUNT(*) AS review_count
+                     FROM reviews
+                     GROUP BY listing_id
+                   ) AS review_stats ON review_stats.listing_id = listings.id
+                   WHERE listings.status = 'active' OR listings.owner_id = ?
+                   ORDER BY listings.created_at DESC
+                   LIMIT 250`,
+        )
+        .bind(viewer.id)
+        .all<Record<string, unknown>>(),
+      db
+        .prepare(
+          `SELECT requests.id, requests.title, requests.place,
+                          requests.when_text, requests.budget, requests.kind,
+                          requests.region, requests.response_count,
+                          requests.owner_id, requests.status,
+                          users.display_name AS owner_name,
+                          request_selections.response_id AS selected_response_id,
+                          request_selections.status AS selection_status,
+                          request_selections.selected_at,
+                          request_selections.completed_at,
+                          selected_responses.owner_id AS selected_provider_id,
+                           selected_responses.price AS selected_price,
+                           selected_providers.display_name AS selected_provider_name,
+                           selection_conversations.id AS selection_conversation_id,
+                           request_reviews.id AS service_review_id,
+                           request_reviews.rating AS service_review_rating,
+                           request_reviews.comment AS service_review_comment,
+                           request_reviews.created_at AS service_review_created_at,
+                           service_reviewers.display_name AS service_reviewer_name
+                   FROM requests
+                   JOIN users ON users.id = requests.owner_id
+                   LEFT JOIN request_selections
+                     ON request_selections.request_id = requests.id
+                   LEFT JOIN responses selected_responses
+                     ON selected_responses.id = request_selections.response_id
+                   LEFT JOIN users selected_providers
+                     ON selected_providers.id = selected_responses.owner_id
+                    LEFT JOIN conversations selection_conversations
+                     ON selection_conversations.context_type = 'request'
+                     AND selection_conversations.context_id = requests.id
+                     AND selection_conversations.participant_id = selected_responses.owner_id
+                    LEFT JOIN request_reviews
+                      ON request_reviews.request_id = requests.id
+                    LEFT JOIN users service_reviewers
+                      ON service_reviewers.id = request_reviews.reviewer_id
+                   WHERE requests.status = 'open'
+                      OR requests.owner_id = ?
+                      OR selected_responses.owner_id = ?
+                   ORDER BY requests.created_at DESC
+                   LIMIT 250`,
+        )
+        .bind(viewer.id, viewer.id)
+        .all<Record<string, unknown>>(),
+      db
+        .prepare(
+          `SELECT reviews.id, reviews.booking_id, reviews.listing_id,
+                        listings.title AS listing_title, reviews.rating,
+                        reviews.comment, reviews.created_at,
+                        users.display_name AS reviewer_name
+                 FROM reviews
+                 JOIN listings ON listings.id = reviews.listing_id
+                 JOIN users ON users.id = reviews.reviewer_id
+                 ORDER BY reviews.created_at DESC
+                 LIMIT 250`,
+        )
+        .all<ReviewRow>(),
+    ]);
     const [
-      listingResult,
-      requestResult,
       favoriteResult,
       savedSearchResult,
       responseResult,
       bookingResult,
-      reviewResult,
       verificationResult,
       responseActivityResult,
       selectionActivityResult,
@@ -158,353 +249,280 @@ export async function GET(request: Request) {
       appealResult,
       messageActivityResult,
       unreadMessageResult,
-    ] = await Promise.all([
-      db
-        .prepare(
-          `SELECT listings.id, listings.title, listings.price, listings.unit,
-                    listings.location, listings.region, listings.category,
-                    listings.offer_type, listings.image_url, listings.phone,
-                    listings.available, listings.description,
-                    listings.seller_type, listings.delivery, listings.owner_id,
-                    listings.livestock_type, listings.livestock_quantity,
-                    listings.livestock_price_mode, listings.livestock_breed,
-                    listings.status, listings.created_at,
-                    listing_locations.latitude, listing_locations.longitude,
-                    COALESCE(verified_business.organization_name,
-                             users.display_name) AS owner_name,
-                    verified_business.id AS verified_business_id,
-                    verified_business.profile_type AS business_profile_type,
-                    review_stats.rating_average,
-                    review_stats.review_count
-             FROM listings
-             JOIN users ON users.id = listings.owner_id
-             LEFT JOIN business_verifications verified_business
-               ON verified_business.owner_id = listings.owner_id
-              AND verified_business.status = 'verified'
-             LEFT JOIN listing_locations ON listing_locations.listing_id = listings.id
-             LEFT JOIN (
-               SELECT listing_id, AVG(rating) AS rating_average,
-                      COUNT(*) AS review_count
-               FROM reviews
-               GROUP BY listing_id
-             ) AS review_stats ON review_stats.listing_id = listings.id
-             WHERE listings.status = 'active' OR listings.owner_id = ?
-             ORDER BY listings.created_at DESC
-             LIMIT 250`,
-        )
-        .bind(viewer.id)
-        .all<Record<string, unknown>>(),
-      db
-        .prepare(
-          `SELECT requests.id, requests.title, requests.place,
-                    requests.when_text, requests.budget, requests.kind,
-                    requests.region, requests.response_count,
-                    requests.owner_id, requests.status,
-                    users.display_name AS owner_name,
-                    request_selections.response_id AS selected_response_id,
-                    request_selections.status AS selection_status,
-                    request_selections.selected_at,
-                    request_selections.completed_at,
-                    selected_responses.owner_id AS selected_provider_id,
-                     selected_responses.price AS selected_price,
-                     selected_providers.display_name AS selected_provider_name,
-                     selection_conversations.id AS selection_conversation_id,
-                     request_reviews.id AS service_review_id,
-                     request_reviews.rating AS service_review_rating,
-                     request_reviews.comment AS service_review_comment,
-                     request_reviews.created_at AS service_review_created_at,
-                     service_reviewers.display_name AS service_reviewer_name
-             FROM requests
-             JOIN users ON users.id = requests.owner_id
-             LEFT JOIN request_selections
-               ON request_selections.request_id = requests.id
-             LEFT JOIN responses selected_responses
-               ON selected_responses.id = request_selections.response_id
-             LEFT JOIN users selected_providers
-               ON selected_providers.id = selected_responses.owner_id
-              LEFT JOIN conversations selection_conversations
-               ON selection_conversations.context_type = 'request'
-               AND selection_conversations.context_id = requests.id
-               AND selection_conversations.participant_id = selected_responses.owner_id
-              LEFT JOIN request_reviews
-                ON request_reviews.request_id = requests.id
-              LEFT JOIN users service_reviewers
-                ON service_reviewers.id = request_reviews.reviewer_id
-             WHERE requests.status = 'open'
-                OR requests.owner_id = ?
-                OR selected_responses.owner_id = ?
-             ORDER BY requests.created_at DESC
-             LIMIT 250`,
-        )
-        .bind(viewer.id, viewer.id)
-        .all<Record<string, unknown>>(),
-      db
-        .prepare(
-          'SELECT listing_id FROM favorites WHERE owner_id = ? ORDER BY created_at DESC',
-        )
-        .bind(viewer.id)
-        .all<{ listing_id: string }>(),
-      db
-        .prepare(
-          `${savedSearchSelect}
-           WHERE saved_searches.owner_id = ?
-           ORDER BY saved_searches.created_at DESC
-           LIMIT 20`,
-        )
-        .bind(viewer.id)
-        .all<SavedSearchRow>(),
-      db
-        .prepare(
-          `SELECT responses.id, responses.request_id, responses.price,
-                     responses.message, users.display_name AS owner_name,
-                     responses.owner_id,
-                     request_selections.status AS selection_status,
-                     service_review_stats.rating_average AS provider_rating_average,
-                     service_review_stats.review_count AS provider_review_count
-             FROM responses
-             JOIN users ON users.id = responses.owner_id
-             JOIN requests ON requests.id = responses.request_id
-              LEFT JOIN request_selections
-                ON request_selections.request_id = responses.request_id
-               AND request_selections.response_id = responses.id
-              LEFT JOIN (
-                SELECT provider_id, AVG(rating) AS rating_average,
-                       COUNT(*) AS review_count
-                FROM request_reviews
-                GROUP BY provider_id
-              ) AS service_review_stats
-                ON service_review_stats.provider_id = responses.owner_id
-             WHERE responses.owner_id = ? OR requests.owner_id = ?
-             ORDER BY responses.created_at DESC
-             LIMIT 250`,
-        )
-        .bind(viewer.id, viewer.id)
-        .all<Record<string, unknown>>(),
-      db
-        .prepare(
-          `SELECT bookings.id, bookings.listing_id, bookings.owner_id AS customer_id,
-                  bookings.date_from, bookings.date_to, bookings.customer_phone,
-                  bookings.delivery, bookings.comment, bookings.status,
-                  bookings.completed_at,
-                  listings.title AS listing_title, listings.phone AS listing_phone,
-                  listings.owner_id AS listing_owner_id,
-                  customers.display_name AS customer_name,
-                  listing_owners.display_name AS listing_owner_name,
-                  reviews.id AS review_id, reviews.rating AS review_rating,
-                  reviews.comment AS review_comment,
-                  reviews.created_at AS review_created_at,
-                  reviewers.display_name AS review_reviewer_name,
-                  rental_handoffs.booking_id AS handoff_booking_id,
-                  rental_handoffs.deposit_amount,
-                  rental_handoffs.deposit_received,
-                  rental_handoffs.condition_out,
-                  rental_handoffs.equipment_list,
-                  rental_handoffs.handed_over_at,
-                  rental_handoffs.condition_in,
-                  rental_handoffs.deposit_result,
-                  rental_handoffs.return_note,
-                  rental_handoffs.returned_at
-           FROM bookings
-           JOIN listings ON listings.id = bookings.listing_id
-           JOIN users customers ON customers.id = bookings.owner_id
-           JOIN users listing_owners ON listing_owners.id = listings.owner_id
-           LEFT JOIN reviews ON reviews.booking_id = bookings.id
-           LEFT JOIN users reviewers ON reviewers.id = reviews.reviewer_id
-           LEFT JOIN rental_handoffs
-             ON rental_handoffs.booking_id = bookings.id
-           WHERE bookings.owner_id = ? OR listings.owner_id = ?
-           ORDER BY bookings.created_at DESC
-           LIMIT 150`,
-        )
-        .bind(viewer.id, viewer.id)
-        .all<Record<string, unknown>>(),
-      db
-        .prepare(
-          `SELECT reviews.id, reviews.booking_id, reviews.listing_id,
-                  listings.title AS listing_title, reviews.rating,
-                  reviews.comment, reviews.created_at,
-                  users.display_name AS reviewer_name
-           FROM reviews
-           JOIN listings ON listings.id = reviews.listing_id
-           JOIN users ON users.id = reviews.reviewer_id
-           ORDER BY reviews.created_at DESC
-           LIMIT 250`,
-        )
-        .all<ReviewRow>(),
-      db
-        .prepare(
-          `SELECT id, profile_type, organization_name, bin, phone, region,
-                  reference_url, note, status, review_note,
-                  created_at, reviewed_at
-           FROM business_verifications
-           WHERE owner_id = ?`,
-        )
-        .bind(viewer.id)
-        .first<OwnVerificationRow>(),
-      db
-        .prepare(
-          `SELECT responses.id, responses.price, responses.message,
-                    responses.created_at, users.display_name AS actor_name,
-                    requests.title AS target_title
-             FROM responses
-             JOIN users ON users.id = responses.owner_id
-             JOIN requests ON requests.id = responses.request_id
-             WHERE requests.owner_id = ?
-             ORDER BY responses.created_at DESC
-             LIMIT 50`,
-        )
-        .bind(viewer.id)
-        .all<ResponseActivityRow>(),
-      db
-        .prepare(
-          `SELECT request_selections.request_id, request_selections.status,
-                  request_selections.selected_at,
-                  request_selections.updated_at,
-                  request_selections.completed_at,
-                  responses.price,
-                  customers.display_name AS customer_name,
-                  requests.title AS request_title
-           FROM request_selections
-           JOIN responses ON responses.id = request_selections.response_id
-           JOIN requests ON requests.id = request_selections.request_id
-           JOIN users customers ON customers.id = requests.owner_id
-           WHERE responses.owner_id = ?
-           ORDER BY request_selections.updated_at DESC
-           LIMIT 50`,
-        )
-        .bind(viewer.id)
-        .all<SelectionActivityRow>(),
-      db
-        .prepare(
-          `SELECT request_reviews.id, request_reviews.rating,
-                  request_reviews.comment, request_reviews.created_at,
-                  reviewers.display_name AS reviewer_name,
-                  requests.title AS request_title
-           FROM request_reviews
-           JOIN requests ON requests.id = request_reviews.request_id
-           JOIN users reviewers ON reviewers.id = request_reviews.reviewer_id
-           WHERE request_reviews.provider_id = ?
-           ORDER BY request_reviews.created_at DESC
-           LIMIT 50`,
-        )
-        .bind(viewer.id)
-        .all<RequestReviewActivityRow>(),
-      db
-        .prepare(
-          `SELECT AVG(rating) AS rating_average, COUNT(*) AS review_count
-           FROM request_reviews
-           WHERE provider_id = ?`,
-        )
-        .bind(viewer.id)
-        .first<{ rating_average: number | null; review_count: number }>(),
-      db
-        .prepare(
-          `SELECT bookings.id, bookings.date_from, bookings.date_to,
-                    bookings.created_at, users.display_name AS actor_name,
-                    listings.title AS target_title
-             FROM bookings
-             JOIN users ON users.id = bookings.owner_id
-             JOIN listings ON listings.id = bookings.listing_id
-             WHERE listings.owner_id = ?
-             ORDER BY bookings.created_at DESC
-             LIMIT 50`,
-        )
-        .bind(viewer.id)
-        .all<BookingActivityRow>(),
-      db
-        .prepare(
-          `SELECT bookings.id, bookings.status,
-                  COALESCE(bookings.completed_at, bookings.created_at) AS created_at,
-                  users.display_name AS actor_name,
-                  listings.title AS target_title
-           FROM bookings
-           JOIN listings ON listings.id = bookings.listing_id
-           JOIN users ON users.id = listings.owner_id
-           WHERE bookings.owner_id = ?
-              AND bookings.status IN ('accepted', 'declined', 'completed')
-           ORDER BY bookings.created_at DESC
-           LIMIT 50`,
-        )
-        .bind(viewer.id)
-        .all<BookingDecisionActivityRow>(),
-      db
-        .prepare(
-          `SELECT rental_handoffs.booking_id,
-                  rental_handoffs.deposit_amount,
-                  rental_handoffs.handed_over_at,
-                  users.display_name AS actor_name,
-                  listings.title AS target_title
-           FROM rental_handoffs
-           JOIN bookings ON bookings.id = rental_handoffs.booking_id
-           JOIN listings ON listings.id = bookings.listing_id
-           JOIN users ON users.id = listings.owner_id
-           WHERE bookings.owner_id = ?
-           ORDER BY rental_handoffs.handed_over_at DESC
-           LIMIT 50`,
-        )
-        .bind(viewer.id)
-        .all<HandoffActivityRow>(),
-      db
-        .prepare(
-          `SELECT moderation_actions.id, moderation_actions.action,
-                  moderation_actions.target_title, moderation_actions.note,
-                  moderation_actions.created_at, appeals.id AS appeal_id,
-                  appeals.status AS appeal_status
-             FROM moderation_actions
-             LEFT JOIN appeals
-               ON appeals.moderation_action_id = moderation_actions.id
-             WHERE moderation_actions.target_owner_id = ?
-             ORDER BY moderation_actions.created_at DESC
-             LIMIT 50`,
-        )
-        .bind(viewer.id)
-        .all<ModerationActivityRow>(),
-      db
-        .prepare(
-          `SELECT appeals.id, appeals.moderation_action_id,
-                  moderation_actions.target_title, moderation_actions.action,
-                  appeals.message, appeals.status, appeals.resolution_note,
-                  appeals.created_at, appeals.reviewed_at
-             FROM appeals
-             JOIN moderation_actions
-               ON moderation_actions.id = appeals.moderation_action_id
-             WHERE appeals.owner_id = ?
-             ORDER BY appeals.created_at DESC
-             LIMIT 100`,
-        )
-        .bind(viewer.id)
-        .all<AppealRow>(),
-      db
-        .prepare(
-          `SELECT messages.id, messages.body, messages.created_at,
-                  users.display_name AS actor_name,
-                  conversations.context_title
-           FROM messages
-           JOIN conversations
-             ON conversations.id = messages.conversation_id
-           JOIN users ON users.id = messages.sender_id
-           WHERE (conversations.context_owner_id = ?
-                  OR conversations.participant_id = ?)
-             AND messages.sender_id != ?
-           ORDER BY messages.created_at DESC
-           LIMIT 50`,
-        )
-        .bind(viewer.id, viewer.id, viewer.id)
-        .all<MessageActivityRow>(),
-      db
-        .prepare(
-          `SELECT COUNT(*) AS count
-           FROM messages
-           JOIN conversations
-             ON conversations.id = messages.conversation_id
-           WHERE (conversations.context_owner_id = ?
-                  OR conversations.participant_id = ?)
-             AND messages.sender_id != ?
-             AND messages.read_at IS NULL`,
-        )
-        .bind(viewer.id, viewer.id, viewer.id)
-        .first<{ count: number }>(),
-    ]);
+    ] = authenticatedViewer
+      ? await Promise.all([
+          db
+            .prepare(
+              'SELECT listing_id FROM favorites WHERE owner_id = ? ORDER BY created_at DESC',
+            )
+            .bind(viewer.id)
+            .all<{ listing_id: string }>(),
+          db
+            .prepare(
+              `${savedSearchSelect}
+                     WHERE saved_searches.owner_id = ?
+                     ORDER BY saved_searches.created_at DESC
+                     LIMIT 20`,
+            )
+            .bind(viewer.id)
+            .all<SavedSearchRow>(),
+          db
+            .prepare(
+              `SELECT responses.id, responses.request_id, responses.price,
+                               responses.message, users.display_name AS owner_name,
+                               responses.owner_id,
+                               request_selections.status AS selection_status,
+                               service_review_stats.rating_average AS provider_rating_average,
+                               service_review_stats.review_count AS provider_review_count
+                       FROM responses
+                       JOIN users ON users.id = responses.owner_id
+                       JOIN requests ON requests.id = responses.request_id
+                        LEFT JOIN request_selections
+                          ON request_selections.request_id = responses.request_id
+                         AND request_selections.response_id = responses.id
+                        LEFT JOIN (
+                          SELECT provider_id, AVG(rating) AS rating_average,
+                                 COUNT(*) AS review_count
+                          FROM request_reviews
+                          GROUP BY provider_id
+                        ) AS service_review_stats
+                          ON service_review_stats.provider_id = responses.owner_id
+                       WHERE responses.owner_id = ? OR requests.owner_id = ?
+                       ORDER BY responses.created_at DESC
+                       LIMIT 250`,
+            )
+            .bind(viewer.id, viewer.id)
+            .all<Record<string, unknown>>(),
+          db
+            .prepare(
+              `SELECT bookings.id, bookings.listing_id, bookings.owner_id AS customer_id,
+                            bookings.date_from, bookings.date_to, bookings.customer_phone,
+                            bookings.delivery, bookings.comment, bookings.status,
+                            bookings.completed_at,
+                            listings.title AS listing_title, listings.phone AS listing_phone,
+                            listings.owner_id AS listing_owner_id,
+                            customers.display_name AS customer_name,
+                            listing_owners.display_name AS listing_owner_name,
+                            reviews.id AS review_id, reviews.rating AS review_rating,
+                            reviews.comment AS review_comment,
+                            reviews.created_at AS review_created_at,
+                            reviewers.display_name AS review_reviewer_name,
+                            rental_handoffs.booking_id AS handoff_booking_id,
+                            rental_handoffs.deposit_amount,
+                            rental_handoffs.deposit_received,
+                            rental_handoffs.condition_out,
+                            rental_handoffs.equipment_list,
+                            rental_handoffs.handed_over_at,
+                            rental_handoffs.condition_in,
+                            rental_handoffs.deposit_result,
+                            rental_handoffs.return_note,
+                            rental_handoffs.returned_at
+                     FROM bookings
+                     JOIN listings ON listings.id = bookings.listing_id
+                     JOIN users customers ON customers.id = bookings.owner_id
+                     JOIN users listing_owners ON listing_owners.id = listings.owner_id
+                     LEFT JOIN reviews ON reviews.booking_id = bookings.id
+                     LEFT JOIN users reviewers ON reviewers.id = reviews.reviewer_id
+                     LEFT JOIN rental_handoffs
+                       ON rental_handoffs.booking_id = bookings.id
+                     WHERE bookings.owner_id = ? OR listings.owner_id = ?
+                     ORDER BY bookings.created_at DESC
+                     LIMIT 150`,
+            )
+            .bind(viewer.id, viewer.id)
+            .all<Record<string, unknown>>(),
+          db
+            .prepare(
+              `SELECT id, profile_type, organization_name, bin, phone, region,
+                            reference_url, note, status, review_note,
+                            created_at, reviewed_at
+                     FROM business_verifications
+                     WHERE owner_id = ?`,
+            )
+            .bind(viewer.id)
+            .first<OwnVerificationRow>(),
+          db
+            .prepare(
+              `SELECT responses.id, responses.price, responses.message,
+                              responses.created_at, users.display_name AS actor_name,
+                              requests.title AS target_title
+                       FROM responses
+                       JOIN users ON users.id = responses.owner_id
+                       JOIN requests ON requests.id = responses.request_id
+                       WHERE requests.owner_id = ?
+                       ORDER BY responses.created_at DESC
+                       LIMIT 50`,
+            )
+            .bind(viewer.id)
+            .all<ResponseActivityRow>(),
+          db
+            .prepare(
+              `SELECT request_selections.request_id, request_selections.status,
+                            request_selections.selected_at,
+                            request_selections.updated_at,
+                            request_selections.completed_at,
+                            responses.price,
+                            customers.display_name AS customer_name,
+                            requests.title AS request_title
+                     FROM request_selections
+                     JOIN responses ON responses.id = request_selections.response_id
+                     JOIN requests ON requests.id = request_selections.request_id
+                     JOIN users customers ON customers.id = requests.owner_id
+                     WHERE responses.owner_id = ?
+                     ORDER BY request_selections.updated_at DESC
+                     LIMIT 50`,
+            )
+            .bind(viewer.id)
+            .all<SelectionActivityRow>(),
+          db
+            .prepare(
+              `SELECT request_reviews.id, request_reviews.rating,
+                            request_reviews.comment, request_reviews.created_at,
+                            reviewers.display_name AS reviewer_name,
+                            requests.title AS request_title
+                     FROM request_reviews
+                     JOIN requests ON requests.id = request_reviews.request_id
+                     JOIN users reviewers ON reviewers.id = request_reviews.reviewer_id
+                     WHERE request_reviews.provider_id = ?
+                     ORDER BY request_reviews.created_at DESC
+                     LIMIT 50`,
+            )
+            .bind(viewer.id)
+            .all<RequestReviewActivityRow>(),
+          db
+            .prepare(
+              `SELECT AVG(rating) AS rating_average, COUNT(*) AS review_count
+                     FROM request_reviews
+                     WHERE provider_id = ?`,
+            )
+            .bind(viewer.id)
+            .first<{ rating_average: number | null; review_count: number }>(),
+          db
+            .prepare(
+              `SELECT bookings.id, bookings.date_from, bookings.date_to,
+                              bookings.created_at, users.display_name AS actor_name,
+                              listings.title AS target_title
+                       FROM bookings
+                       JOIN users ON users.id = bookings.owner_id
+                       JOIN listings ON listings.id = bookings.listing_id
+                       WHERE listings.owner_id = ?
+                       ORDER BY bookings.created_at DESC
+                       LIMIT 50`,
+            )
+            .bind(viewer.id)
+            .all<BookingActivityRow>(),
+          db
+            .prepare(
+              `SELECT bookings.id, bookings.status,
+                            COALESCE(bookings.completed_at, bookings.created_at) AS created_at,
+                            users.display_name AS actor_name,
+                            listings.title AS target_title
+                     FROM bookings
+                     JOIN listings ON listings.id = bookings.listing_id
+                     JOIN users ON users.id = listings.owner_id
+                     WHERE bookings.owner_id = ?
+                        AND bookings.status IN ('accepted', 'declined', 'completed')
+                     ORDER BY bookings.created_at DESC
+                     LIMIT 50`,
+            )
+            .bind(viewer.id)
+            .all<BookingDecisionActivityRow>(),
+          db
+            .prepare(
+              `SELECT rental_handoffs.booking_id,
+                            rental_handoffs.deposit_amount,
+                            rental_handoffs.handed_over_at,
+                            users.display_name AS actor_name,
+                            listings.title AS target_title
+                     FROM rental_handoffs
+                     JOIN bookings ON bookings.id = rental_handoffs.booking_id
+                     JOIN listings ON listings.id = bookings.listing_id
+                     JOIN users ON users.id = listings.owner_id
+                     WHERE bookings.owner_id = ?
+                     ORDER BY rental_handoffs.handed_over_at DESC
+                     LIMIT 50`,
+            )
+            .bind(viewer.id)
+            .all<HandoffActivityRow>(),
+          db
+            .prepare(
+              `SELECT moderation_actions.id, moderation_actions.action,
+                            moderation_actions.target_title, moderation_actions.note,
+                            moderation_actions.created_at, appeals.id AS appeal_id,
+                            appeals.status AS appeal_status
+                       FROM moderation_actions
+                       LEFT JOIN appeals
+                         ON appeals.moderation_action_id = moderation_actions.id
+                       WHERE moderation_actions.target_owner_id = ?
+                       ORDER BY moderation_actions.created_at DESC
+                       LIMIT 50`,
+            )
+            .bind(viewer.id)
+            .all<ModerationActivityRow>(),
+          db
+            .prepare(
+              `SELECT appeals.id, appeals.moderation_action_id,
+                            moderation_actions.target_title, moderation_actions.action,
+                            appeals.message, appeals.status, appeals.resolution_note,
+                            appeals.created_at, appeals.reviewed_at
+                       FROM appeals
+                       JOIN moderation_actions
+                         ON moderation_actions.id = appeals.moderation_action_id
+                       WHERE appeals.owner_id = ?
+                       ORDER BY appeals.created_at DESC
+                       LIMIT 100`,
+            )
+            .bind(viewer.id)
+            .all<AppealRow>(),
+          db
+            .prepare(
+              `SELECT messages.id, messages.body, messages.created_at,
+                            users.display_name AS actor_name,
+                            conversations.context_title
+                     FROM messages
+                     JOIN conversations
+                       ON conversations.id = messages.conversation_id
+                     JOIN users ON users.id = messages.sender_id
+                     WHERE (conversations.context_owner_id = ?
+                            OR conversations.participant_id = ?)
+                       AND messages.sender_id != ?
+                     ORDER BY messages.created_at DESC
+                     LIMIT 50`,
+            )
+            .bind(viewer.id, viewer.id, viewer.id)
+            .all<MessageActivityRow>(),
+          db
+            .prepare(
+              `SELECT COUNT(*) AS count
+                     FROM messages
+                     JOIN conversations
+                       ON conversations.id = messages.conversation_id
+                     WHERE (conversations.context_owner_id = ?
+                            OR conversations.participant_id = ?)
+                       AND messages.sender_id != ?
+                       AND messages.read_at IS NULL`,
+            )
+            .bind(viewer.id, viewer.id, viewer.id)
+            .first<{ count: number }>(),
+        ])
+      : ([
+          { results: [] as never[] },
+          { results: [] as never[] },
+          { results: [] as never[] },
+          { results: [] as never[] },
+          null,
+          { results: [] as never[] },
+          { results: [] as never[] },
+          { results: [] as never[] },
+          null,
+          { results: [] as never[] },
+          { results: [] as never[] },
+          { results: [] as never[] },
+          { results: [] as never[] },
+          { results: [] as never[] },
+          { results: [] as never[] },
+          null,
+        ] as const);
 
     const activities = [
       ...savedSearchResult.results
