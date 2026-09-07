@@ -45,8 +45,22 @@ export const listingInput = z
     region: shortText,
     category: shortText,
     type: z.enum(offerTypes),
-    imageUrl: z.string().trim().min(1).max(500),
-    phone: z.string().trim().min(7).max(32),
+    imageUrl: z
+      .string()
+      .trim()
+      .regex(
+        /^\/api\/media\/[0-9a-f-]{36}\.(jpg|png|webp)$/i,
+        'Сначала загрузите фотографию',
+      ),
+    phone: z
+      .string()
+      .trim()
+      .min(7)
+      .max(32)
+      .refine((value) => {
+        const digits = value.replace(/\D/g, '');
+        return digits.length >= 10 && digits.length <= 15;
+      }, 'Проверьте номер телефона'),
     available: z.string().trim().max(160).optional().default(''),
     description: z.string().trim().max(1200).optional().default(''),
     sellerType: z.enum(sellerTypes),

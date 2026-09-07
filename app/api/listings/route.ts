@@ -1,6 +1,7 @@
 import {
   ensureMarketplaceSchema,
   getMarketplaceDb,
+  getRateLimitResponse,
   getViewer,
   serverError,
   unauthorized,
@@ -19,9 +20,23 @@ export async function POST(request: Request) {
     const input = await parseJson(request, listingInput);
     await ensureMarketplaceSchema();
     await upsertViewer(viewer);
+    const db = getMarketplaceDb();
+    const hourMs = 60 * 60 * 1000;
+    const limited = await getRateLimitResponse(
+      db
+        .prepare(
+          `SELECT created_at FROM listings
+           WHERE owner_id = ? AND created_at >= ?
+           ORDER BY created_at DESC
+           LIMIT 1 OFFSET 7`,
+        )
+        .bind(viewer.id, Date.now() - hourMs),
+      hourMs,
+      'Можно опубликовать до 8 объявлений в час. Попробуйте немного позже.',
+    );
+    if (limited) return limited;
     const id = crypto.randomUUID();
     const now = Date.now();
-    const db = getMarketplaceDb();
     const listingStatement = db
       .prepare(
         `INSERT INTO listings

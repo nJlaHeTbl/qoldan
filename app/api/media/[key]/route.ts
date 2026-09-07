@@ -15,6 +15,7 @@ export async function GET(
     object.writeHttpMetadata(headers);
     headers.set('etag', object.httpEtag);
     headers.set('cache-control', 'public, max-age=31536000, immutable');
+    headers.set('x-content-type-options', 'nosniff');
     return new Response(object.body, { headers });
   } catch (error) {
     return serverError(error);

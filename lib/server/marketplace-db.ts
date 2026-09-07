@@ -529,6 +529,34 @@ export async function upsertViewer(viewer: Viewer) {
     .run();
 }
 
+export async function getRateLimitResponse(
+  statement: D1PreparedStatement,
+  windowMs: number,
+  message: string,
+) {
+  const recent = await statement.first<{ created_at: number }>();
+  if (!recent) return null;
+
+  const retryAfterSeconds = Math.max(
+    1,
+    Math.ceil((Number(recent.created_at) + windowMs - Date.now()) / 1000),
+  );
+  return Response.json(
+    {
+      error: message,
+      code: 'rate_limited',
+      retryAfterSeconds,
+    },
+    {
+      status: 429,
+      headers: {
+        'cache-control': 'no-store',
+        'retry-after': String(retryAfterSeconds),
+      },
+    },
+  );
+}
+
 export function unauthorized() {
   return Response.json(
     { error: 'Войдите в Qoldan, чтобы продолжить' },

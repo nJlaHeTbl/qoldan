@@ -1,6 +1,7 @@
 import {
   ensureMarketplaceSchema,
   getMarketplaceDb,
+  getRateLimitResponse,
   getViewer,
   serverError,
   unauthorized,
@@ -88,6 +89,20 @@ export async function POST(request: Request) {
         { status: 409 },
       );
     }
+    const hourMs = 60 * 60 * 1000;
+    const limited = await getRateLimitResponse(
+      db
+        .prepare(
+          `SELECT created_at FROM bookings
+           WHERE owner_id = ? AND created_at >= ?
+           ORDER BY created_at DESC
+           LIMIT 1 OFFSET 9`,
+        )
+        .bind(viewer.id, Date.now() - hourMs),
+      hourMs,
+      'Можно отправить до 10 запросов на аренду в час. Попробуйте немного позже.',
+    );
+    if (limited) return limited;
     const id = crypto.randomUUID();
     await db
       .prepare(

@@ -2,6 +2,7 @@ import {
   ensureMarketplaceSchema,
   getMarketplaceDb,
   getMarketplaceImages,
+  getRateLimitResponse,
   getViewer,
   serverError,
   unauthorized,
@@ -14,10 +15,35 @@ const allowedTypes = new Map([
   ['image/webp', 'webp'],
 ]);
 
+function hasValidImageSignature(type: string, bytes: Uint8Array) {
+  if (type === 'image/jpeg') {
+    return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  }
+  if (type === 'image/png') {
+    return [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every(
+      (byte, index) => bytes[index] === byte,
+    );
+  }
+  if (type === 'image/webp') {
+    return (
+      new TextDecoder().decode(bytes.slice(0, 4)) === 'RIFF' &&
+      new TextDecoder().decode(bytes.slice(8, 12)) === 'WEBP'
+    );
+  }
+  return false;
+}
+
 export async function POST(request: Request) {
   const viewer = getViewer(request);
   if (!viewer) return unauthorized();
   try {
+    const contentLength = Number(request.headers.get('content-length') || 0);
+    if (contentLength > 5_500_000) {
+      return Response.json(
+        { error: 'Фотография должна быть размером до 5 МБ' },
+        { status: 413 },
+      );
+    }
     const formData = await request.formData();
     const image = formData.get('image');
     if (!(image instanceof File)) {
@@ -30,20 +56,67 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+    const signature = new Uint8Array(await image.slice(0, 12).arrayBuffer());
+    if (!hasValidImageSignature(image.type, signature)) {
+      return Response.json(
+        { error: 'Файл повреждён или не является фотографией' },
+        { status: 400 },
+      );
+    }
     await ensureMarketplaceSchema();
     await upsertViewer(viewer);
+    const db = getMarketplaceDb();
+    const hourMs = 60 * 60 * 1000;
+    const limited = await getRateLimitResponse(
+      db
+        .prepare(
+          `SELECT created_at FROM uploads
+           WHERE owner_id = ? AND created_at >= ?
+           ORDER BY created_at DESC
+           LIMIT 1 OFFSET 19`,
+        )
+        .bind(viewer.id, Date.now() - hourMs),
+      hourMs,
+      'Можно загрузить до 20 фотографий в час. Попробуйте немного позже.',
+    );
+    if (limited) return limited;
+
+    const dayMs = 24 * hourMs;
+    const usage = await db
+      .prepare(
+        `SELECT COALESCE(SUM(size), 0) AS total_size FROM uploads
+         WHERE owner_id = ? AND created_at >= ?`,
+      )
+      .bind(viewer.id, Date.now() - dayMs)
+      .first<{ total_size: number }>();
+    if (Number(usage?.total_size || 0) + image.size > 50_000_000) {
+      return Response.json(
+        {
+          error: 'Достигнут дневной лимит фотографий. Попробуйте снова завтра.',
+          code: 'upload_limit_reached',
+        },
+        { status: 429, headers: { 'cache-control': 'no-store' } },
+      );
+    }
+
     const key = `${crypto.randomUUID()}.${extension}`;
-    await getMarketplaceImages().put(key, image.stream(), {
+    const images = getMarketplaceImages();
+    await images.put(key, image.stream(), {
       httpMetadata: { contentType: image.type },
       customMetadata: { ownerId: viewer.id },
     });
-    await getMarketplaceDb()
-      .prepare(
-        `INSERT INTO uploads (key, owner_id, content_type, size, created_at)
-         VALUES (?, ?, ?, ?, ?)`,
-      )
-      .bind(key, viewer.id, image.type, image.size, Date.now())
-      .run();
+    try {
+      await db
+        .prepare(
+          `INSERT INTO uploads (key, owner_id, content_type, size, created_at)
+           VALUES (?, ?, ?, ?, ?)`,
+        )
+        .bind(key, viewer.id, image.type, image.size, Date.now())
+        .run();
+    } catch (error) {
+      await images.delete(key);
+      throw error;
+    }
     return Response.json({ url: `/api/media/${key}` }, { status: 201 });
   } catch (error) {
     return serverError(error);

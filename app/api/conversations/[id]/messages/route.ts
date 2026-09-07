@@ -1,6 +1,7 @@
 import {
   ensureMarketplaceSchema,
   getMarketplaceDb,
+  getRateLimitResponse,
   getViewer,
   serverError,
   unauthorized,
@@ -117,6 +118,20 @@ export async function POST(request: Request, context: RouteContext) {
     const messageId = crypto.randomUUID();
     const now = Date.now();
     const db = getMarketplaceDb();
+    const minuteMs = 60 * 1000;
+    const limited = await getRateLimitResponse(
+      db
+        .prepare(
+          `SELECT created_at FROM messages
+           WHERE conversation_id = ? AND sender_id = ? AND created_at >= ?
+           ORDER BY created_at DESC
+           LIMIT 1 OFFSET 29`,
+        )
+        .bind(conversation.id, viewer.id, now - minuteMs),
+      minuteMs,
+      'Слишком много сообщений подряд. Подождите немного и продолжайте.',
+    );
+    if (limited) return limited;
     await db.batch([
       db
         .prepare(

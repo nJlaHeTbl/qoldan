@@ -3,6 +3,7 @@ import {
   ensureMarketplaceSchema,
   forbidden,
   getMarketplaceDb,
+  getRateLimitResponse,
   getViewer,
   serverError,
   unauthorized,
@@ -128,6 +129,20 @@ export async function POST(request: Request) {
         { status: 409 },
       );
     }
+    const dayMs = 24 * 60 * 60 * 1000;
+    const limited = await getRateLimitResponse(
+      db
+        .prepare(
+          `SELECT created_at FROM support_tickets
+           WHERE owner_id = ? AND created_at >= ?
+           ORDER BY created_at DESC
+           LIMIT 1 OFFSET 4`,
+        )
+        .bind(viewer.id, Date.now() - dayMs),
+      dayMs,
+      'Можно отправить до 5 обращений в поддержку в сутки.',
+    );
+    if (limited) return limited;
     const id = crypto.randomUUID();
     const now = Date.now();
     await db

@@ -1,6 +1,7 @@
 import {
   ensureMarketplaceSchema,
   getMarketplaceDb,
+  getRateLimitResponse,
   getViewer,
   serverError,
   unauthorized,
@@ -49,6 +50,20 @@ export async function POST(request: Request) {
         { status: 409 },
       );
     }
+    const dayMs = 24 * 60 * 60 * 1000;
+    const limited = await getRateLimitResponse(
+      db
+        .prepare(
+          `SELECT created_at FROM reports
+           WHERE owner_id = ? AND created_at >= ?
+           ORDER BY created_at DESC
+           LIMIT 1 OFFSET 19`,
+        )
+        .bind(viewer.id, Date.now() - dayMs),
+      dayMs,
+      'Можно отправить до 20 жалоб в сутки. Попробуйте позже.',
+    );
+    if (limited) return limited;
     const id = crypto.randomUUID();
     await db
       .prepare(

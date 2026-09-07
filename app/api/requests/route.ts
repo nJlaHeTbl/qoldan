@@ -1,6 +1,7 @@
 import {
   ensureMarketplaceSchema,
   getMarketplaceDb,
+  getRateLimitResponse,
   getViewer,
   serverError,
   unauthorized,
@@ -19,9 +20,24 @@ export async function POST(request: Request) {
     const input = await parseJson(request, requestInput);
     await ensureMarketplaceSchema();
     await upsertViewer(viewer);
+    const db = getMarketplaceDb();
+    const hourMs = 60 * 60 * 1000;
+    const limited = await getRateLimitResponse(
+      db
+        .prepare(
+          `SELECT created_at FROM requests
+           WHERE owner_id = ? AND created_at >= ?
+           ORDER BY created_at DESC
+           LIMIT 1 OFFSET 9`,
+        )
+        .bind(viewer.id, Date.now() - hourMs),
+      hourMs,
+      'Можно создать до 10 заявок в час. Попробуйте немного позже.',
+    );
+    if (limited) return limited;
     const id = crypto.randomUUID();
     const now = Date.now();
-    await getMarketplaceDb()
+    await db
       .prepare(
         `INSERT INTO requests
          (id, owner_id, title, place, when_text, budget, kind, region,
