@@ -80,6 +80,7 @@ export const listings = sqliteTable(
     index('listings_status_created_at_idx').on(table.status, table.createdAt),
     index('listings_region_status_idx').on(table.region, table.status),
     index('listings_owner_id_idx').on(table.ownerId),
+    uniqueIndex('listings_image_url_unique').on(table.imageUrl),
     index('listings_category_offer_type_idx').on(
       table.category,
       table.offerType,
@@ -140,7 +141,11 @@ export const responses = sqliteTable(
       table.requestId,
       table.createdAt,
     ),
-    index('responses_owner_id_idx').on(table.ownerId),
+    index('responses_owner_created_at_idx').on(table.ownerId, table.createdAt),
+    uniqueIndex('responses_request_owner_unique').on(
+      table.requestId,
+      table.ownerId,
+    ),
   ],
 );
 
@@ -347,7 +352,9 @@ export const uploads = sqliteTable(
     size: integer('size').notNull(),
     createdAt: integer('created_at').notNull(),
   },
-  (table) => [index('uploads_owner_id_idx').on(table.ownerId)],
+  (table) => [
+    index('uploads_owner_created_at_idx').on(table.ownerId, table.createdAt),
+  ],
 );
 
 export const reports = sqliteTable(

@@ -69,29 +69,44 @@ export async function POST(request: Request) {
     if (limited) return limited;
     const id = crypto.randomUUID();
     const now = Date.now();
-    await db.batch([
-      db
-        .prepare(
-          `INSERT INTO responses
-           (id, request_id, owner_id, price, message, created_at)
-           VALUES (?, ?, ?, ?, ?, ?)`,
+    try {
+      await db.batch([
+        db
+          .prepare(
+            `INSERT INTO responses
+             (id, request_id, owner_id, price, message, created_at)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+          )
+          .bind(
+            id,
+            input.requestId,
+            viewer.id,
+            input.price,
+            input.message || null,
+            now,
+          ),
+        db
+          .prepare(
+            `UPDATE requests
+             SET response_count = response_count + 1, updated_at = ?
+             WHERE id = ?`,
+          )
+          .bind(now, input.requestId),
+      ]);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.includes(
+          'UNIQUE constraint failed: responses.request_id, responses.owner_id',
         )
-        .bind(
-          id,
-          input.requestId,
-          viewer.id,
-          input.price,
-          input.message || null,
-          now,
-        ),
-      db
-        .prepare(
-          `UPDATE requests
-           SET response_count = response_count + 1, updated_at = ?
-           WHERE id = ?`,
-        )
-        .bind(now, input.requestId),
-    ]);
+      ) {
+        return Response.json(
+          { error: 'Вы уже отправили отклик на эту заявку' },
+          { status: 409 },
+        );
+      }
+      throw error;
+    }
     return Response.json(
       {
         response: {

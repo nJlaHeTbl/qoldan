@@ -15,6 +15,73 @@ const allowedTypes = new Map([
   ['image/webp', 'webp'],
 ]);
 const uploadUrlPattern = /^\/api\/media\/([0-9a-f-]{36}\.(?:jpg|png|webp))$/i;
+const abandonedUploadAgeMs = 24 * 60 * 60 * 1000;
+
+type StaleUpload = {
+  key: string;
+  content_type: string;
+  size: number;
+  created_at: number;
+};
+
+async function cleanupOwnedStaleUploads(db: D1Database, ownerId: string) {
+  try {
+    const staleUploads = await db
+      .prepare(
+        `SELECT uploads.key, uploads.content_type, uploads.size,
+                uploads.created_at
+         FROM uploads
+         WHERE uploads.owner_id = ?
+           AND uploads.created_at < ?
+           AND NOT EXISTS (
+             SELECT 1 FROM listings
+             WHERE listings.image_url = '/api/media/' || uploads.key
+           )
+         ORDER BY uploads.created_at ASC
+         LIMIT 10`,
+      )
+      .bind(ownerId, Date.now() - abandonedUploadAgeMs)
+      .all<StaleUpload>();
+    if (staleUploads.results.length === 0) return;
+
+    const images = getMarketplaceImages();
+    for (const upload of staleUploads.results) {
+      const deletion = await db
+        .prepare(
+          `DELETE FROM uploads
+           WHERE key = ? AND owner_id = ?
+             AND NOT EXISTS (
+               SELECT 1 FROM listings
+               WHERE listings.image_url = '/api/media/' || uploads.key
+             )`,
+        )
+        .bind(upload.key, ownerId)
+        .run();
+      if (!deletion.meta.changes) continue;
+      try {
+        await images.delete(upload.key);
+      } catch (error) {
+        await db
+          .prepare(
+            `INSERT OR IGNORE INTO uploads
+             (key, owner_id, content_type, size, created_at)
+             VALUES (?, ?, ?, ?, ?)`,
+          )
+          .bind(
+            upload.key,
+            ownerId,
+            upload.content_type,
+            upload.size,
+            upload.created_at,
+          )
+          .run();
+        throw error;
+      }
+    }
+  } catch (error) {
+    console.error('Unable to clean stale uploads', error);
+  }
+}
 
 function hasValidImageSignature(type: string, bytes: Uint8Array) {
   if (type === 'image/jpeg') {
@@ -67,6 +134,7 @@ export async function POST(request: Request) {
     await ensureMarketplaceSchema();
     await upsertViewer(viewer);
     const db = getMarketplaceDb();
+    await cleanupOwnedStaleUploads(db, viewer.id);
     const hourMs = 60 * 60 * 1000;
     const limited = await getRateLimitResponse(
       db
