@@ -395,6 +395,10 @@ const fieldText = (data: FormData, key: string, fallback = '') => {
   const value = data.get(key);
   return typeof value === 'string' ? value : fallback;
 };
+const isValidPhone = (value: string) => {
+  const digits = value.replace(/\D/g, '');
+  return digits.length >= 10 && digits.length <= 15;
+};
 const collectDraftFields = (form: HTMLFormElement) => {
   const fields: Record<string, string> = {};
   new FormData(form).forEach((value, key) => {
@@ -4016,6 +4020,10 @@ export default function QoldanClient({
     if (!requireSignIn()) return;
     const form = event.currentTarget;
     const fields = new FormData(form);
+    if (!isValidPhone(fieldText(fields, 'phone'))) {
+      notify('Проверьте номер телефона: нужно от 10 до 15 цифр');
+      return;
+    }
     setSubmitting('business-verification');
     try {
       const response = await fetch('/api/verifications', {
@@ -4311,7 +4319,20 @@ export default function QoldanClient({
       notify('Добавьте фотографию объявления');
       return;
     }
+    if (!isValidPhone(fieldText(f, 'phone'))) {
+      notify('Проверьте номер телефона: нужно от 10 до 15 цифр');
+      return;
+    }
+    if (fieldText(f, 'title').trim().length < 4) {
+      notify('Название объявления должно содержать хотя бы 4 символа');
+      return;
+    }
+    if (!fieldText(f, 'location').trim()) {
+      notify('Укажите город или населённый пункт');
+      return;
+    }
     setSubmitting('listing');
+    let pendingUploadUrl = '';
     try {
       const imageBlob = await (await fetch(listingImage)).blob();
       const uploadData = new FormData();
@@ -4322,6 +4343,7 @@ export default function QoldanClient({
       });
       if (!uploadResponse.ok) throw new Error(await apiError(uploadResponse));
       const upload = (await uploadResponse.json()) as { url: string };
+      pendingUploadUrl = upload.url;
       const response = await fetch('/api/listings', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -4376,6 +4398,7 @@ export default function QoldanClient({
       });
       if (!response.ok) throw new Error(await apiError(response));
       const data = (await response.json()) as { listing: Listing };
+      pendingUploadUrl = '';
       setAllListings((previous) => [data.listing, ...previous]);
       setListingDraft(null);
       removeDraft(LISTING_DRAFT_KEY);
@@ -4384,6 +4407,13 @@ export default function QoldanClient({
       setModal(null);
       notify('Объявление опубликовано и доступно с других устройств');
     } catch (error) {
+      if (pendingUploadUrl) {
+        await fetch('/api/uploads', {
+          method: 'DELETE',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ url: pendingUploadUrl }),
+        }).catch(() => null);
+      }
       notify(
         error instanceof Error
           ? error.message
@@ -4670,6 +4700,10 @@ export default function QoldanClient({
     if (!requireSignIn()) return;
     if (!selectedListing) return;
     const data = new FormData(e.currentTarget);
+    if (!isValidPhone(fieldText(data, 'customerPhone'))) {
+      notify('Проверьте номер телефона: нужно от 10 до 15 цифр');
+      return;
+    }
     if (!bookingRange?.from) {
       notify('Выберите дату или период аренды в календаре');
       return;
@@ -6482,6 +6516,8 @@ export default function QoldanClient({
                     {internal.listing.name}
                     <input
                       name="title"
+                      minLength={4}
+                      maxLength={160}
                       required
                       defaultValue={listingDraft?.fields.title || ''}
                       placeholder={
@@ -6562,6 +6598,7 @@ export default function QoldanClient({
                     {internal.listing.city}
                     <input
                       name="location"
+                      maxLength={160}
                       required
                       defaultValue={
                         listingDraft?.fields.location ||
@@ -6605,6 +6642,9 @@ export default function QoldanClient({
                       name="phone"
                       type="tel"
                       inputMode="tel"
+                      minLength={10}
+                      maxLength={32}
+                      pattern="[+0-9() -]{10,32}"
                       required
                       defaultValue={listingDraft?.fields.phone || ''}
                       placeholder="+7 700 123 45 67"
@@ -7807,6 +7847,9 @@ export default function QoldanClient({
                       name="customerPhone"
                       type="tel"
                       inputMode="tel"
+                      minLength={10}
+                      maxLength={32}
+                      pattern="[+0-9() -]{10,32}"
                       required
                       placeholder="+7 700 123 45 67"
                     />
@@ -8601,8 +8644,10 @@ export default function QoldanClient({
                     <input
                       name="phone"
                       type="tel"
-                      minLength={7}
+                      inputMode="tel"
+                      minLength={10}
                       maxLength={32}
+                      pattern="[+0-9() -]{10,32}"
                       required
                       defaultValue={businessVerification?.phone || ''}
                       placeholder="+7 700 000 00 00"

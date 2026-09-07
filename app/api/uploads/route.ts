@@ -14,6 +14,7 @@ const allowedTypes = new Map([
   ['image/png', 'png'],
   ['image/webp', 'webp'],
 ]);
+const uploadUrlPattern = /^\/api\/media\/([0-9a-f-]{36}\.(?:jpg|png|webp))$/i;
 
 function hasValidImageSignature(type: string, bytes: Uint8Array) {
   if (type === 'image/jpeg') {
@@ -118,6 +119,49 @@ export async function POST(request: Request) {
       throw error;
     }
     return Response.json({ url: `/api/media/${key}` }, { status: 201 });
+  } catch (error) {
+    return serverError(error);
+  }
+}
+
+export async function DELETE(request: Request) {
+  const viewer = getViewer(request);
+  if (!viewer) return unauthorized();
+  try {
+    const body = (await request.json()) as { url?: unknown };
+    const key =
+      typeof body.url === 'string'
+        ? uploadUrlPattern.exec(body.url.trim())?.[1]
+        : undefined;
+    if (!key) {
+      return Response.json(
+        { error: 'Не удалось определить фотографию' },
+        { status: 400 },
+      );
+    }
+    await ensureMarketplaceSchema();
+    const db = getMarketplaceDb();
+    const upload = await db
+      .prepare('SELECT key FROM uploads WHERE key = ? AND owner_id = ?')
+      .bind(key, viewer.id)
+      .first();
+    if (!upload) return Response.json({ deleted: false });
+    const linkedListing = await db
+      .prepare('SELECT id FROM listings WHERE image_url = ? LIMIT 1')
+      .bind(`/api/media/${key}`)
+      .first();
+    if (linkedListing) {
+      return Response.json(
+        { error: 'Фотография уже привязана к объявлению' },
+        { status: 409 },
+      );
+    }
+    await getMarketplaceImages().delete(key);
+    await db
+      .prepare('DELETE FROM uploads WHERE key = ? AND owner_id = ?')
+      .bind(key, viewer.id)
+      .run();
+    return Response.json({ deleted: true });
   } catch (error) {
     return serverError(error);
   }

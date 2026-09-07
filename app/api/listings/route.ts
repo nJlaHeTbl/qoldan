@@ -1,6 +1,7 @@
 import {
   ensureMarketplaceSchema,
   getMarketplaceDb,
+  getMarketplaceImages,
   getRateLimitResponse,
   getViewer,
   serverError,
@@ -13,6 +14,31 @@ import {
   parseJson,
 } from '@/lib/server/marketplace-schemas';
 
+const listingImagePattern =
+  /^\/api\/media\/([0-9a-f-]{36}\.(?:jpg|png|webp))$/i;
+
+async function discardUnusedUpload(
+  db: D1Database,
+  ownerId: string,
+  key: string,
+) {
+  try {
+    const imageUrl = `/api/media/${key}`;
+    const linkedListing = await db
+      .prepare('SELECT id FROM listings WHERE image_url = ? LIMIT 1')
+      .bind(imageUrl)
+      .first();
+    if (linkedListing) return;
+    await getMarketplaceImages().delete(key);
+    await db
+      .prepare('DELETE FROM uploads WHERE key = ? AND owner_id = ?')
+      .bind(key, ownerId)
+      .run();
+  } catch (error) {
+    console.error('Unable to clean an unused listing upload', error);
+  }
+}
+
 export async function POST(request: Request) {
   const viewer = getViewer(request);
   if (!viewer) return unauthorized();
@@ -21,6 +47,29 @@ export async function POST(request: Request) {
     await ensureMarketplaceSchema();
     await upsertViewer(viewer);
     const db = getMarketplaceDb();
+    const imageKey = listingImagePattern.exec(input.imageUrl)?.[1];
+    const ownedUpload = imageKey
+      ? await db
+          .prepare('SELECT key FROM uploads WHERE key = ? AND owner_id = ?')
+          .bind(imageKey, viewer.id)
+          .first<{ key: string }>()
+      : null;
+    if (!imageKey || !ownedUpload) {
+      return Response.json(
+        { error: 'Фотография не найдена. Загрузите её ещё раз.' },
+        { status: 400 },
+      );
+    }
+    const linkedListing = await db
+      .prepare('SELECT id FROM listings WHERE image_url = ? LIMIT 1')
+      .bind(input.imageUrl)
+      .first();
+    if (linkedListing) {
+      return Response.json(
+        { error: 'Эта фотография уже используется в объявлении.' },
+        { status: 409 },
+      );
+    }
     const hourMs = 60 * 60 * 1000;
     const limited = await getRateLimitResponse(
       db
@@ -34,7 +83,10 @@ export async function POST(request: Request) {
       hourMs,
       'Можно опубликовать до 8 объявлений в час. Попробуйте немного позже.',
     );
-    if (limited) return limited;
+    if (limited) {
+      await discardUnusedUpload(db, viewer.id, imageKey);
+      return limited;
+    }
     const id = crypto.randomUUID();
     const now = Date.now();
     const listingStatement = db
@@ -69,19 +121,24 @@ export async function POST(request: Request) {
         now,
         now,
       );
-    if (input.latitude !== undefined && input.longitude !== undefined) {
-      await db.batch([
-        listingStatement,
-        db
-          .prepare(
-            `INSERT INTO listing_locations
-             (listing_id, latitude, longitude, updated_at)
-             VALUES (?, ?, ?, ?)`,
-          )
-          .bind(id, input.latitude, input.longitude, now),
-      ]);
-    } else {
-      await listingStatement.run();
+    try {
+      if (input.latitude !== undefined && input.longitude !== undefined) {
+        await db.batch([
+          listingStatement,
+          db
+            .prepare(
+              `INSERT INTO listing_locations
+               (listing_id, latitude, longitude, updated_at)
+               VALUES (?, ?, ?, ?)`,
+            )
+            .bind(id, input.latitude, input.longitude, now),
+        ]);
+      } else {
+        await listingStatement.run();
+      }
+    } catch (error) {
+      await discardUnusedUpload(db, viewer.id, imageKey);
+      throw error;
     }
     return Response.json(
       {

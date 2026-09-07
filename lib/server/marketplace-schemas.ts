@@ -36,6 +36,16 @@ const reportReasons = [
   'other',
 ] as const;
 
+const phoneText = z
+  .string()
+  .trim()
+  .min(10, 'Проверьте номер телефона')
+  .max(32, 'Проверьте номер телефона')
+  .refine((value) => {
+    const digits = value.replace(/\D/g, '');
+    return digits.length >= 10 && digits.length <= 15;
+  }, 'Проверьте номер телефона');
+
 export const listingInput = z
   .object({
     title: shortText.min(4),
@@ -52,15 +62,7 @@ export const listingInput = z
         /^\/api\/media\/[0-9a-f-]{36}\.(jpg|png|webp)$/i,
         'Сначала загрузите фотографию',
       ),
-    phone: z
-      .string()
-      .trim()
-      .min(7)
-      .max(32)
-      .refine((value) => {
-        const digits = value.replace(/\D/g, '');
-        return digits.length >= 10 && digits.length <= 15;
-      }, 'Проверьте номер телефона'),
+    phone: phoneText,
     available: z.string().trim().max(160).optional().default(''),
     description: z.string().trim().max(1200).optional().default(''),
     sellerType: z.enum(sellerTypes),
@@ -206,7 +208,7 @@ export const bookingInput = z
     listingId: z.union([z.string(), z.number()]).transform(String),
     dateFrom: z.iso.date(),
     dateTo: z.iso.date(),
-    customerPhone: z.string().trim().min(7).max(32),
+    customerPhone: phoneText,
     delivery: z.boolean().optional().default(false),
     comment: z.string().trim().max(800).optional().default(''),
   })
@@ -275,7 +277,7 @@ export const businessVerificationInput = z.object({
     .string()
     .trim()
     .regex(/^\d{12}$/, 'БИН должен состоять из 12 цифр'),
-  phone: z.string().trim().min(7, 'Укажите рабочий телефон').max(32),
+  phone: phoneText,
   region: shortText,
   referenceUrl: z
     .string()
