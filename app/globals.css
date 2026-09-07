@@ -814,6 +814,11 @@ a {
   min-height: 38px;
   color: #778078;
 }
+.request-pagination {
+  margin-top: 0;
+  padding-top: 16px;
+  border-top: 1px solid #e7ebe6;
+}
 .map-panel {
   height: 520px;
   border-radius: 20px;
@@ -1952,6 +1957,16 @@ footer {
   --cell-size: 38px;
   padding: 13px 16px;
   background: #fbfcfa;
+}
+.booking-calendar-loading {
+  min-height: 310px;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: #fbfcfa;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
 }
 .booking-calendar .rdp-months,
 .booking-calendar .rdp-month,

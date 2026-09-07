@@ -1,8 +1,14 @@
 'use client';
 /* oxlint-disable next/no-img-element, react/react-compiler -- marketplace photos can be remote or user-uploaded; shared server data is hydrated after mount */
-import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useMemo,
+  useState,
+  type ChangeEvent,
+} from 'react';
 import { type DateRange } from 'react-day-picker';
-import { enUS, kk, ru } from 'date-fns/locale';
 import {
   ArrowRight,
   ArrowUpDown,
@@ -48,7 +54,6 @@ import {
   MarketplaceMap,
   type MarketplaceMapMarker,
 } from '@/components/MarketplaceMap';
-import { Calendar } from '@/components/ui/calendar';
 import {
   calculateDistanceKm,
   formatDistanceKm,
@@ -57,6 +62,8 @@ import {
   resolveCoordinates,
   type Coordinates,
 } from '@/lib/geo';
+
+const BookingCalendar = lazy(() => import('@/components/BookingCalendar'));
 type LivestockType =
   | 'Лошади'
   | 'Крупный рогатый скот'
@@ -824,6 +831,7 @@ const defaultListings = [
   ...nationalListings,
 ];
 const LISTINGS_PAGE_SIZE = 9;
+const REQUESTS_PAGE_SIZE = 8;
 const kzRegions = [
   'Весь Казахстан',
   'Астана',
@@ -2633,6 +2641,8 @@ export default function QoldanClient({
   const [requestOwnerOnly, setRequestOwnerOnly] = useState(false);
   const [requestContentMode, setRequestContentMode] =
     useState<ContentMode>('all');
+  const [visibleRequestCount, setVisibleRequestCount] =
+    useState(REQUESTS_PAGE_SIZE);
   const [requestSeed, setRequestSeed] = useState('');
   const [requestSeedKind, setRequestSeedKind] =
     useState<RequestItem['kind']>('agro');
@@ -2640,7 +2650,6 @@ export default function QoldanClient({
   const tr = uiContent[appLang];
   const internal = internalContent[appLang];
   const auth = authContent[appLang];
-  const calendarLocale = appLang === 'kk' ? kk : appLang === 'en' ? enUS : ru;
   const formatLocalizedBookingDate = (date: string) =>
     new Intl.DateTimeFormat(
       appLang === 'kk' ? 'kk-KZ' : appLang === 'en' ? 'en-US' : 'ru-RU',
@@ -3104,7 +3113,7 @@ export default function QoldanClient({
     userCoords,
     listingSort,
   ]);
-  const visibleRequests = useMemo(
+  const filteredRequests = useMemo(
     () =>
       allRequests.filter(
         (request) =>
@@ -3128,6 +3137,21 @@ export default function QoldanClient({
       selectedRegion,
     ],
   );
+  const visibleRequests = filteredRequests.slice(0, visibleRequestCount);
+  const remainingRequestCount = Math.max(
+    filteredRequests.length - visibleRequests.length,
+    0,
+  );
+  const nextRequestCount = Math.min(REQUESTS_PAGE_SIZE, remainingRequestCount);
+  useEffect(() => {
+    setVisibleRequestCount(REQUESTS_PAGE_SIZE);
+  }, [
+    allRequests,
+    requestKind,
+    requestOwnerOnly,
+    requestContentMode,
+    selectedRegion,
+  ]);
   const requireSignIn = () => {
     if (isSignedIn) return true;
     setModal('signin');
@@ -5163,6 +5187,8 @@ export default function QoldanClient({
           <img
             src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1200&q=85"
             alt="Поля Казахстана"
+            decoding="async"
+            fetchPriority="high"
           />
           <div className="float-card fc-one">
             <span>
@@ -5708,7 +5734,12 @@ export default function QoldanClient({
                     aria-label={`Открыть объявление: ${item.title}`}
                   />
                   <div className="listing-image">
-                    <img src={item.image} alt={item.title} />
+                    <img
+                      src={item.image}
+                      alt={item.title}
+                      loading="lazy"
+                      decoding="async"
+                    />
                     <span
                       className={`type ${item.type === 'Продам' ? 'sale' : item.type === 'Сдам' ? 'rent' : 'service'}`}
                     >
@@ -5985,6 +6016,32 @@ export default function QoldanClient({
               <button onClick={() => openRequestForm()}>
                 {tr.createRequest}
               </button>
+            </div>
+          )}
+          {filteredRequests.length > 0 && (
+            <div
+              className="catalog-pagination request-pagination"
+              aria-live="polite"
+            >
+              <p>
+                {tr.shown} <b>{visibleRequests.length}</b> {tr.of}{' '}
+                <b>{filteredRequests.length}</b>
+              </p>
+              {remainingRequestCount > 0 ? (
+                <button
+                  className="more-button"
+                  type="button"
+                  onClick={() =>
+                    setVisibleRequestCount(
+                      (count) => count + REQUESTS_PAGE_SIZE,
+                    )
+                  }
+                >
+                  {tr.showMore} {nextRequestCount}
+                </button>
+              ) : (
+                <span>{tr.viewedAll}</span>
+              )}
             </div>
           )}
         </div>
@@ -6545,6 +6602,7 @@ export default function QoldanClient({
                       <img
                         src={listingImage}
                         alt={internal.listing.previewAlt}
+                        decoding="async"
                       />
                     )}
                   </label>
@@ -7215,6 +7273,7 @@ export default function QoldanClient({
                   <img
                     src={selectedListing.image}
                     alt={selectedListing.title}
+                    decoding="async"
                   />
                   <span
                     className={`type ${selectedListing.type === 'Продам' ? 'sale' : selectedListing.type === 'Сдам' ? 'rent' : 'service'}`}
@@ -7638,7 +7697,12 @@ export default function QoldanClient({
                               key={listing.id}
                               onClick={() => openListing(listing)}
                             >
-                              <img src={listing.image} alt={listing.title} />
+                              <img
+                                src={listing.image}
+                                alt={listing.title}
+                                loading="lazy"
+                                decoding="async"
+                              />
                               <span>
                                 <small>
                                   {listing.type} · {listing.category}
@@ -7785,22 +7849,24 @@ export default function QoldanClient({
                               : internal.booking.free}
                       </span>
                     </div>
-                    <Calendar
-                      mode="range"
-                      locale={calendarLocale}
-                      selected={bookingRange}
-                      onSelect={setBookingRange}
-                      defaultMonth={bookingRange?.from || calendarToday}
-                      startMonth={calendarToday}
-                      disabled={[
-                        { before: calendarToday },
-                        ...occupiedCalendarRanges,
-                      ]}
-                      modifiers={{ booked: occupiedCalendarRanges }}
-                      modifiersClassNames={{ booked: 'qoldan-booked-day' }}
-                      excludeDisabled
-                      className="booking-calendar"
-                    />
+                    <Suspense
+                      fallback={
+                        <div
+                          className="booking-calendar-loading"
+                          aria-live="polite"
+                        >
+                          {internal.booking.checking}
+                        </div>
+                      }
+                    >
+                      <BookingCalendar
+                        language={appLang}
+                        selected={bookingRange}
+                        onSelect={setBookingRange}
+                        today={calendarToday}
+                        occupiedRanges={occupiedCalendarRanges}
+                      />
+                    </Suspense>
                     <div className="booking-calendar-legend">
                       <span>
                         <i className="selected" /> {internal.booking.selected}
@@ -8404,6 +8470,8 @@ export default function QoldanClient({
                             <img
                               src={item.listing.image}
                               alt={item.listing.title}
+                              loading="lazy"
+                              decoding="async"
                             />
                           ) : (
                             <span className="recent-request-icon">
