@@ -1,6 +1,13 @@
 import { z } from 'zod';
 
+import {
+  KAZAKHSTAN_MARKET_REGIONS,
+  KAZAKHSTAN_REGION_FILTERS,
+} from '@/lib/regions';
+
 const shortText = z.string().trim().min(1).max(160);
+const marketRegion = z.enum(KAZAKHSTAN_MARKET_REGIONS);
+const regionFilter = z.enum(KAZAKHSTAN_REGION_FILTERS);
 const offerTypes = ['Продам', 'Сдам', 'Окажу услугу'] as const;
 const sellerTypes = ['Частное лицо', 'Компания', 'Магазин'] as const;
 const livestockTypes = [
@@ -52,7 +59,7 @@ export const listingInput = z
     price: z.string().trim().min(1).max(40),
     unit: z.string().trim().max(30).optional().default(''),
     location: shortText,
-    region: shortText,
+    region: marketRegion,
     category: shortText,
     type: z.enum(offerTypes),
     imageUrl: z
@@ -118,7 +125,7 @@ export const requestInput = z.object({
   when: shortText,
   budget: z.string().trim().min(1).max(80),
   kind: z.enum(requestKinds),
-  region: shortText,
+  region: marketRegion,
 });
 
 export const listingStatusInput = z.object({
@@ -163,7 +170,7 @@ const savedSearchCreate = z
     action: z.literal('create'),
     name: z.string().trim().min(1).max(120),
     query: z.string().trim().max(160).optional().default(''),
-    region: shortText,
+    region: regionFilter,
     category: shortText,
     offerType: z.enum(['Все', ...offerTypes]),
     deliveryOnly: z.boolean().optional().default(false),
@@ -278,7 +285,7 @@ export const businessVerificationInput = z.object({
     .trim()
     .regex(/^\d{12}$/, 'БИН должен состоять из 12 цифр'),
   phone: phoneText,
-  region: shortText,
+  region: marketRegion,
   referenceUrl: z
     .string()
     .trim()

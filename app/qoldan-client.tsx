@@ -5,6 +5,7 @@ import {
   Suspense,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ChangeEvent,
 } from 'react';
@@ -62,6 +63,11 @@ import {
   resolveCoordinates,
   type Coordinates,
 } from '@/lib/geo';
+import {
+  KAZAKHSTAN_OBLASTS,
+  KAZAKHSTAN_REGION_FILTERS,
+  KAZAKHSTAN_REPUBLICAN_CITIES,
+} from '@/lib/regions';
 
 const BookingCalendar = lazy(() => import('@/components/BookingCalendar'));
 type LivestockType =
@@ -832,29 +838,102 @@ const defaultListings = [
 ];
 const LISTINGS_PAGE_SIZE = 9;
 const REQUESTS_PAGE_SIZE = 8;
-const kzRegions = [
-  'Весь Казахстан',
-  'Астана',
-  'Алматы',
-  'Шымкент',
-  'Область Абай',
-  'Акмолинская область',
-  'Актюбинская область',
-  'Алматинская область',
-  'Атырауская область',
-  'Восточно-Казахстанская область',
-  'Жамбылская область',
-  'Область Жетісу',
-  'Западно-Казахстанская область',
-  'Карагандинская область',
-  'Костанайская область',
-  'Кызылординская область',
-  'Мангистауская область',
-  'Павлодарская область',
-  'Северо-Казахстанская область',
-  'Туркестанская область',
-  'Область Ұлытау',
-];
+const MAX_LISTING_IMAGE_BYTES = 5_000_000;
+const TARGET_LISTING_IMAGE_BYTES = 1_200_000;
+const MAX_LISTING_IMAGE_SIDE = 1_280;
+const LISTING_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
+type DecodedListingImage = {
+  source: CanvasImageSource;
+  width: number;
+  height: number;
+  dispose: () => void;
+};
+
+const decodeListingImage = async (file: File): Promise<DecodedListingImage> => {
+  if (typeof createImageBitmap === 'function') {
+    try {
+      const bitmap = await createImageBitmap(file, {
+        imageOrientation: 'from-image',
+      });
+      return {
+        source: bitmap,
+        width: bitmap.width,
+        height: bitmap.height,
+        dispose: () => bitmap.close(),
+      };
+    } catch {
+      // Older mobile browsers fall back to an image element below.
+    }
+  }
+
+  const sourceUrl = URL.createObjectURL(file);
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.decoding = 'async';
+    image.onload = () =>
+      resolve({
+        source: image,
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+        dispose: () => URL.revokeObjectURL(sourceUrl),
+      });
+    image.onerror = () => {
+      URL.revokeObjectURL(sourceUrl);
+      reject(new Error('Не удалось открыть фотографию'));
+    };
+    image.src = sourceUrl;
+  });
+};
+
+const canvasToJpeg = (canvas: HTMLCanvasElement, quality: number) =>
+  new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) =>
+        blob
+          ? resolve(blob)
+          : reject(new Error('Не удалось обработать фотографию')),
+      'image/jpeg',
+      quality,
+    );
+  });
+
+const optimizeListingImage = async (file: File) => {
+  const decoded = await decodeListingImage(file);
+  try {
+    if (decoded.width < 1 || decoded.height < 1) {
+      throw new Error('Фотография повреждена');
+    }
+
+    const scale = Math.min(
+      1,
+      MAX_LISTING_IMAGE_SIDE / Math.max(decoded.width, decoded.height),
+    );
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(decoded.width * scale));
+    canvas.height = Math.max(1, Math.round(decoded.height * scale));
+    const context = canvas.getContext('2d', { alpha: false });
+    if (!context) throw new Error('Не удалось обработать фотографию');
+
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'high';
+    context.drawImage(decoded.source, 0, 0, canvas.width, canvas.height);
+
+    let optimized = await canvasToJpeg(canvas, 0.82);
+    for (const quality of [0.74, 0.66, 0.58, 0.5]) {
+      if (optimized.size <= TARGET_LISTING_IMAGE_BYTES) break;
+      optimized = await canvasToJpeg(canvas, quality);
+    }
+    return optimized;
+  } finally {
+    decoded.dispose();
+  }
+};
+const kzRepublicanCities = KAZAKHSTAN_REPUBLICAN_CITIES;
+const kzOblasts = KAZAKHSTAN_OBLASTS;
+const kzRegions = KAZAKHSTAN_REGION_FILTERS;
 const initialRequests: RequestItem[] = [
   {
     id: 1428,
@@ -1475,6 +1554,9 @@ const internalContent = {
       photo: 'Фотография',
       choosePhoto: 'Выбрать реальное фото',
       photoHint: 'JPG, PNG или WebP · до 5 МБ, сожмём сами',
+      photoProcessing: 'Подготавливаем фото…',
+      photoReady: 'Фото готово',
+      photoOptimized: 'быстрая загрузка',
       previewAlt: 'Предпросмотр объявления',
       price: 'Цена',
       unit: 'Единица',
@@ -1551,6 +1633,8 @@ const internalContent = {
       eyebrow: 'ГЕОГРАФИЯ QOLDAN',
       title: 'Выберите регион',
       lead: 'Покажем предложения и заявки в нужной части Казахстана.',
+      cities: 'Города республиканского значения',
+      oblasts: 'Области',
     },
     profile: {
       synced: 'Профиль синхронизирован',
@@ -1806,7 +1890,10 @@ const internalContent = {
       standardTitlePlaceholder: 'Мысалы, МТЗ-82 тракторымен жер жырту',
       photo: 'Фотосурет',
       choosePhoto: 'Нақты фото таңдау',
-      photoHint: 'JPG, PNG немесе WebP · 5 МБ дейін',
+      photoHint: 'JPG, PNG немесе WebP · 5 МБ дейін, өзіміз сығамыз',
+      photoProcessing: 'Фото дайындалуда…',
+      photoReady: 'Фото дайын',
+      photoOptimized: 'жылдам жүктеу',
       previewAlt: 'Хабарландыру көрінісі',
       price: 'Бағасы',
       unit: 'Өлшем бірлігі',
@@ -1882,6 +1969,8 @@ const internalContent = {
       eyebrow: 'QOLDAN ГЕОГРАФИЯСЫ',
       title: 'Өңірді таңдаңыз',
       lead: 'Қазақстанның қажетті бөлігіндегі ұсыныстар мен өтінімдерді көрсетеміз.',
+      cities: 'Республикалық маңызы бар қалалар',
+      oblasts: 'Облыстар',
     },
     profile: {
       synced: 'Профиль синхрондалды',
@@ -2136,7 +2225,10 @@ const internalContent = {
       standardTitlePlaceholder: 'For example, MTZ-82 field ploughing',
       photo: 'Photo',
       choosePhoto: 'Choose a real photo',
-      photoHint: 'JPG, PNG, or WebP · up to 5 MB',
+      photoHint: 'JPG, PNG, or WebP · up to 5 MB, optimized automatically',
+      photoProcessing: 'Preparing photo…',
+      photoReady: 'Photo is ready',
+      photoOptimized: 'fast upload',
       previewAlt: 'Listing preview',
       price: 'Price',
       unit: 'Unit',
@@ -2213,6 +2305,8 @@ const internalContent = {
       eyebrow: 'QOLDAN GEOGRAPHY',
       title: 'Choose a region',
       lead: 'We will show offers and requests in the relevant part of Kazakhstan.',
+      cities: 'Cities of republican significance',
+      oblasts: 'Regions',
     },
     profile: {
       synced: 'Profile synced',
@@ -2620,6 +2714,10 @@ export default function QoldanClient({
   const [deliveryOnly, setDeliveryOnly] = useState(false);
   const [companyOnly, setCompanyOnly] = useState(false);
   const [listingImage, setListingImage] = useState('');
+  const [listingImageBlob, setListingImageBlob] = useState<Blob | null>(null);
+  const [listingImageSize, setListingImageSize] = useState(0);
+  const [listingImageProcessing, setListingImageProcessing] = useState(false);
+  const listingImageJob = useRef(0);
   const [listingFlow, setListingFlow] = useState<'standard' | 'livestock'>(
     'standard',
   );
@@ -2650,6 +2748,20 @@ export default function QoldanClient({
   const tr = uiContent[appLang];
   const internal = internalContent[appLang];
   const auth = authContent[appLang];
+  const renderRegionOptions = () => (
+    <>
+      <optgroup label={internal.regions.cities}>
+        {kzRepublicanCities.map((region) => (
+          <option key={region}>{region}</option>
+        ))}
+      </optgroup>
+      <optgroup label={internal.regions.oblasts}>
+        {kzOblasts.map((region) => (
+          <option key={region}>{region}</option>
+        ))}
+      </optgroup>
+    </>
+  );
   const formatLocalizedBookingDate = (date: string) =>
     new Intl.DateTimeFormat(
       appLang === 'kk' ? 'kk-KZ' : appLang === 'en' ? 'en-US' : 'ru-RU',
@@ -2813,6 +2925,12 @@ export default function QoldanClient({
       // По умолчанию интерфейс остаётся на русском языке.
     }
   }, []);
+  useEffect(
+    () => () => {
+      if (listingImage.startsWith('blob:')) URL.revokeObjectURL(listingImage);
+    },
+    [listingImage],
+  );
   useEffect(() => {
     try {
       const stored = window.localStorage.getItem(RECENT_VIEWS_KEY);
@@ -3262,12 +3380,19 @@ export default function QoldanClient({
       return next;
     });
   };
+  const clearListingImageState = () => {
+    listingImageJob.current += 1;
+    setListingImage('');
+    setListingImageBlob(null);
+    setListingImageSize(0);
+    setListingImageProcessing(false);
+  };
   const clearListingDraft = (form?: HTMLFormElement | null) => {
     setListingDraft(null);
     removeDraft(LISTING_DRAFT_KEY);
     if (form) clearFormFields(form);
     setListingFlow('standard');
-    setListingImage('');
+    clearListingImageState();
     setListingCoords(null);
     notify('Черновик объявления очищен');
   };
@@ -3466,7 +3591,7 @@ export default function QoldanClient({
   };
   const openAddListing = () => {
     if (!requireSignIn()) return;
-    setListingImage('');
+    clearListingImageState();
     setListingFlow(listingDraft?.flow || 'standard');
     setListingCoords(null);
     setModal('listing');
@@ -3477,49 +3602,47 @@ export default function QoldanClient({
     setRequestSeedKind(kind);
     setModal('request');
   };
-  const handleListingImage = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleListingImage = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) {
-      setListingImage('');
+      clearListingImageState();
       return;
     }
-    if (file.size > 5_000_000) {
+    if (!LISTING_IMAGE_TYPES.has(file.type)) {
       e.target.value = '';
+      clearListingImageState();
+      notify('Нужен файл JPG, PNG или WebP');
+      return;
+    }
+    if (file.size > MAX_LISTING_IMAGE_BYTES) {
+      e.target.value = '';
+      clearListingImageState();
       notify('Фото слишком большое — выберите файл до 5 МБ');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const source = new Image();
-      source.onload = () => {
-        const maxSide = 1100;
-        const scale = Math.min(
-          1,
-          maxSide / Math.max(source.width, source.height),
-        );
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.round(source.width * scale);
-        canvas.height = Math.round(source.height * scale);
-        const context = canvas.getContext('2d');
-        if (!context) return;
-        context.drawImage(source, 0, 0, canvas.width, canvas.height);
-        let quality = 0.78;
-        let compressed = canvas.toDataURL('image/jpeg', quality);
-        while (compressed.length > 1_100_000 && quality > 0.46) {
-          quality -= 0.08;
-          compressed = canvas.toDataURL('image/jpeg', quality);
-        }
-        if (compressed.length > 1_100_000) {
-          notify('Не удалось достаточно сжать фото — выберите другое');
-          e.target.value = '';
-          return;
-        }
-        setListingImage(compressed);
-      };
-      source.onerror = () => notify('Не удалось открыть фотографию');
-      source.src = typeof reader.result === 'string' ? reader.result : '';
-    };
-    reader.readAsDataURL(file);
+
+    const jobId = ++listingImageJob.current;
+    setListingImage('');
+    setListingImageBlob(null);
+    setListingImageSize(0);
+    setListingImageProcessing(true);
+    try {
+      const optimized = await optimizeListingImage(file);
+      if (jobId !== listingImageJob.current) return;
+      setListingImageBlob(optimized);
+      setListingImageSize(optimized.size);
+      setListingImage(URL.createObjectURL(optimized));
+    } catch (error) {
+      if (jobId !== listingImageJob.current) return;
+      e.target.value = '';
+      notify(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось обработать фотографию',
+      );
+    } finally {
+      if (jobId === listingImageJob.current) setListingImageProcessing(false);
+    }
   };
   const captureListingLocation = () => {
     if (!navigator.geolocation) {
@@ -4339,7 +4462,11 @@ export default function QoldanClient({
     e.preventDefault();
     if (!requireSignIn()) return;
     const f = new FormData(e.currentTarget);
-    if (!listingImage) {
+    if (listingImageProcessing) {
+      notify('Дождитесь, пока фотография будет подготовлена');
+      return;
+    }
+    if (!listingImage || !listingImageBlob) {
       notify('Добавьте фотографию объявления');
       return;
     }
@@ -4358,9 +4485,8 @@ export default function QoldanClient({
     setSubmitting('listing');
     let pendingUploadUrl = '';
     try {
-      const imageBlob = await (await fetch(listingImage)).blob();
       const uploadData = new FormData();
-      uploadData.set('image', imageBlob, 'qoldan-photo.jpg');
+      uploadData.set('image', listingImageBlob, 'qoldan-photo.jpg');
       const uploadResponse = await fetch('/api/uploads', {
         method: 'POST',
         body: uploadData,
@@ -4426,7 +4552,7 @@ export default function QoldanClient({
       setAllListings((previous) => [data.listing, ...previous]);
       setListingDraft(null);
       removeDraft(LISTING_DRAFT_KEY);
-      setListingImage('');
+      clearListingImageState();
       setServerConnected(true);
       setModal(null);
       notify('Объявление опубликовано и доступно с других устройств');
@@ -6584,19 +6710,41 @@ export default function QoldanClient({
                       }
                     />
                   </label>
-                  <label className="wide photo-upload">
+                  <label
+                    className="wide photo-upload"
+                    aria-busy={listingImageProcessing}
+                  >
                     {internal.listing.photo}
                     <input
                       name="image"
                       type="file"
                       accept="image/jpeg,image/png,image/webp"
                       required
+                      disabled={listingImageProcessing}
                       onChange={handleListingImage}
                     />
-                    <span>
-                      <Plus />
-                      <b>{internal.listing.choosePhoto}</b>
-                      <small>{internal.listing.photoHint}</small>
+                    <span
+                      className={
+                        listingImageProcessing
+                          ? 'processing'
+                          : listingImage
+                            ? 'ready'
+                            : ''
+                      }
+                    >
+                      {listingImage ? <CheckCircle2 /> : <Plus />}
+                      <b>
+                        {listingImageProcessing
+                          ? internal.listing.photoProcessing
+                          : listingImage
+                            ? internal.listing.photoReady
+                            : internal.listing.choosePhoto}
+                      </b>
+                      <small>
+                        {listingImageSize > 0
+                          ? `${Math.ceil(listingImageSize / 1024)} KB · ${internal.listing.photoOptimized}`
+                          : internal.listing.photoHint}
+                      </small>
                     </span>
                     {listingImage && (
                       <img
@@ -6647,9 +6795,7 @@ export default function QoldanClient({
                           : selectedRegion)
                       }
                     >
-                      {kzRegions.slice(1).map((r) => (
-                        <option key={r}>{r}</option>
-                      ))}
+                      {renderRegionOptions()}
                     </select>
                   </label>
                   <label>
@@ -6761,11 +6907,15 @@ export default function QoldanClient({
                   <button
                     className="submit-button"
                     type="submit"
-                    disabled={submitting === 'listing'}
+                    disabled={
+                      submitting === 'listing' || listingImageProcessing
+                    }
                   >
-                    {submitting === 'listing'
-                      ? internal.listing.publishing
-                      : internal.listing.publish}{' '}
+                    {listingImageProcessing
+                      ? internal.listing.photoProcessing
+                      : submitting === 'listing'
+                        ? internal.listing.publishing
+                        : internal.listing.publish}{' '}
                     <ArrowRight />
                   </button>
                 </form>
@@ -6862,9 +7012,7 @@ export default function QoldanClient({
                           : selectedRegion)
                       }
                     >
-                      {kzRegions.slice(1).map((region) => (
-                        <option key={region}>{region}</option>
-                      ))}
+                      {renderRegionOptions()}
                     </select>
                   </label>
                   <label>
@@ -8017,7 +8165,28 @@ export default function QoldanClient({
                   </div>
                 </div>
                 <div className="region-modal-grid">
-                  {kzRegions.map((r, i) => (
+                  <button
+                    className={
+                      selectedRegion === 'Весь Казахстан'
+                        ? 'active wide'
+                        : 'wide'
+                    }
+                    onClick={() => {
+                      setUserCoords(null);
+                      setSelectedRegion('Весь Казахстан');
+                      setModal(null);
+                      setMaxDistance(100);
+                      notify('Показываем всю страну');
+                    }}
+                  >
+                    <span>🇰🇿</span>
+                    {tr.allKazakhstan}
+                    {selectedRegion === 'Весь Казахстан' && <CheckCircle2 />}
+                  </button>
+                  <h3 className="region-modal-heading">
+                    {internal.regions.cities}
+                  </h3>
+                  {kzRepublicanCities.map((r) => (
                     <button
                       key={r}
                       className={selectedRegion === r ? 'active' : ''}
@@ -8026,15 +8195,35 @@ export default function QoldanClient({
                         setSelectedRegion(r);
                         setModal(null);
                         setMaxDistance(100);
-                        notify(
-                          r === 'Весь Казахстан'
-                            ? 'Показываем всю страну'
-                            : `Выбран регион: ${r}`,
-                        );
+                        notify(`Выбран регион: ${r}`);
                       }}
                     >
-                      <span>{i === 0 ? '🇰🇿' : String(i).padStart(2, '0')}</span>
-                      {r === 'Весь Казахстан' ? tr.allKazakhstan : r}
+                      <span>
+                        {String(kzRegions.indexOf(r)).padStart(2, '0')}
+                      </span>
+                      {r}
+                      {selectedRegion === r && <CheckCircle2 />}
+                    </button>
+                  ))}
+                  <h3 className="region-modal-heading">
+                    {internal.regions.oblasts}
+                  </h3>
+                  {kzOblasts.map((r) => (
+                    <button
+                      key={r}
+                      className={selectedRegion === r ? 'active' : ''}
+                      onClick={() => {
+                        setUserCoords(null);
+                        setSelectedRegion(r);
+                        setModal(null);
+                        setMaxDistance(100);
+                        notify(`Выбран регион: ${r}`);
+                      }}
+                    >
+                      <span>
+                        {String(kzRegions.indexOf(r)).padStart(2, '0')}
+                      </span>
+                      {r}
                       {selectedRegion === r && <CheckCircle2 />}
                     </button>
                   ))}
@@ -8051,7 +8240,8 @@ export default function QoldanClient({
                     <small>ОБРАТНЫЙ АУКЦИОН</small>
                     <h2>Выставить партию вторсырья</h2>
                     <p>
-                      В рабочем MVP партия сохранится локально как новая заявка.
+                      Партия будет опубликована как настоящая заявка и появится
+                      в выбранном регионе.
                     </p>
                   </div>
                 </div>
@@ -8099,9 +8289,7 @@ export default function QoldanClient({
                           : selectedRegion
                       }
                     >
-                      {kzRegions.slice(1).map((region) => (
-                        <option key={region}>{region}</option>
-                      ))}
+                      {renderRegionOptions()}
                     </select>
                   </label>
                   <label className="wide">
@@ -8677,9 +8865,7 @@ export default function QoldanClient({
                           : selectedRegion)
                       }
                     >
-                      {kzRegions.slice(1).map((region) => (
-                        <option key={region}>{region}</option>
-                      ))}
+                      {renderRegionOptions()}
                     </select>
                   </label>
                   <label className="wide">
