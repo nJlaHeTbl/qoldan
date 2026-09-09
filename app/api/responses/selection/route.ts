@@ -150,7 +150,10 @@ export async function POST(request: Request) {
             `INSERT INTO request_selections
              (request_id, response_id, selected_by, status, selected_at,
               updated_at, completed_at)
-             VALUES (?, ?, ?, 'selected', ?, ?, NULL)
+             SELECT ?, ?, ?, 'selected', ?, ?, NULL
+             WHERE EXISTS (
+               SELECT 1 FROM requests WHERE id = ? AND owner_id = ? AND status = 'open'
+             )
              ON CONFLICT(request_id) DO UPDATE SET
                response_id = excluded.response_id,
                selected_by = excluded.selected_by,
@@ -160,29 +163,15 @@ export async function POST(request: Request) {
                completed_at = NULL
              WHERE request_selections.status = 'cancelled'`,
           )
-          .bind(target.request_id, target.response_id, viewer.id, now, now),
+          .bind(target.request_id, target.response_id, viewer.id, now, now, target.request_id, viewer.id),
         db
           .prepare(
             `UPDATE requests SET status = 'closed', updated_at = ?
-             WHERE id = ? AND owner_id = ? AND status = 'open'`,
+             WHERE id = ? AND owner_id = ? AND status = 'open' AND changes() = 1`,
           )
           .bind(now, target.request_id, viewer.id),
       ]);
       if (!writes[1].meta.changes || !writes[2].meta.changes) {
-        await db.batch([
-          db
-            .prepare(
-              `UPDATE request_selections SET status = 'cancelled', updated_at = ?
-               WHERE request_id = ? AND status = 'selected'`,
-            )
-            .bind(Date.now(), target.request_id),
-          db
-            .prepare(
-              `UPDATE requests SET status = 'open', updated_at = ?
-               WHERE id = ? AND owner_id = ?`,
-            )
-            .bind(Date.now(), target.request_id, viewer.id),
-        ]);
         return Response.json(
           { error: 'Статус заявки изменился. Обновите страницу и повторите.' },
           { status: 409 },
@@ -222,7 +211,7 @@ export async function POST(request: Request) {
         db
           .prepare(
             `UPDATE requests SET status = 'open', updated_at = ?
-             WHERE id = ? AND owner_id = ?`,
+             WHERE id = ? AND owner_id = ? AND changes() = 1`,
           )
           .bind(now, input.requestId, viewer.id),
       ]);
