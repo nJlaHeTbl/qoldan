@@ -49,13 +49,19 @@ export async function POST(request: Request) {
       );
     }
     if (input.status === 'declined') {
-      await db
+      const declined = await db
         .prepare(
           `UPDATE bookings SET status = 'declined'
            WHERE id = ? AND status = 'pending'`,
         )
         .bind(booking.id)
         .run();
+      if (!declined.meta.changes) {
+        return Response.json(
+          { error: 'Решение по этому бронированию уже принято. Обновите список.' },
+          { status: 409 },
+        );
+      }
       return Response.json({
         bookingId: input.bookingId,
         status: input.status,

@@ -104,12 +104,21 @@ export async function POST(request: Request) {
     );
     if (limited) return limited;
     const id = crypto.randomUUID();
-    await db
+    const inserted = await db
       .prepare(
         `INSERT INTO bookings
          (id, listing_id, owner_id, date_from, date_to, customer_phone,
           delivery, comment, status, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?
+         WHERE EXISTS (
+           SELECT 1 FROM listings WHERE id = ? AND status = 'active'
+             AND offer_type = 'Сдам' AND owner_id != ?
+         )
+         AND NOT EXISTS (
+           SELECT 1 FROM bookings WHERE listing_id = ?
+             AND date_from <= ? AND date_to >= ?
+             AND (status = 'accepted' OR (owner_id = ? AND status = 'pending'))
+         )`,
       )
       .bind(
         id,
@@ -121,8 +130,20 @@ export async function POST(request: Request) {
         input.delivery ? 1 : 0,
         input.comment || null,
         Date.now(),
+        input.listingId,
+        viewer.id,
+        input.listingId,
+        input.dateTo,
+        input.dateFrom,
+        viewer.id,
       )
       .run();
+    if (!inserted.meta.changes) {
+      return Response.json(
+        { error: 'Объявление или доступность дат изменились. Обновите календарь; возможно, ваш запрос уже отправлен.' },
+        { status: 409 },
+      );
+    }
     return Response.json(
       {
         booking: {
