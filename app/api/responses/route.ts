@@ -29,7 +29,7 @@ export async function POST(request: Request) {
       return Response.json(
         {
           error:
-            'Это демонстрационная заявка. Создайте новую для живых откликов.',
+            'Заявка не найдена или больше не принимает отклики.',
         },
         { status: 409 },
       );
@@ -70,12 +70,16 @@ export async function POST(request: Request) {
     const id = crypto.randomUUID();
     const now = Date.now();
     try {
-      await db.batch([
+      const writes = await db.batch([
         db
           .prepare(
             `INSERT INTO responses
              (id, request_id, owner_id, price, message, created_at)
-             VALUES (?, ?, ?, ?, ?, ?)`,
+             SELECT ?, ?, ?, ?, ?, ?
+             WHERE EXISTS (
+               SELECT 1 FROM requests
+               WHERE id = ? AND status = 'open' AND owner_id != ?
+             )`,
           )
           .bind(
             id,
@@ -84,15 +88,23 @@ export async function POST(request: Request) {
             input.price,
             input.message || null,
             now,
+            input.requestId,
+            viewer.id,
           ),
         db
           .prepare(
             `UPDATE requests
              SET response_count = response_count + 1, updated_at = ?
-             WHERE id = ?`,
+             WHERE id = ? AND changes() = 1`,
           )
           .bind(now, input.requestId),
       ]);
+      if (!writes[0].meta.changes) {
+        return Response.json(
+          { error: 'Заявка больше не принимает отклики. Обновите страницу.' },
+          { status: 409 },
+        );
+      }
     } catch (error) {
       if (
         error instanceof Error &&
