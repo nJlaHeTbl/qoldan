@@ -41,13 +41,17 @@ export async function POST(request: Request) {
       .prepare(
         `UPDATE requests
          SET status = ?, updated_at = ?
-         WHERE id = ? AND owner_id = ?`,
+         WHERE id = ? AND owner_id = ?
+           AND (? != 'open' OR NOT EXISTS (
+             SELECT 1 FROM request_selections
+             WHERE request_id = requests.id AND status IN ('selected', 'completed')
+           ))`,
       )
-      .bind(input.status, Date.now(), input.requestId, viewer.id)
+      .bind(input.status, Date.now(), input.requestId, viewer.id, input.status)
       .run();
     if (!result.meta.changes) {
       return Response.json(
-        { error: 'Заявка не найдена или принадлежит другому пользователю' },
+        { error: 'Заявка недоступна или её статус изменился. Обновите страницу.' },
         { status: 404 },
       );
     }
