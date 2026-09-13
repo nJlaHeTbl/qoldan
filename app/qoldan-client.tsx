@@ -53,6 +53,7 @@ import {
 } from 'lucide-react';
 import { LocationFields } from '@/components/LocationFields';
 import { SettlementSearch } from '@/components/SettlementSearch';
+import { matchesSettlement } from '@/lib/settlement-match';
 import {
   MarketplaceMap,
   type MarketplaceMapMarker,
@@ -2710,7 +2711,12 @@ export default function QoldanClient({
   const [listingContentMode, setListingContentMode] =
     useState<ContentMode>('all');
   const [selectedRegion, setSelectedRegion] = useState('Весь Казахстан');
-  const [settlementFilter, setSettlementFilter] = useState('');
+  const [settlementFilter, updateSettlementFilter] = useState('');
+  const [settlementAliases, setSettlementAliases] = useState<string[]>([]);
+  const setSettlementFilter = (value: string) => {
+    updateSettlementFilter(value);
+    setSettlementAliases([]);
+  };
   const [settlementCenter, setSettlementCenter] = useState<Coordinates | null>(null);
   useEffect(() => { setSettlementFilter(''); setSettlementCenter(null); }, [selectedRegion]);
   const [deliveryOnly, setDeliveryOnly] = useState(false);
@@ -3131,7 +3137,7 @@ export default function QoldanClient({
               i.category === categoryFilter) &&
             (selectedRegion === 'Весь Казахстан' ||
               i.region === selectedRegion) &&
-            (!settlementFilter.trim() || i.location.toLocaleLowerCase().includes(settlementFilter.trim().toLocaleLowerCase())) &&
+            matchesSettlement(i.location, settlementFilter, settlementAliases) &&
             (!userCoords ||
               calculateDistanceKm(userCoords, resolveCoordinates(i)) <=
                 maxDistance) &&
@@ -3202,6 +3208,7 @@ export default function QoldanClient({
       userCoords,
       listingSort,
       settlementFilter,
+      settlementAliases,
     ],
   );
   const visibleListings = filtered.slice(0, visibleListingCount);
@@ -3229,13 +3236,14 @@ export default function QoldanClient({
     userCoords,
     listingSort,
     settlementFilter,
+    settlementAliases,
   ]);
   const filteredRequests = useMemo(
     () =>
       allRequests.filter(
         (request) =>
           (requestKind === 'all' || request.kind === requestKind) &&
-          (!settlementFilter.trim() || request.place.toLocaleLowerCase().includes(settlementFilter.trim().toLocaleLowerCase())) &&
+          matchesSettlement(request.place, settlementFilter, settlementAliases) &&
           (requestOwnerOnly ||
             selectedRegion === 'Весь Казахстан' ||
             request.region === selectedRegion) &&
@@ -3254,6 +3262,7 @@ export default function QoldanClient({
       requestContentMode,
       selectedRegion,
       settlementFilter,
+      settlementAliases,
     ],
   );
   const visibleRequests = filteredRequests.slice(0, visibleRequestCount);
@@ -3271,6 +3280,7 @@ export default function QoldanClient({
     requestContentMode,
     selectedRegion,
     settlementFilter,
+    settlementAliases,
   ]);
   const requireSignIn = () => {
     if (isSignedIn) return true;
@@ -5848,7 +5858,7 @@ export default function QoldanClient({
           <div className="catalog-settlement">
             <SettlementSearch region={selectedRegion} value={settlementFilter}
               onChange={value=>{setSettlementFilter(value);setSettlementCenter(null);setUserCoords(null);}}
-              onSelect={place=>{setSettlementFilter(place.name);setSettlementCenter({latitude:place.latitude,longitude:place.longitude});setUserCoords(null);}} />
+              onSelect={place=>{setSettlementFilter(place.name);setSettlementAliases(place.aliases);setSettlementCenter({latitude:place.latitude,longitude:place.longitude});setUserCoords(null);}} />
             {settlementFilter && <button type="button" onClick={()=>{setSettlementFilter('');setSettlementCenter(null);}}>Все населённые пункты региона</button>}
           </div>
           {mapOpen ? (
@@ -6098,7 +6108,7 @@ export default function QoldanClient({
             <button type="button" onClick={()=>setModal('regions')}>Регион: {selectedRegionLabel}</button>
             <SettlementSearch region={selectedRegion} value={settlementFilter}
               onChange={value=>{setSettlementFilter(value);setSettlementCenter(null);}}
-              onSelect={place=>{setSettlementFilter(place.name);setSettlementCenter({latitude:place.latitude,longitude:place.longitude});}} />
+              onSelect={place=>{setSettlementFilter(place.name);setSettlementAliases(place.aliases);setSettlementCenter({latitude:place.latitude,longitude:place.longitude});}} />
             {settlementFilter && <button type="button" onClick={()=>{setSettlementFilter('');setSettlementCenter(null);}}>Все населённые пункты</button>}
           </div>
           {visibleRequests.map((r) => {
