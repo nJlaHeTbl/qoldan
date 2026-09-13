@@ -5945,6 +5945,10 @@ export default function QoldanClient({
                   setQuery('');
                   setType('Все');
                   setCategoryFilter('Все категории');
+                  setUserCoords(null);
+                  setLivestockTypeFilter('Все виды');
+                  setLivestockPriceModeFilter('all');
+                  setLivestockQuantityGroup('all');
                   setMaxDistance(100);
                   setFavoriteOnly(false);
                   setMyOnly(false);
@@ -6370,6 +6374,8 @@ export default function QoldanClient({
             <b>{tr.kazakhstan}</b>
             <button
               onClick={() => {
+                setUserCoords(null);
+                setMaxDistance(100);
                 setSelectedRegion('Алматы');
                 document
                   .querySelector('#catalog')
@@ -6380,6 +6386,8 @@ export default function QoldanClient({
             </button>
             <button
               onClick={() => {
+                setUserCoords(null);
+                setMaxDistance(100);
                 setSelectedRegion('Астана');
                 document
                   .querySelector('#catalog')
