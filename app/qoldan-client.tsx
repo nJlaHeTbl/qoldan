@@ -5425,14 +5425,9 @@ export default function QoldanClient({
             </button>
           </div>
           <div className="region-quick">
-            {[
-              'Астана',
-              'Алматы',
-              'Шымкент',
-              'Область Жетісу',
-              'Костанайская область',
-              'Атырауская область',
-            ].map((r) => (
+            {KAZAKHSTAN_REGIONS.filter(({ code }) =>
+              ['01', '02', '06', '10', '17', '19'].includes(code),
+            ).map(({ code, name: r }) => (
               <button
                 key={r}
                 className={selectedRegion === r ? 'active' : ''}
@@ -5445,7 +5440,7 @@ export default function QoldanClient({
                     ?.scrollIntoView({ behavior: 'smooth' });
                 }}
               >
-                {r}
+                {code} — {r}
               </button>
             ))}
             <button onClick={() => setModal('regions')}>
