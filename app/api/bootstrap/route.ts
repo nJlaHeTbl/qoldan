@@ -176,7 +176,7 @@ export async function GET(request: Request) {
         .all<Record<string, unknown>>(),
       db
         .prepare(
-          `SELECT requests.id, requests.title, requests.place,
+          `SELECT requests.id, requests.title, requests.place, requests.latitude, requests.longitude,
                           requests.when_text, requests.budget, requests.kind,
                           requests.region, requests.response_count,
                           requests.owner_id, requests.status,
@@ -719,6 +719,8 @@ export async function GET(request: Request) {
           id: String(row.id),
           title: row.title,
           place: row.place,
+          latitude: row.latitude ?? undefined,
+          longitude: row.longitude ?? undefined,
           when: row.when_text,
           budget: row.budget,
           responses: Number(row.response_count),

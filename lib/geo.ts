@@ -48,13 +48,6 @@ const placeCenters: Record<string, Coordinates> = {
   атырау: { latitude: 47.0945, longitude: 51.9238 },
 };
 
-const hashOffset = (value: string, axis: number) => {
-  let hash = axis === 0 ? 17 : 31;
-  for (const character of value) {
-    hash = (hash * 33 + character.charCodeAt(0)) % 10_000;
-  }
-  return (hash / 10_000 - 0.5) * (axis === 0 ? 0.36 : 0.52);
-};
 
 export function getRegionCenter(region?: string): Coordinates {
   return (region && regionCenters[region]) || KAZAKHSTAN_CENTER;
@@ -111,9 +104,6 @@ export function resolveCoordinates(item: {
     normalized.includes(name),
   )?.[1];
   const base = place || getRegionCenter(item.region);
-  const key = String(item.id);
-  return {
-    latitude: base.latitude + hashOffset(key, 0),
-    longitude: base.longitude + hashOffset(key, 1),
-  };
+  // Do not invent an address by displacing a regional center randomly.
+  return base;
 }

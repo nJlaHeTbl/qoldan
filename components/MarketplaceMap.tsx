@@ -11,6 +11,7 @@ export type MarketplaceMapMarker = {
   type: 'Продам' | 'Сдам' | 'Окажу услугу';
   latitude: number;
   longitude: number;
+  approximate?: boolean;
 };
 
 type Props = {
@@ -18,6 +19,8 @@ type Props = {
   fallbackCenter: { latitude: number; longitude: number };
   userCoordinates?: { latitude: number; longitude: number } | null;
   onSelect: (id: string) => void;
+  overview?: boolean;
+  focusCoordinates?: { latitude: number; longitude: number } | null;
 };
 
 const markerColors: Record<MarketplaceMapMarker['type'], string> = {
@@ -44,6 +47,8 @@ export function MarketplaceMap({
   fallbackCenter,
   userCoordinates,
   onSelect,
+  overview = false,
+  focusCoordinates,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
@@ -83,7 +88,7 @@ export function MarketplaceMap({
           fillOpacity: 1,
         }).addTo(map);
         point.bindTooltip(
-          `<div><b>${escapeHtml(marker.title)}</b><span>${escapeHtml(marker.price)}</span></div>`,
+          `<div><b>${escapeHtml(marker.title)}</b><span>${escapeHtml(marker.price)}${marker.approximate ? ' · Примерное место, точка не указана' : ''}</span></div>`,
           { direction: 'top', offset: [0, -9] },
         );
         point.on('click', () => onSelectRef.current(marker.id));
@@ -109,7 +114,12 @@ export function MarketplaceMap({
       }
 
       const pointCount = markers.length + (userCoordinates ? 1 : 0);
-      if (pointCount === 0) {
+      if (focusCoordinates) {
+        L.circleMarker([focusCoordinates.latitude, focusCoordinates.longitude], {radius:6,color:'#6c52b5'}).addTo(map).bindTooltip('Центр выбранного населённого пункта');
+        map.setView([focusCoordinates.latitude, focusCoordinates.longitude], 12);
+      } else if (overview) {
+        map.fitBounds([[40.5,46.4],[55.5,87.4]]);
+      } else if (pointCount === 0) {
         map.setView([fallbackCenter.latitude, fallbackCenter.longitude], 5);
       } else if (pointCount === 1) {
         const onlyPoint = userCoordinates || markers[0];
@@ -129,10 +139,13 @@ export function MarketplaceMap({
     fallbackCenter.longitude,
     markers,
     userCoordinates,
+    overview,
+    focusCoordinates,
   ]);
 
   return (
     <div className="real-map-shell">
+      <button type="button" onClick={()=>mapRef.current?.fitBounds([[40.5,46.4],[55.5,87.4]])}>Весь Казахстан</button>
       <div
         ref={containerRef}
         className="real-map"

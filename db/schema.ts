@@ -106,6 +106,8 @@ export const requests = sqliteTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     title: text('title').notNull(),
     place: text('place').notNull(),
+    latitude: real('latitude'),
+    longitude: real('longitude'),
     whenText: text('when_text').notNull(),
     budget: text('budget').notNull(),
     kind: text('kind').notNull(),

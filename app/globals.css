@@ -7335,3 +7335,17 @@ footer {
     grid-column: 1;
   }
 }
+/* Settlement directory and precise rural work locations. */
+.location-fields { display: grid; gap: 14px; width: 100%; min-width: 0; }
+.settlement-search { display: grid; gap: 7px; min-width: 0; }
+.settlement-search > label { font-weight: 600; }
+.settlement-search input { width: 100%; min-width: 0; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; background: white; color: #162c28; font-size: 16px; }
+.settlement-search small, .location-fields small { display: block; color: #52645f; font-size: 13px; }
+.settlement-results { display: grid; max-height: 250px; overflow-y: auto; border: 1px solid #d9e4df; border-radius: 10px; background: white; }
+.settlement-results button { display: flex; justify-content: space-between; gap: 12px; text-align: left; padding: 11px 12px; border: 0; border-bottom: 1px solid #eef2ef; background: white; color: #162c28; font-size: 15px; cursor: pointer; }
+.settlement-results button:hover, .settlement-results button:focus-visible { background: #eef7f1; }
+.location-point-map { height: 320px; width: 100%; border-radius: 12px; z-index: 0; }
+.location-fields > button, .catalog-settlement > button, .real-map-shell > button { padding: 10px 14px; border: 1px solid #ccdcd3; background: #f4faf6; border-radius: 9px; color: #165437; cursor: pointer; }
+.catalog-settlement { padding: 16px; margin: 16px 0; border: 1px solid #dce6e0; border-radius: 14px; display: grid; gap: 10px; }
+.request-map-link { display: inline-block; padding: 12px 0; color: #09633d; font-weight: 600; }
+@media (max-width: 600px) { .location-point-map { height: 270px; } .settlement-results button { flex-wrap: wrap; } }

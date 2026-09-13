@@ -47,7 +47,7 @@ export async function GET(request: Request, context: RouteContext) {
     const db = getMarketplaceDb();
     const requestRow = await db
       .prepare(
-        `SELECT requests.id, requests.title, requests.place,
+        `SELECT requests.id, requests.title, requests.place, requests.latitude, requests.longitude,
                 requests.when_text, requests.budget, requests.kind,
                 requests.region, requests.response_count,
                 requests.owner_id, requests.status,
@@ -134,6 +134,8 @@ export async function GET(request: Request, context: RouteContext) {
         id: String(requestRow.id),
         title: requestRow.title,
         place: requestRow.place,
+        latitude: requestRow.latitude ?? undefined,
+        longitude: requestRow.longitude ?? undefined,
         when: requestRow.when_text,
         budget: requestRow.budget,
         responses: Number(requestRow.response_count),

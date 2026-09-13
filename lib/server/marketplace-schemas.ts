@@ -122,11 +122,13 @@ export const listingInput = z
 export const requestInput = z.object({
   title: shortText.min(4),
   place: shortText,
+  latitude: z.number().min(40).max(56).optional(),
+  longitude: z.number().min(45).max(88).optional(),
   when: shortText,
   budget: z.string().trim().min(1).max(80),
   kind: z.enum(requestKinds),
   region: marketRegion,
-});
+}).refine(data => (data.latitude === undefined) === (data.longitude === undefined), {message: 'Передайте обе координаты', path:['latitude']});
 
 export const listingStatusInput = z.object({
   listingId: z.union([z.string(), z.number()]).transform(String),

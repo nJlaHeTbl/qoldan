@@ -41,8 +41,8 @@ export async function POST(request: Request) {
       .prepare(
         `INSERT INTO requests
          (id, owner_id, title, place, when_text, budget, kind, region,
-          status, response_count, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', 0, ?, ?)`,
+          status, response_count, created_at, updated_at, latitude, longitude)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', 0, ?, ?, ?, ?)`,
       )
       .bind(
         id,
@@ -55,6 +55,8 @@ export async function POST(request: Request) {
         input.region,
         now,
         now,
+        input.latitude ?? null,
+        input.longitude ?? null,
       )
       .run();
     return Response.json(
@@ -63,6 +65,8 @@ export async function POST(request: Request) {
           id,
           title: input.title,
           place: input.place,
+          latitude: input.latitude,
+          longitude: input.longitude,
           when: input.when,
           budget: input.budget,
           responses: 0,

@@ -51,6 +51,8 @@ import {
   LifeBuoy,
   LockKeyhole,
 } from 'lucide-react';
+import { LocationFields } from '@/components/LocationFields';
+import { SettlementSearch } from '@/components/SettlementSearch';
 import {
   MarketplaceMap,
   type MarketplaceMapMarker,
@@ -112,6 +114,8 @@ type Listing = {
   mine?: boolean;
 };
 type RequestItem = {
+  latitude?: number;
+  longitude?: number;
   id: number | string;
   title: string;
   place: string;
@@ -2706,6 +2710,9 @@ export default function QoldanClient({
   const [listingContentMode, setListingContentMode] =
     useState<ContentMode>('all');
   const [selectedRegion, setSelectedRegion] = useState('Весь Казахстан');
+  const [settlementFilter, setSettlementFilter] = useState('');
+  const [settlementCenter, setSettlementCenter] = useState<Coordinates | null>(null);
+  useEffect(() => { setSettlementFilter(''); setSettlementCenter(null); }, [selectedRegion]);
   const [deliveryOnly, setDeliveryOnly] = useState(false);
   const [companyOnly, setCompanyOnly] = useState(false);
   const [listingImage, setListingImage] = useState('');
@@ -2882,6 +2889,7 @@ export default function QoldanClient({
   );
   const hasSavableSearch =
     !userCoords &&
+    !settlementFilter.trim() &&
     Boolean(
       query.trim() ||
       type !== 'Все' ||
@@ -3123,6 +3131,7 @@ export default function QoldanClient({
               i.category === categoryFilter) &&
             (selectedRegion === 'Весь Казахстан' ||
               i.region === selectedRegion) &&
+            (!settlementFilter.trim() || i.location.toLocaleLowerCase().includes(settlementFilter.trim().toLocaleLowerCase())) &&
             (!userCoords ||
               calculateDistanceKm(userCoords, resolveCoordinates(i)) <=
                 maxDistance) &&
@@ -3192,6 +3201,7 @@ export default function QoldanClient({
       livestockQuantityGroup,
       userCoords,
       listingSort,
+      settlementFilter,
     ],
   );
   const visibleListings = filtered.slice(0, visibleListingCount);
@@ -3218,12 +3228,14 @@ export default function QoldanClient({
     livestockQuantityGroup,
     userCoords,
     listingSort,
+    settlementFilter,
   ]);
   const filteredRequests = useMemo(
     () =>
       allRequests.filter(
         (request) =>
           (requestKind === 'all' || request.kind === requestKind) &&
+          (!settlementFilter.trim() || request.place.toLocaleLowerCase().includes(settlementFilter.trim().toLocaleLowerCase())) &&
           (requestOwnerOnly ||
             selectedRegion === 'Весь Казахстан' ||
             request.region === selectedRegion) &&
@@ -3241,6 +3253,7 @@ export default function QoldanClient({
       requestOwnerOnly,
       requestContentMode,
       selectedRegion,
+      settlementFilter,
     ],
   );
   const visibleRequests = filteredRequests.slice(0, visibleRequestCount);
@@ -3257,6 +3270,7 @@ export default function QoldanClient({
     requestOwnerOnly,
     requestContentMode,
     selectedRegion,
+    settlementFilter,
   ]);
   const requireSignIn = () => {
     if (isSignedIn) return true;
@@ -3507,6 +3521,8 @@ export default function QoldanClient({
     }
   };
   const applySavedSearch = async (savedSearch: SavedSearchItem) => {
+    setSettlementFilter('');
+    setSettlementCenter(null);
     setUserCoords(null);
     setQuery(savedSearch.query);
     setType(savedSearch.offerType);
@@ -4405,6 +4421,7 @@ export default function QoldanClient({
           type: item.type,
           latitude: coordinates.latitude,
           longitude: coordinates.longitude,
+          approximate: !hasExactCoordinates(item),
         };
       }),
     [filtered],
@@ -4573,6 +4590,8 @@ export default function QoldanClient({
         body: JSON.stringify({
           title: fieldText(f, 'title'),
           place: fieldText(f, 'place'),
+          latitude: fieldText(f, 'latitude') ? Number(fieldText(f, 'latitude')) : undefined,
+          longitude: fieldText(f, 'longitude') ? Number(fieldText(f, 'longitude')) : undefined,
           when: fieldText(f, 'when'),
           budget: fieldText(f, 'budget', 'Договорная'),
           kind: fieldText(f, 'kind'),
@@ -5826,11 +5845,19 @@ export default function QoldanClient({
               </button>
             </div>
           )}
+          <div className="catalog-settlement">
+            <SettlementSearch region={selectedRegion} value={settlementFilter}
+              onChange={value=>{setSettlementFilter(value);setSettlementCenter(null);setUserCoords(null);}}
+              onSelect={place=>{setSettlementFilter(place.name);setSettlementCenter({latitude:place.latitude,longitude:place.longitude});setUserCoords(null);}} />
+            {settlementFilter && <button type="button" onClick={()=>{setSettlementFilter('');setSettlementCenter(null);}}>Все населённые пункты региона</button>}
+          </div>
           {mapOpen ? (
             <MarketplaceMap
               markers={mapMarkers}
               fallbackCenter={userCoords || getRegionCenter(selectedRegion)}
               userCoordinates={userCoords}
+              overview={selectedRegion === 'Весь Казахстан' && !userCoords && !settlementCenter}
+              focusCoordinates={settlementCenter}
               onSelect={selectMapListing}
             />
           ) : (
@@ -5943,6 +5970,8 @@ export default function QoldanClient({
               <button
                 onClick={() => {
                   setQuery('');
+                  setSettlementFilter('');
+                  setSettlementCenter(null);
                   setType('Все');
                   setCategoryFilter('Все категории');
                   setUserCoords(null);
@@ -6064,6 +6093,13 @@ export default function QoldanClient({
                 {label}
               </button>
             ))}
+          </div>
+          <div className="catalog-settlement">
+            <button type="button" onClick={()=>setModal('regions')}>Регион: {selectedRegionLabel}</button>
+            <SettlementSearch region={selectedRegion} value={settlementFilter}
+              onChange={value=>{setSettlementFilter(value);setSettlementCenter(null);}}
+              onSelect={place=>{setSettlementFilter(place.name);setSettlementCenter({latitude:place.latitude,longitude:place.longitude});}} />
+            {settlementFilter && <button type="button" onClick={()=>{setSettlementFilter('');setSettlementCenter(null);}}>Все населённые пункты</button>}
           </div>
           {visibleRequests.map((r) => {
             const Icon =
@@ -6774,40 +6810,10 @@ export default function QoldanClient({
                       </select>
                     </label>
                   )}
-                  <label>
-                    {internal.listing.region}
-                    <select
-                      name="region"
-                      required
-                      defaultValue={
-                        listingDraft?.fields.region ||
-                        (selectedRegion === 'Весь Казахстан'
-                          ? 'Область Жетісу'
-                          : selectedRegion)
-                      }
-                    >
-                      {renderRegionOptions()}
-                    </select>
-                  </label>
-                  <label>
-                    {internal.listing.city}
-                    <input
-                      name="location"
-                      maxLength={160}
-                      required
-                      defaultValue={
-                        listingDraft?.fields.location ||
-                        (selectedRegion === 'Алматы' ||
-                        selectedRegion === 'Астана' ||
-                        selectedRegion === 'Шымкент'
-                          ? selectedRegion
-                          : selectedRegion === 'Весь Казахстан' ||
-                              selectedRegion === 'Область Жетісу'
-                            ? 'Талдыкорган'
-                            : '')
-                      }
-                    />
-                  </label>
+                  <LocationFields fieldName="location"
+                    initialRegion={listingDraft?.fields.region || (selectedRegion === 'Весь Казахстан' ? 'Область Жетісу' : selectedRegion)}
+                    initialPlace={listingDraft?.fields.location || ''}
+                    point={listingCoords} onPointChange={setListingCoords} />
                   <button
                     className={`geolocation-picker wide ${listingCoords ? 'captured' : ''}`}
                     type="button"
@@ -6991,34 +6997,9 @@ export default function QoldanClient({
                       placeholder={internal.requestForm.needPlaceholder}
                     />
                   </label>
-                  <label>
-                    {internal.requestForm.region}
-                    <select
-                      name="region"
-                      required
-                      defaultValue={
-                        (!requestSeed && requestDraft?.fields.region) ||
-                        (selectedRegion === 'Весь Казахстан'
-                          ? 'Область Жетісу'
-                          : selectedRegion)
-                      }
-                    >
-                      {renderRegionOptions()}
-                    </select>
-                  </label>
-                  <label>
-                    {internal.requestForm.where}
-                    <input
-                      name="place"
-                      required
-                      defaultValue={
-                        (!requestSeed && requestDraft?.fields.place) ||
-                        (selectedRegion === 'Весь Казахстан'
-                          ? 'Талдыкорган'
-                          : selectedRegion)
-                      }
-                    />
-                  </label>
+                  <LocationFields fieldName="place"
+                    initialRegion={(!requestSeed && requestDraft?.fields.region) || (selectedRegion === 'Весь Казахстан' ? 'Область Жетісу' : selectedRegion)}
+                    initialPlace={(!requestSeed && requestDraft?.fields.place) || ''} />
                   <label>
                     {internal.requestForm.when}
                     <input
@@ -7068,6 +7049,10 @@ export default function QoldanClient({
                     <Share2 /> {internal.requestDetail.share}
                   </button>
                 )}
+                {hasExactCoordinates(selectedRequest) && <a className="request-map-link" target="_blank" rel="noreferrer"
+                  href={`https://www.openstreetmap.org/?mlat=${selectedRequest.latitude}&mlon=${selectedRequest.longitude}#map=15/${selectedRequest.latitude}/${selectedRequest.longitude}`}>
+                  Открыть место работ на карте ↗
+                </a>}
                 {isDemoRequest(selectedRequest.id) && (
                   <div className="demo-flow-note">
                     <CircleAlert />
