@@ -7349,3 +7349,16 @@ footer {
 .catalog-settlement { padding: 16px; margin: 16px 0; border: 1px solid #dce6e0; border-radius: 14px; display: grid; gap: 10px; }
 .request-map-link { display: inline-block; padding: 12px 0; color: #09633d; font-weight: 600; }
 @media (max-width: 600px) { .location-point-map { height: 270px; } .settlement-results button { flex-wrap: wrap; } }
+.map-editor-page { max-width: 1120px; margin: 0 auto; padding: 28px 18px; color: #19382a; }
+.map-editor-page h1 { font-size: clamp(26px,4vw,40px); margin: 20px 0 12px; }
+.map-editor-page h2 { font-size: 21px; margin: 18px 0 12px; }
+.map-editor-page p { line-height: 1.6; margin: 10px 0; }
+.map-editor-grid { display:grid; grid-template-columns: minmax(0,1.4fr) minmax(0,1fr); gap:28px; margin-top:24px; align-items:start; }
+.map-editor-page label { display:grid; gap:8px; font-weight:600; }
+.map-editor-page input,.map-editor-page select,.map-editor-page textarea { width:100%; padding:12px; background:white; color:#173d2a; border:1px solid #c5d8cb; border-radius:9px; font-size:16px; }
+.map-editor-page textarea { min-height:100px; }
+.map-editor-page button { padding:10px 13px; border:1px solid #b9d2c1; border-radius:8px; background:#eff8f2; color:#174a2d; cursor:pointer; margin:4px 4px 4px 0; }
+.map-editor-page button:disabled { opacity:.5; cursor:wait; }
+.map-editor-page article { padding:15px; margin:12px 0; border:1px solid #d8e4db; border-radius:12px; overflow-wrap:anywhere; }
+.map-edit-pin { font-size:28px; color:#e34a2d; text-shadow:0 0 3px white; line-height:28px; text-align:center; }
+@media(max-width:760px) { .map-editor-grid {grid-template-columns:1fr;} }

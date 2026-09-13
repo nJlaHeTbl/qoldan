@@ -6405,6 +6405,7 @@ export default function QoldanClient({
             </a>
             <a href="#recycle">{tr.recycleExchange}</a>
             <a href="#about">{tr.navAbout}</a>
+            <a href="/map-editor">Исправить карту и населённые пункты</a>
           </div>
           <div>
             <b>{tr.kazakhstan}</b>

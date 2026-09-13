@@ -8,6 +8,36 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
 
+export const settlementOverrides = sqliteTable('settlement_overrides', {
+  settlementId: text('settlement_id').primaryKey(),
+  regionCode: text('region_code').notNull(),
+  name: text('name').notNull(),
+  latitude: real('latitude').notNull(),
+  longitude: real('longitude').notNull(),
+  aliases: text('aliases').notNull(),
+  reset: integer('reset').notNull().default(0),
+  revision: text('revision').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+}, table => [index('settlement_overrides_region_idx').on(table.regionCode)]);
+
+export const settlementEdits = sqliteTable('settlement_edits', {
+  id: text('id').primaryKey(),
+  settlementId: text('settlement_id').notNull(),
+  regionCode: text('region_code').notNull(),
+  ownerId: text('owner_id').notNull().references(()=>users.id),
+  name: text('name').notNull(),
+  latitude: real('latitude').notNull(),
+  longitude: real('longitude').notNull(),
+  aliases: text('aliases').notNull(),
+  reset: integer('reset').notNull().default(0),
+  expectedRevision: text('expected_revision').notNull(),
+  reason: text('reason').notNull(),
+  status: text('status').notNull().default('pending'),
+  createdAt: integer('created_at').notNull(),
+  reviewedAt: integer('reviewed_at'),
+  reviewedBy: text('reviewed_by').references(()=>users.id),
+}, table => [index('settlement_edits_status_idx').on(table.status,table.createdAt), index('settlement_edits_target_idx').on(table.settlementId,table.reviewedAt), index('settlement_edits_owner_idx').on(table.ownerId,table.createdAt)]);
+
 export const users = sqliteTable('users', {
   id: text('id').primaryKey(),
   email: text('email').notNull(),
