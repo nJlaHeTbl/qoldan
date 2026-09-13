@@ -64,9 +64,7 @@ import {
   type Coordinates,
 } from '@/lib/geo';
 import {
-  KAZAKHSTAN_OBLASTS,
-  KAZAKHSTAN_REGION_FILTERS,
-  KAZAKHSTAN_REPUBLICAN_CITIES,
+  KAZAKHSTAN_REGIONS,
 } from '@/lib/regions';
 
 const BookingCalendar = lazy(() => import('@/components/BookingCalendar'));
@@ -931,9 +929,6 @@ const optimizeListingImage = async (file: File) => {
     decoded.dispose();
   }
 };
-const kzRepublicanCities = KAZAKHSTAN_REPUBLICAN_CITIES;
-const kzOblasts = KAZAKHSTAN_OBLASTS;
-const kzRegions = KAZAKHSTAN_REGION_FILTERS;
 const initialRequests: RequestItem[] = [
   {
     id: 1428,
@@ -2750,16 +2745,9 @@ export default function QoldanClient({
   const auth = authContent[appLang];
   const renderRegionOptions = () => (
     <>
-      <optgroup label={internal.regions.cities}>
-        {kzRepublicanCities.map((region) => (
-          <option key={region}>{region}</option>
-        ))}
-      </optgroup>
-      <optgroup label={internal.regions.oblasts}>
-        {kzOblasts.map((region) => (
-          <option key={region}>{region}</option>
-        ))}
-      </optgroup>
+      {KAZAKHSTAN_REGIONS.map(({ code, name }) => (
+        <option key={code} value={name}>{code} — {name}</option>
+      ))}
     </>
   );
   const formatLocalizedBookingDate = (date: string) =>
@@ -8183,10 +8171,7 @@ export default function QoldanClient({
                     {tr.allKazakhstan}
                     {selectedRegion === 'Весь Казахстан' && <CheckCircle2 />}
                   </button>
-                  <h3 className="region-modal-heading">
-                    {internal.regions.cities}
-                  </h3>
-                  {kzRepublicanCities.map((r) => (
+                  {KAZAKHSTAN_REGIONS.map(({ code, name: r }) => (
                     <button
                       key={r}
                       className={selectedRegion === r ? 'active' : ''}
@@ -8199,29 +8184,7 @@ export default function QoldanClient({
                       }}
                     >
                       <span>
-                        {String(kzRegions.indexOf(r)).padStart(2, '0')}
-                      </span>
-                      {r}
-                      {selectedRegion === r && <CheckCircle2 />}
-                    </button>
-                  ))}
-                  <h3 className="region-modal-heading">
-                    {internal.regions.oblasts}
-                  </h3>
-                  {kzOblasts.map((r) => (
-                    <button
-                      key={r}
-                      className={selectedRegion === r ? 'active' : ''}
-                      onClick={() => {
-                        setUserCoords(null);
-                        setSelectedRegion(r);
-                        setModal(null);
-                        setMaxDistance(100);
-                        notify(`Выбран регион: ${r}`);
-                      }}
-                    >
-                      <span>
-                        {String(kzRegions.indexOf(r)).padStart(2, '0')}
+                        {code}
                       </span>
                       {r}
                       {selectedRegion === r && <CheckCircle2 />}
