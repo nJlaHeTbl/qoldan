@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     const result = await getMarketplaceDb()
       .prepare(
         `UPDATE listings
-         SET status = ?, updated_at = ?
+         SET status = ?, updated_at = MAX(updated_at + 1, ?)
          WHERE id = ? AND owner_id = ? AND status IN ('active', 'paused')`,
       )
       .bind(input.status, Date.now(), input.listingId, viewer.id)

@@ -6,13 +6,14 @@ import { KAZAKHSTAN_REGIONS } from '@/lib/regions';
 import { getRegionCenter, type Coordinates } from '@/lib/geo';
 import { SettlementSearch } from './SettlementSearch';
 
-export function LocationFields({ initialRegion, initialPlace = '', fieldName, point, onPointChange }: {
+export function LocationFields({ initialRegion, initialPlace = '', initialPoint = null, fieldName, point, onPointChange }: {
   initialRegion: string; initialPlace?: string; fieldName: 'location' | 'place';
   point?: Coordinates | null; onPointChange?: (point: Coordinates | null) => void;
+  initialPoint?: Coordinates | null;
 }) {
   const [region,setRegion] = useState(initialRegion);
   const [place,setPlace] = useState(initialPlace);
-  const [localPoint,setLocalPoint] = useState<Coordinates | null>(null);
+  const [localPoint,setLocalPoint] = useState<Coordinates | null>(initialPoint);
   const [showMap,setShowMap] = useState(false);
   const [hint,setHint] = useState('');
   const current = point === undefined ? localPoint : point;

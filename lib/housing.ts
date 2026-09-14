@@ -6,4 +6,5 @@ export type HousingListing = {
   image: string; description: string; phone: string; owner: string; available: string;
   guests: number; rooms: number; mine: boolean; favorite: boolean; status: string;
   latitude: number | null; longitude: number | null;
+  updatedAt: number; sellerType: 'Частное лицо' | 'Компания' | 'Магазин';
 };

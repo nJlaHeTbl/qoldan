@@ -83,8 +83,54 @@ assert.equal((await status.POST(req('/api/listings/status','POST',{listingId:ite
 assert.equal((await search({})).length,0);
 assert.equal((await search({view:'mine'},'owner')).length,1);
 assert.equal((await status.POST(req('/api/listings/status','POST',{listingId:item.id,status:'active'}))).status,200);
+const beforeEdit = (await search({view:'mine'},'owner'))[0];
+const edit = { listingId: item.id, expectedUpdatedAt: beforeEdit.updatedAt, data: {
+  ...payload, title: 'LOCAL TEST Новая квартира', price: '17000', region: 'Астана', location: 'Астана',
+  housing: { guests: 5, rooms: 3 }, latitude: 51.16, longitude: 71.43,
+} };
+assert.equal((await catalog.PATCH(req('/api/housing','PATCH',edit,null))).status,401);
+assert.equal((await catalog.PATCH(req('/api/housing','PATCH',edit,'other'))).status,404);
+assert.equal((await catalog.PATCH(req('/api/housing','PATCH',{...edit,data:{...edit.data,price:'-1'}}))).status,400);
+const edited = await catalog.PATCH(req('/api/housing','PATCH',edit));
+assert.equal(edited.status,200,await edited.clone().text());
+const afterEdit = (await search({view:'mine'},'owner'))[0];
+assert.ok(afterEdit.updatedAt > beforeEdit.updatedAt);
+assert.equal(afterEdit.price,'17000');
+assert.equal(afterEdit.rooms,3);
+assert.equal(afterEdit.latitude,51.16);
+assert.equal(afterEdit.image,beforeEdit.image);
+assert.equal((await search({place:'Талдыкорган'})).length,0);
+assert.equal((await search({region:'Астана',q:'НОВАЯ'})).length,1);
+assert.equal((await search({view:'favorites'},'other'))[0].id,item.id);
+// A stale update cannot modify the index or remove coordinates after failing the first statement.
+assert.equal((await catalog.PATCH(req('/api/housing','PATCH',{...edit,data:{...edit.data,location:'Устаревший адрес',latitude:undefined,longitude:undefined}}))).status,409);
+assert.equal((await search({view:'mine'},'owner'))[0].latitude,51.16);
+assert.equal((await search({q:'Устаревший адрес'})).length,0);
+const removePoint = {...edit,expectedUpdatedAt:afterEdit.updatedAt,data:{...edit.data,latitude:undefined,longitude:undefined}};
+assert.equal((await catalog.PATCH(req('/api/housing','PATCH',removePoint))).status,200);
+assert.equal((await search({view:'mine'},'owner'))[0].latitude,null);
+// Pause invalidates an open form and editing a fresh paused record does not republish it.
+const pointRemoved = (await search({view:'mine'},'owner'))[0];
+assert.equal((await status.POST(req('/api/listings/status','POST',{listingId:item.id,status:'paused'}))).status,200);
+assert.equal((await catalog.PATCH(req('/api/housing','PATCH',{...removePoint,expectedUpdatedAt:pointRemoved.updatedAt}))).status,409);
+const paused = (await search({view:'mine'},'owner'))[0];
+const pausedEdit = {...removePoint,expectedUpdatedAt:paused.updatedAt};
+assert.equal((await catalog.PATCH(req('/api/housing','PATCH',pausedEdit))).status,200);
+assert.equal((await search({})).length,0);
+assert.equal((await search({view:'mine'},'owner'))[0].status,'paused');
+// Replacing the photo keeps the record and favorites; another user's upload is rejected.
+const otherUpload = await uploads.POST(req('/api/uploads','POST',upload,'other'));
+const otherImage = (await otherUpload.json()).url;
+const latest = (await search({view:'mine'},'owner'))[0];
+assert.equal((await catalog.PATCH(req('/api/housing','PATCH',{...pausedEdit,expectedUpdatedAt:latest.updatedAt,data:{...pausedEdit.data,imageUrl:otherImage}}))).status,400);
+const nextUpload = await uploads.POST(req('/api/uploads','POST',upload));
+const nextImage = (await nextUpload.json()).url;
+assert.equal((await catalog.PATCH(req('/api/housing','PATCH',{...pausedEdit,expectedUpdatedAt:latest.updatedAt,data:{...pausedEdit.data,imageUrl:nextImage}}))).status,200);
+assert.equal((await search({view:'mine'},'owner'))[0].image,nextImage);
+assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM listings').get().n,1);
 sqlite.prepare("UPDATE listings SET status='restricted' WHERE id=?").run(item.id);
+assert.equal((await catalog.PATCH(req('/api/housing','PATCH',pausedEdit))).status,403);
 assert.equal((await status.POST(req('/api/listings/status','POST',{listingId:item.id,status:'active'}))).status,404);
 assert.equal((await search({})).length,0);
 sqlite.close();
-console.log('PASS housing: migrations, photo ownership, atomic save, price/type validation, duplicate protection, Unicode search, region/price/guests filters, favorites, pause, owner isolation and moderation restriction. No network writes.');
+console.log('PASS housing: create/search/favorites, edit and photo replacement, owner isolation, stale conflict, search index and coordinates, paused state, moderation restriction. No network writes.');
