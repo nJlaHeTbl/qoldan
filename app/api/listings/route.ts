@@ -13,6 +13,7 @@ import {
   listingInput,
   parseJson,
 } from '@/lib/server/marketplace-schemas';
+import { normalizeHousingSearch } from '@/lib/housing';
 
 const listingImagePattern =
   /^\/api\/media\/([0-9a-f-]{36}\.(?:jpg|png|webp))$/i;
@@ -122,9 +123,16 @@ export async function POST(request: Request) {
         now,
       );
     try {
+      const statements = [listingStatement];
+      if (input.housing) {
+        statements.push(db.prepare(
+          'INSERT INTO housing_details (listing_id, guests, rooms, search_text, location_search) VALUES (?, ?, ?, ?, ?)'
+        ).bind(id, input.housing.guests, input.housing.rooms,
+          normalizeHousingSearch([input.title, input.location, input.description].join(' ')),
+          normalizeHousingSearch(input.location)));
+      }
       if (input.latitude !== undefined && input.longitude !== undefined) {
-        await db.batch([
-          listingStatement,
+        statements.push(
           db
             .prepare(
               `INSERT INTO listing_locations
@@ -132,10 +140,9 @@ export async function POST(request: Request) {
                VALUES (?, ?, ?, ?)`,
             )
             .bind(id, input.latitude, input.longitude, now),
-        ]);
-      } else {
-        await listingStatement.run();
+        );
       }
+      await db.batch(statements);
     } catch (error) {
       await discardUnusedUpload(db, viewer.id, imageKey);
       throw error;

@@ -16,6 +16,7 @@ import {
   getMarketplaceDb,
 } from '@/lib/server/marketplace-db';
 import { RecentViewTracker } from '@/components/RecentViewTracker';
+import { isHousingCategory } from '@/lib/housing';
 
 const SITE_ORIGIN = 'https://qoldan-zhetisu.nuc9i218.chatgpt.site';
 
@@ -37,6 +38,10 @@ type ListingDetailRow = {
   created_at: number;
   owner_name: string;
   verified_business_id: string | null;
+  guests: number | null;
+  rooms: number | null;
+  latitude: number | null;
+  longitude: number | null;
 };
 
 type ListingPageProps = {
@@ -53,9 +58,13 @@ const getListing = cache(async (id: string) => {
               listings.available, listings.description, listings.seller_type,
               listings.delivery, listings.created_at,
               users.display_name AS owner_name,
-              verified_business.id AS verified_business_id
+              verified_business.id AS verified_business_id,
+              housing_details.guests, housing_details.rooms,
+              listing_locations.latitude, listing_locations.longitude
        FROM listings
        JOIN users ON users.id = listings.owner_id
+       LEFT JOIN housing_details ON housing_details.listing_id = listings.id
+       LEFT JOIN listing_locations ON listing_locations.listing_id = listings.id
        LEFT JOIN business_verifications verified_business
          ON verified_business.owner_id = listings.owner_id
         AND verified_business.status = 'verified'
@@ -156,8 +165,8 @@ export default async function ListingPage({ params }: ListingPageProps) {
           <span>Q</span>
           <b>Qoldan</b>
         </Link>
-        <Link className="listing-page-back" href="/#catalog">
-          <ArrowLeft /> Все объявления
+        <Link className="listing-page-back" href={isHousingCategory(listing.category) ? '/housing' : '/#catalog'}>
+          <ArrowLeft /> {isHousingCategory(listing.category) ? 'Всё жильё' : 'Все объявления'}
         </Link>
       </header>
       <section className="listing-page-shell">
@@ -172,10 +181,12 @@ export default async function ListingPage({ params }: ListingPageProps) {
             </small>
             <h1>{listing.title}</h1>
             <div className="listing-page-price">
-              {listing.price} <span>{listing.unit || ''}</span>
+              {listing.price}{isHousingCategory(listing.category) ? ' ₸' : ''} <span>{listing.unit || ''}</span>
             </div>
-            <p>{listingDescription(listing)}</p>
+            <p style={{whiteSpace:'pre-line'}}>{listing.description || listingDescription(listing)}</p>
             <div className="listing-page-facts">
+              {listing.guests && <span>{listing.rooms} комн. · до {listing.guests} гостей · Свободные даты уточняйте у владельца</span>}
+              {listing.latitude != null && listing.longitude != null && <a href={`https://www.openstreetmap.org/?mlat=${listing.latitude}&mlon=${listing.longitude}#map=16/${listing.latitude}/${listing.longitude}`} target="_blank" rel="noreferrer"><MapPin /> Посмотреть указанную точку на карте</a>}
               <span>
                 <MapPin /> {listing.location}, {listing.region}
               </span>

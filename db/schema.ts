@@ -118,6 +118,14 @@ export const listings = sqliteTable(
   ],
 );
 
+export const housingDetails = sqliteTable('housing_details', {
+  listingId: text('listing_id').primaryKey().references(() => listings.id, { onDelete: 'cascade' }),
+  guests: integer('guests').notNull(),
+  rooms: integer('rooms').notNull(),
+  searchText: text('search_text').notNull(),
+  locationSearch: text('location_search').notNull(),
+});
+
 export const listingLocations = sqliteTable('listing_locations', {
   listingId: text('listing_id')
     .primaryKey()

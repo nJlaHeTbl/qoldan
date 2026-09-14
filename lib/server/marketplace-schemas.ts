@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isHousingCategory } from '@/lib/housing';
 
 import {
   KAZAKHSTAN_MARKET_REGIONS,
@@ -78,6 +79,10 @@ export const listingInput = z
     livestockQuantity: z.number().int().min(1).max(10_000).optional(),
     livestockPriceMode: z.enum(livestockPriceModes).optional(),
     livestockBreed: z.string().trim().max(120).optional().default(''),
+    housing: z.object({
+      guests: z.number().int().min(1).max(50),
+      rooms: z.number().int().min(1).max(30),
+    }).optional(),
     latitude: z.number().min(40).max(56).optional(),
     longitude: z.number().min(45).max(88).optional(),
   })
@@ -88,6 +93,11 @@ export const listingInput = z
     { message: 'Передайте обе координаты', path: ['latitude'] },
   )
   .superRefine((data, context) => {
+    if (isHousingCategory(data.category)) {
+      if (!data.housing) context.addIssue({ code: 'custom', path: ['housing'], message: 'Укажите количество комнат и гостей' });
+      if (data.type !== 'Сдам' || data.unit !== '/ сутки') context.addIssue({ code: 'custom', path: ['type'], message: 'Жильё публикуется в аренду с ценой за сутки' });
+      if (!/^[1-9]\d{0,6}$/.test(data.price)) context.addIssue({ code: 'custom', path: ['price'], message: 'Укажите цену от 1 до 9 999 999 тенге за сутки' });
+    } else if (data.housing) context.addIssue({ code: 'custom', path: ['category'], message: 'Характеристики жилья доступны только в разделе жилья' });
     if (data.category !== 'Скот и животные') return;
     if (data.type !== 'Продам') {
       context.addIssue({

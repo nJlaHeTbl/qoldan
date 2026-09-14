@@ -1,0 +1,194 @@
+'use client';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { ArrowLeft, BedDouble, Heart, MapPin, Plus, Phone, Search } from 'lucide-react';
+import { KAZAKHSTAN_REGIONS } from '@/lib/regions';
+import { HOUSING_CATEGORIES, type HousingListing } from '@/lib/housing';
+import { getRegionCenter } from '@/lib/geo';
+import { LocationFields } from '@/components/LocationFields';
+import { SettlementSearch } from '@/components/SettlementSearch';
+import { MarketplaceMap } from '@/components/MarketplaceMap';
+
+type Filters = { region: string; kind: string; q: string; place: string[]; guests: string; maxPrice: string; view: string };
+const initialFilters: Filters = { region: 'Весь Казахстан', kind: 'all', q: '', place: [], guests: '0', maxPrice: '0', view: 'all' };
+async function api(url: string, body: unknown) {
+  const response = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const data = await response.json() as { error?: string };
+  if (!response.ok) throw new Error(data.error || 'Не удалось сохранить. Попробуйте ещё раз.');
+  return data;
+}
+export default function HousingClient({ signedIn, signInPath }: { signedIn: boolean; signInPath: string }) {
+  const [filters, setFilters] = useState(initialFilters);
+  const [draft, setDraft] = useState(initialFilters);
+  const [placeText, setPlaceText] = useState('');
+  const [items, setItems] = useState<HousingListing[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [revision, setRevision] = useState(0);
+  const [showForm, setShowForm] = useState(false);
+  const [showMap, setShowMap] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [preview, setPreview] = useState('');
+  const photoUpload = useRef<{ file: File; url: string } | null>(null);
+  const saveLock = useRef(false);
+  const noticeRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (!photo) { setPreview(''); return; }
+    const url = URL.createObjectURL(photo); setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [photo]);
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true); setError('');
+    const params = new URLSearchParams({ ...filters, place: '', page: String(page) });
+    params.delete('place'); filters.place.forEach(name => params.append('place', name));
+    fetch('/api/housing?' + params, { signal: controller.signal, cache: 'no-store' })
+      .then(async response => {
+        const data = await response.json() as { items: HousingListing[]; hasMore: boolean; error?: string };
+        if (!response.ok) throw new Error(data.error || 'Не удалось загрузить жильё');
+        if (!controller.signal.aborted) { setItems(data.items); setHasMore(data.hasMore); }
+      }).catch(e => { if (!controller.signal.aborted) { setError(e.message); setItems([]); } })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [filters, page, revision]);
+  const markers = useMemo(() => items.filter(item => item.latitude != null && item.longitude != null).map(item => ({
+    id: item.id, title: item.title, price: item.price + ' ₸ / сутки', type: 'Сдам' as const,
+    latitude: item.latitude!, longitude: item.longitude!,
+  })), [items]);
+  function applyFilters(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setPage(1); setFilters({ ...draft, place: draft.place.length ? draft.place : placeText.trim() ? [placeText.trim()] : [] });
+  }
+  async function favorite(item: HousingListing) {
+    if (!signedIn || busy) return;
+    setBusy(true); setError('');
+    try {
+      await api('/api/favorites', { listingId: item.id, active: !item.favorite });
+      setRevision(value => value + 1);
+    } catch (e) { setError((e as Error).message); }
+    finally { setBusy(false); }
+  }
+  async function toggleStatus(item: HousingListing) {
+    if (busy) return;
+    setBusy(true); setError('');
+    try {
+      await api('/api/listings/status', { listingId: item.id, status: item.status === 'active' ? 'paused' : 'active' });
+      setRevision(value => value + 1);
+    } catch (e) { setError((e as Error).message); }
+    finally { setBusy(false); }
+  }
+  async function publish(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (saveLock.current) return;
+    if (!photo) { setFormError('Добавьте настоящую фотографию жилья.'); return; }
+    saveLock.current = true; setSaving(true); setFormError('');
+    const form = event.currentTarget, values = new FormData(form);
+    try {
+      let imageUrl = photoUpload.current?.file === photo ? photoUpload.current.url : '';
+      if (!imageUrl) {
+        const upload = new FormData(); upload.append('image', photo);
+        const response = await fetch('/api/uploads', { method: 'POST', body: upload });
+        const data = await response.json() as { url: string; error?: string };
+        if (!response.ok) throw new Error(data.error || 'Не удалось загрузить фотографию');
+        imageUrl = data.url; photoUpload.current = { file: photo, url: imageUrl };
+      }
+      const latitude = String(values.get('latitude') || ''), longitude = String(values.get('longitude') || '');
+      await api('/api/listings', {
+        title: values.get('title'), price: values.get('price'), category: values.get('category'),
+        unit: '/ сутки', type: 'Сдам', location: values.get('location'), region: values.get('region'),
+        phone: values.get('phone'), available: values.get('available'), description: values.get('description'),
+        sellerType: values.get('sellerType'), imageUrl,
+        housing: { guests: Number(values.get('guests')), rooms: Number(values.get('rooms')) },
+        ...(latitude && longitude ? { latitude: Number(latitude), longitude: Number(longitude) } : {}),
+      });
+      photoUpload.current = null; setPhoto(null); setShowForm(false);
+      setFilters({ ...initialFilters, view: 'mine' }); setDraft({ ...initialFilters, view: 'mine' }); setPlaceText(''); setPage(1); setRevision(value => value + 1);
+      setNotice('Объявление опубликовано. Оно доступно посетителям в разделе «Жильё».');
+      requestAnimationFrame(() => { noticeRef.current?.focus(); noticeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); });
+    } catch (e) { setFormError((e as Error).message + ' Ваши поля сохранены на этой странице.'); }
+    finally { saveLock.current = false; setSaving(false); }
+  }
+  return <main className="housing-page">
+    <header className="housing-header">
+      <a href="/" className="brand"><span className="brandmark">Q</span>Qoldan</a>
+      <a href="/#catalog"><ArrowLeft size={17} /> Все направления</a>
+      {signedIn ? <button type="button" onClick={() => { setShowForm(value => !value); setNotice(''); }} disabled={saving}><Plus size={18} /> Разместить жильё</button> : <a className="housing-primary" href={signInPath} target="_top">Войти и разместить</a>}
+    </header>
+    <section className="housing-intro">
+      <span className="housing-label"><BedDouble size={18} /> Отдельный раздел Qoldan</span>
+      <h1>Жильё на сутки</h1>
+      <p>Гостиницы и квартиры в городах, посёлках и сёлах Казахстана.</p>
+    </section>
+    <p ref={noticeRef} tabIndex={-1} role="status">{notice}</p>
+    {showForm && signedIn && <section className="housing-publish" aria-labelledby="housing-publish-title">
+      <h2 id="housing-publish-title">Разместить жильё</h2>
+      <p>Указывайте цену за весь выбранный номер или квартиру за сутки. Наличие, залог и время заезда гость согласует с вами напрямую.</p>
+      <form onSubmit={publish}>
+        <fieldset disabled={saving}>
+          <div className="housing-form-grid">
+            <label>Тип жилья<select name="category">{HOUSING_CATEGORIES.map(kind => <option key={kind}>{kind}</option>)}</select></label>
+            <label>Кто сдаёт<select name="sellerType"><option>Частное лицо</option><option>Компания</option></select></label>
+            <label className="housing-wide">Название<input name="title" required minLength={4} maxLength={160} placeholder="Например, двухкомнатная квартира рядом с вокзалом" /></label>
+            <label>Цена за сутки, ₸<input name="price" type="number" required min="1" max="9999999" step="1" /></label>
+            <label>Максимум гостей<input name="guests" type="number" required min="1" max="50" defaultValue="2" /></label>
+            <label>Количество комнат<input name="rooms" type="number" required min="1" max="30" defaultValue="1" /></label>
+            <label>Телефон для гостей<input name="phone" type="tel" required minLength={10} maxLength={32} placeholder="+7 …" autoComplete="tel" /></label>
+            <div className="housing-wide"><LocationFields initialRegion={filters.region === 'Весь Казахстан' ? 'Область Жетісу' : filters.region} fieldName="location" /></div>
+            <label className="housing-wide">Свободные даты и время заезда<input name="available" maxLength={160} placeholder="Например, с 20 сентября, заезд с 14:00. Уточняйте по телефону." /></label>
+            <label className="housing-wide">Описание и условия<textarea name="description" required minLength={20} maxLength={1200} rows={5} placeholder="Спальные места, удобства, адрес или ориентир, залог, правила проживания. Для гостиницы описывайте конкретный тип номера." /></label>
+            <label className="housing-wide">Фотография — JPG, PNG или WebP до 5 МБ<input type="file" accept="image/jpeg,image/png,image/webp" required onChange={e => {
+              const file = e.target.files?.[0];
+              if (file && (file.size > 5000000 || !['image/jpeg','image/png','image/webp'].includes(file.type))) { setFormError('Выберите JPG, PNG или WebP до 5 МБ'); e.target.value = ''; setPhoto(null); return; }
+              setPhoto(file || null); setFormError('');
+            }} /></label>
+            {preview && <img className="housing-photo-preview" src={preview} alt="Фотография нового объявления" />}
+          </div>
+          {formError && <p role="alert" className="housing-error">{formError}</p>}
+          <div className="housing-actions"><button className="housing-primary" type="submit">{saving ? 'Публикуем…' : 'Опубликовать'}</button><button type="button" onClick={() => setShowForm(false)}>Закрыть форму</button></div>
+        </fieldset>
+      </form>
+    </section>}
+    <form className="housing-filters" onSubmit={applyFilters}>
+      <label>Регион<select value={draft.region} onChange={e => { setDraft({ ...draft, region: e.target.value, place: [] }); setPlaceText(''); }}>
+        <option>Весь Казахстан</option>{KAZAKHSTAN_REGIONS.map(r => <option key={r.code} value={r.name}>{r.code} — {r.name}</option>)}
+      </select></label>
+      <label>Тип жилья<select value={draft.kind} onChange={e => setDraft({ ...draft, kind: e.target.value })}><option value="all">Всё жильё</option>{HOUSING_CATEGORIES.map(kind => <option key={kind}>{kind}</option>)}</select></label>
+      <label>Поиск<input value={draft.q} maxLength={160} onChange={e => setDraft({ ...draft, q: e.target.value })} placeholder="Название, ориентир, удобства" /></label>
+      <label>Цена до, ₸ / сутки<input type="number" min="0" max="9999999" value={draft.maxPrice === '0' ? '' : draft.maxPrice} onChange={e => setDraft({ ...draft, maxPrice: e.target.value || '0' })} placeholder="Любая" /></label>
+      <label>Гостей не меньше<input type="number" min="0" max="50" value={draft.guests === '0' ? '' : draft.guests} onChange={e => setDraft({ ...draft, guests: e.target.value || '0' })} placeholder="Любое число" /></label>
+      <label>Показать<select value={draft.view} onChange={e => setDraft({ ...draft, view: e.target.value })}><option value="all">Все объявления</option>{signedIn && <><option value="mine">Мои объявления</option><option value="favorites">Избранное</option></>}</select></label>
+      {draft.region !== 'Весь Казахстан' && <div className="housing-wide"><SettlementSearch region={draft.region} value={placeText}
+        onChange={value => { setPlaceText(value); setDraft({ ...draft, place: [] }); }}
+        onSelect={place => { setPlaceText(place.name); setDraft({ ...draft, place: [...new Set([place.name, ...place.aliases])].filter(Boolean).slice(0, 30) }); }} /></div>}
+      <div className="housing-actions housing-wide"><button className="housing-primary" type="submit"><Search size={17} /> Найти жильё</button>
+        <button type="button" onClick={() => { setDraft(initialFilters); setFilters(initialFilters); setPlaceText(''); setPage(1); }}>Сбросить</button>
+        <button type="button" aria-pressed={showMap} onClick={() => setShowMap(value => !value)}><MapPin size={17} /> {showMap ? 'Скрыть карту' : 'На карте'}</button>
+      </div>
+    </form>
+    <p className="housing-note">Объявления размещают пользователи. Qoldan не подтверждает свободные даты и не принимает оплату за проживание. Не переводите предоплату без проверки объекта и владельца.</p>
+    {error && <p className="housing-error" role="alert">{error} <button type="button" onClick={() => setRevision(value => value + 1)}>Повторить</button></p>}
+    {loading ? <p role="status">Загружаем жильё…</p> : <>
+      {showMap && !error && <section><p>На карте — точки объявлений с текущей страницы. Если точка не указана, объект остаётся в списке.</p><MarketplaceMap markers={markers} fallbackCenter={getRegionCenter(filters.region)} overview={filters.region === 'Весь Казахстан'} onSelect={id => document.getElementById('housing-' + id)?.scrollIntoView({ behavior: 'smooth', block: 'center' })} /></section>}
+      {!items.length && !error && <section className="housing-empty"><BedDouble size={32} /><h2>Пока нет подходящих объявлений</h2><p>Попробуйте другой регион или снимите фильтры. Этот раздел новый — демонстрационные квартиры и гостиницы сюда не добавлены.</p>{signedIn ? <button className="housing-primary" type="button" onClick={() => { setShowForm(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Разместить первое жильё</button> : <a className="housing-primary" href={signInPath} target="_top">Войти и разместить жильё</a>}</section>}
+      <div className="housing-grid">{items.map(item => <article className="housing-card" id={'housing-' + item.id} key={item.id}>
+        <a href={'/listing/' + item.id} aria-label={item.title}><img src={item.image} alt={item.title} loading="lazy" decoding="async" width="480" height="320" /></a>
+        <div className="housing-card-body"><span className="housing-label">{item.category}</span><h2>{item.title}</h2>
+          <b className="housing-price">{Number(item.price).toLocaleString('ru-RU')} ₸ <small>/ сутки</small></b>
+          <p>{item.rooms} комн. · до {item.guests} гостей</p><p><MapPin size={15} /> {item.location} · {item.region}</p>
+          <p className="housing-description">{item.description}</p><p>{item.available || 'Свободные даты уточняйте у владельца'}</p>
+          <div className="housing-actions">{item.status === 'active' && <a className="housing-primary" href={'tel:+' + item.phone.replace(/\D/g, '')}><Phone size={16} /> Позвонить</a>}
+            {signedIn ? <button type="button" disabled={busy} aria-pressed={item.favorite} aria-label={item.favorite ? 'Убрать из избранного' : 'В избранное'} onClick={() => void favorite(item)}><Heart size={18} fill={item.favorite ? 'currentColor' : 'none'} /></button> : <a href={signInPath} target="_top" aria-label="Войти, чтобы добавить в избранное"><Heart size={18} /></a>}
+            {item.status === 'active' && <a href={'/listing/' + item.id}>Подробнее</a>}
+          </div>
+          {item.mine && <div className="housing-owner"><span>{item.status === 'active' ? 'Опубликовано' : item.status === 'paused' ? 'На паузе' : 'Ограничено модерацией'}</span>{['active','paused'].includes(item.status) && <button type="button" disabled={busy} onClick={() => void toggleStatus(item)}>{item.status === 'active' ? 'Снять с публикации' : 'Опубликовать снова'}</button>}</div>}
+        </div>
+      </article>)}</div>
+      {!error && (page > 1 || hasMore) && <nav className="housing-pagination" aria-label="Страницы объявлений"><button disabled={page === 1} onClick={() => setPage(value => value - 1)}>Назад</button><span>Страница {page}</span><button disabled={!hasMore} onClick={() => setPage(value => value + 1)}>Далее</button></nav>}
+    </>}
+    <footer><a href="/">Qoldan · Все направления</a><a href="/map-editor">Исправить населённый пункт</a></footer>
+  </main>;
+}

@@ -54,6 +54,7 @@ import {
 import { LocationFields } from '@/components/LocationFields';
 import { SettlementSearch } from '@/components/SettlementSearch';
 import { matchesSettlement } from '@/lib/settlement-match';
+import { isHousingCategory } from '@/lib/housing';
 import {
   MarketplaceMap,
   type MarketplaceMapMarker,
@@ -3125,6 +3126,7 @@ export default function QoldanClient({
       allListings
         .filter(
           (i) =>
+            (!isHousingCategory(i.category) || myOnly || favoriteOnly) &&
             (i.title.toLowerCase().includes(query.toLowerCase()) ||
               i.category.toLowerCase().includes(query.toLowerCase()) ||
               i.location.toLowerCase().includes(query.toLowerCase()) ||
@@ -5206,6 +5208,7 @@ export default function QoldanClient({
           <a href="#recycle" onClick={() => setMenuOpen(false)}>
             {tr.navRecycle}
           </a>
+          <a href="/housing">{appLang === 'kk' ? 'Тұрғын үй' : appLang === 'en' ? 'Stays' : 'Жильё'}</a>
           <a href="#about" onClick={() => setMenuOpen(false)}>
             {tr.navAbout}
           </a>
@@ -5353,6 +5356,7 @@ export default function QoldanClient({
           </div>
         </div>
       </section>
+      <a className="housing-entry wrap" href="/housing"><span><b>{appLang === 'kk' ? 'Тәуліктік тұрғын үй' : appLang === 'en' ? 'Short stays' : 'Жильё на сутки'}</b><span>{appLang === 'kk' ? 'Қонақүйлер мен пәтерлер · жеке бөлім' : appLang === 'en' ? 'Hotels and apartments · separate section' : 'Гостиницы и квартиры · отдельный раздел'}</span></span><ArrowRight size={22} /></a>
       <section className="categories wrap">
         <div className="section-head">
           <div>
@@ -6414,6 +6418,7 @@ export default function QoldanClient({
               {tr.requests}
             </a>
             <a href="#recycle">{tr.recycleExchange}</a>
+            <a href="/housing">{appLang === 'kk' ? 'Тұрғын үй' : appLang === 'en' ? 'Stays' : 'Жильё на сутки'}</a>
             <a href="#about">{tr.navAbout}</a>
             <a href="/map-editor">Исправить карту и населённые пункты</a>
           </div>

@@ -141,6 +141,13 @@
       "when": 1789328814004,
       "tag": "0019_steep_sumo",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1789331784960,
+      "tag": "0020_grey_madrox",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,55 @@
 @import 'tailwindcss';
+.housing-entry {display:flex;align-items:center;justify-content:space-between;gap:20px;border:1px solid var(--line);border-radius:16px;padding:22px 26px;margin-top:24px;margin-bottom:12px;background:var(--green2);}
+.housing-entry>span {display:grid;gap:6px;}
+.housing-entry b {font-size:22px;}
+.housing-entry span span {font-size:16px;}
+.housing-entry:hover {border-color:var(--green);}
+.housing-page {max-width:1180px;margin:auto;padding:0 24px 32px;font-size:16px;}
+.housing-page button,.housing-page select,.housing-page input,.housing-page textarea {font:inherit;}
+.housing-page button,.housing-page .housing-primary {border:1px solid var(--line);border-radius:10px;padding:12px 16px;background:white;display:inline-flex;gap:8px;align-items:center;justify-content:center;min-height:44px;}
+.housing-page button:disabled {opacity:.55;cursor:wait;}
+.housing-page button:focus-visible,.housing-page a:focus-visible,.housing-page input:focus-visible,.housing-page select:focus-visible,.housing-page textarea:focus-visible {outline:3px solid var(--green);outline-offset:3px;}
+.housing-page .housing-primary,.housing-header>button {background:var(--green);color:white;border-color:var(--green);font-weight:700;}
+.housing-header {display:flex;align-items:center;gap:22px;padding:20px 0;border-bottom:1px solid var(--line);flex-wrap:wrap;}
+.housing-header>a:nth-child(2) {display:flex;align-items:center;gap:8px;margin-right:auto;}
+.housing-intro {padding:34px 0 8px;}
+.housing-intro h1 {font-size:clamp(32px,5vw,48px);letter-spacing:-1.3px;margin:12px 0;}
+.housing-intro p,.housing-note {color:var(--muted);line-height:1.65;}
+.housing-label {display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--green);font-weight:700;}
+.housing-page>p:empty {display:none;}
+.housing-page label {display:grid;gap:8px;font-size:14px;font-weight:650;align-content:start;min-width:0;}
+.housing-page input,.housing-page select,.housing-page textarea {width:100%;border:1px solid var(--line);border-radius:8px;padding:12px;background:white;color:var(--ink);min-height:46px;max-width:100%;}
+.housing-filters {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;background:var(--paper);border:1px solid var(--line);padding:24px;border-radius:16px;}
+.housing-wide {grid-column:1/-1;}
+.housing-actions {display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.housing-publish {border:1px solid var(--green);padding:24px;border-radius:16px;margin:22px 0;background:white;}
+.housing-publish h2 {margin-top:0;font-size:24px;font-weight:750;}
+.housing-publish p {line-height:1.6;}
+.housing-publish fieldset {border:0;padding:0;min-width:0;}
+.housing-form-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-bottom:20px;}
+.housing-photo-preview {width:260px;max-width:100%;height:180px;object-fit:cover;border-radius:12px;}
+.housing-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px;margin:24px 0;}
+.housing-card {border:1px solid var(--line);border-radius:14px;overflow:hidden;background:white;scroll-margin-top:20px;}
+.housing-card>a {display:block;}
+.housing-card img {display:block;width:100%;height:210px;object-fit:cover;background:var(--paper);}
+.housing-card-body {padding:20px;}
+.housing-card h2 {font-size:20px;line-height:1.4;margin:10px 0;overflow-wrap:anywhere;}
+.housing-card p {font-size:14px;line-height:1.6;margin:12px 0;overflow-wrap:anywhere;}
+.housing-card p svg {display:inline;vertical-align:middle;}
+.housing-price {font-size:24px;display:block;}
+.housing-price small {font-size:14px;font-weight:500;}
+.housing-description {display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line;}
+.housing-owner {margin-top:18px;padding-top:14px;border-top:1px solid var(--line);display:grid;gap:10px;font-size:14px;}
+.housing-error {background:#fff1ef;color:#982c20;padding:16px;border-radius:10px;}
+.housing-empty {padding:48px 24px;text-align:center;border:1px dashed var(--line);border-radius:16px;margin:22px 0;}
+.housing-empty>svg {margin:auto;color:var(--green);}
+.housing-empty p {max-width:580px;margin:16px auto;line-height:1.65;}
+.housing-pagination {display:flex;align-items:center;justify-content:center;gap:20px;margin:28px 0;}
+.housing-page>footer {display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;padding:28px 0;border-top:1px solid var(--line);margin-top:36px;background:white;font-size:14px;color:var(--ink);}
+.housing-page .settlement-results {max-height:250px;overflow:auto;}
+.housing-page .settlement-search small {font-size:14px;}
+@media(max-width:900px) {.housing-grid {grid-template-columns:repeat(2,minmax(0,1fr));}.housing-filters {grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media(max-width:600px) {.housing-page {padding:0 16px 24px;}.housing-header {gap:14px;}.housing-header .brand {font-size:20px;}.housing-header>a:nth-child(2) {font-size:14px;}.housing-header>.housing-primary,.housing-header>button {width:100%;}.housing-grid,.housing-filters,.housing-form-grid {grid-template-columns:minmax(0,1fr);}.housing-publish,.housing-filters {padding:18px;}.housing-entry {padding:18px;}.housing-entry b {font-size:20px;}.housing-card img {height:230px;}}
 :root {
   --ink: #17231b;
   --green: #0d6b45;

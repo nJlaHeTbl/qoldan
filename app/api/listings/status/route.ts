@@ -23,7 +23,7 @@ export async function POST(request: Request) {
       .prepare(
         `UPDATE listings
          SET status = ?, updated_at = ?
-         WHERE id = ? AND owner_id = ?`,
+         WHERE id = ? AND owner_id = ? AND status IN ('active', 'paused')`,
       )
       .bind(input.status, Date.now(), input.listingId, viewer.id)
       .run();

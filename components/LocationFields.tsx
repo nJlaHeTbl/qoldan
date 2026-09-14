@@ -57,10 +57,10 @@ export function LocationFields({ initialRegion, initialPlace = '', fieldName, po
     </select></label>
     <SettlementSearch region={region} value={place} name={fieldName} required
       onChange={v=>{setPlace(v);setPoint(null);setHint('');}}
-      onSelect={p=>{setPlace(p.name);setPoint({latitude:p.latitude,longitude:p.longitude});setHint('Выбран центр населённого пункта. Уточните расположение хозяйства на карте.');setShowMap(true);}} />
+      onSelect={p=>{setPlace(p.name);setPoint({latitude:p.latitude,longitude:p.longitude});setHint('Выбран центр населённого пункта. Уточните расположение объекта на карте.');setShowMap(true);}} />
     <input type="hidden" name="latitude" value={current?.latitude ?? ''}/>
     <input type="hidden" name="longitude" value={current?.longitude ?? ''}/>
-    <button type="button" onClick={()=>setShowMap(v=>!v)}>{showMap?'Скрыть карту':'Указать поле, ферму или адрес на карте'}</button>
+    <button type="button" onClick={()=>setShowMap(v=>!v)}>{showMap?'Скрыть карту':'Указать объект или адрес на карте'}</button>
     {showMap && <><p>Нажмите на карту в нужном месте. Эта точка будет видна посетителям — не указывайте частный адрес без необходимости.</p><div ref={container} className="location-point-map" aria-label="Выбор точки на карте Казахстана" /></>}
     {current && <small>Точка: {current.latitude.toFixed(5)}, {current.longitude.toFixed(5)} <button type="button" onClick={()=>{setPoint(null);setHint('');}}>Убрать точку</button></small>}
     {hint && <small role="status">{hint}</small>}
