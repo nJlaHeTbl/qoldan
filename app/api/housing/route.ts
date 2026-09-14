@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { getMarketplaceDb, getViewer, serverError, unauthorized } from '@/lib/server/marketplace-db';
-import { HOUSING_CATEGORIES, isHousingCategory, normalizeHousingSearch } from '@/lib/housing';
+import { HOUSING_CATEGORIES, isHousingCategory, normalizeHousingSearch, getHousingPhotos } from '@/lib/housing';
+import { validateHousingPhotos } from '@/lib/server/housing-photos';
 import { listingInput, parseJson, invalidInput } from '@/lib/server/marketplace-schemas';
 import { KAZAKHSTAN_REGION_FILTERS } from '@/lib/regions';
 
@@ -39,7 +40,7 @@ export async function GET(request: Request) {
       SELECT l.id, l.title, l.price, l.category, l.location, l.region, l.image_url AS image,
              l.description, l.phone, l.available, l.status, u.display_name AS owner,
              l.updated_at AS updatedAt, l.seller_type AS sellerType,
-             h.guests, h.rooms, p.latitude, p.longitude,
+             h.guests, h.rooms, h.photos, p.latitude, p.longitude,
              (l.owner_id = ?) AS mine, (fav.listing_id IS NOT NULL) AS favorite
       FROM listings l JOIN housing_details h ON h.listing_id = l.id
       JOIN users u ON u.id = l.owner_id
@@ -49,7 +50,7 @@ export async function GET(request: Request) {
       ORDER BY l.created_at DESC, l.id DESC LIMIT 25 OFFSET ?
     `).bind(...values, (f.page - 1) * 24).all<Record<string, unknown>>();
     return Response.json({
-      items: result.results.slice(0, 24).map(row => ({ ...row, mine: Boolean(row.mine), favorite: Boolean(row.favorite) })),
+      items: result.results.slice(0, 24).map(row => ({ ...row, photos: getHousingPhotos(String(row.image), row.photos), mine: Boolean(row.mine), favorite: Boolean(row.favorite) })),
       hasMore: result.results.length > 24,
     }, { headers: { 'cache-control': 'private, no-store' } });
   } catch (error) { return serverError(error); }
@@ -71,23 +72,18 @@ export async function PATCH(request: Request) {
     }
     const db = getMarketplaceDb();
     const current = await db.prepare(
-      `SELECT l.status, l.image_url FROM listings l
+      `SELECT l.status, l.image_url, h.photos FROM listings l
        JOIN housing_details h ON h.listing_id = l.id
        WHERE l.id = ? AND l.owner_id = ? AND l.category IN ('Посуточные квартиры', 'Гостиницы')`
-    ).bind(listingId, viewer.id).first<{ status: string; image_url: string }>();
+    ).bind(listingId, viewer.id).first<{ status: string; image_url: string; photos: string }>();
     if (!current) return Response.json({ error: 'Объявление не найдено или принадлежит другому пользователю' }, { status: 404 });
     if (!['active', 'paused'].includes(current.status)) {
       return Response.json({ error: 'Объявление ограничено модерацией. Сначала обратитесь в поддержку.' }, { status: 403 });
     }
-    if (data.imageUrl !== current.image_url) {
-      const owned = await db.prepare(
-        'SELECT key FROM uploads WHERE key = ? AND owner_id = ?'
-      ).bind(data.imageUrl.slice('/api/media/'.length), viewer.id).first();
-      if (!owned) return Response.json({ error: 'Фотография не найдена. Загрузите её ещё раз.' }, { status: 400 });
-      const linked = await db.prepare('SELECT id FROM listings WHERE image_url = ? AND id != ?')
-        .bind(data.imageUrl, listingId).first();
-      if (linked) return Response.json({ error: 'Эта фотография используется в другом объявлении.' }, { status: 409 });
-    }
+    const photos = data.housing.photos || [data.imageUrl, ...getHousingPhotos(current.image_url, current.photos)
+      .filter(url => url !== current.image_url && url !== data.imageUrl)].slice(0, 5);
+    const photoError = await validateHousingPhotos(db, viewer.id, photos, listingId);
+    if (photoError) return photoError;
     const updatedAt = Math.max(Date.now(), expectedUpdatedAt + 1);
     const statements = [
       db.prepare(`UPDATE listings SET title = ?, price = ?, unit = '/ сутки', location = ?, region = ?,
@@ -98,10 +94,10 @@ export async function PATCH(request: Request) {
         .bind(data.title, data.price, data.location, data.region, data.category, data.imageUrl, data.phone,
           data.available || null, data.description || null, data.sellerType, updatedAt, listingId, viewer.id, expectedUpdatedAt),
       // The batch is atomic; a stale first update must not touch the search index or coordinates.
-      db.prepare('UPDATE housing_details SET guests = ?, rooms = ?, search_text = ?, location_search = ? WHERE listing_id = ? AND changes() = 1')
+      db.prepare('UPDATE housing_details SET guests = ?, rooms = ?, search_text = ?, location_search = ?, photos = ? WHERE listing_id = ? AND changes() = 1')
         .bind(data.housing.guests, data.housing.rooms,
           normalizeHousingSearch([data.title, data.location, data.description].join(' ')),
-          normalizeHousingSearch(data.location), listingId),
+          normalizeHousingSearch(data.location), JSON.stringify(photos), listingId),
     ];
     if (data.latitude !== undefined && data.longitude !== undefined) {
       statements.push(db.prepare(`INSERT INTO listing_locations (listing_id, latitude, longitude, updated_at)

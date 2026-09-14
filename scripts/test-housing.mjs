@@ -128,9 +128,51 @@ const nextImage = (await nextUpload.json()).url;
 assert.equal((await catalog.PATCH(req('/api/housing','PATCH',{...pausedEdit,expectedUpdatedAt:latest.updatedAt,data:{...pausedEdit.data,imageUrl:nextImage}}))).status,200);
 assert.equal((await search({view:'mine'},'owner'))[0].image,nextImage);
 assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM listings').get().n,1);
+// Gallery persistence, ownership, limits, stale edits and upload lifecycle.
+const extras = [];
+for (let i = 0; i < 4; i++) { const r = await uploads.POST(req('/api/uploads','POST',upload)); assert.equal(r.status,201); extras.push((await r.json()).url); }
+const gallery = [nextImage, ...extras];
+const currentGalleryRow = (await search({view:'mine'},'owner'))[0];
+const galleryEdit = {...pausedEdit,expectedUpdatedAt:currentGalleryRow.updatedAt,data:{...pausedEdit.data,imageUrl:nextImage,housing:{guests:5,rooms:3,photos:gallery}}};
+assert.equal((await catalog.PATCH(req('/api/housing','PATCH',galleryEdit))).status,200);
+assert.deepEqual((await search({view:'mine'},'owner'))[0].photos,gallery);
+const withPhotos = photos => ({...galleryEdit,data:{...galleryEdit.data,housing:{...galleryEdit.data.housing,photos}}});
+assert.equal((await catalog.PATCH(req('/api/housing','PATCH',withPhotos([...gallery,otherImage])))).status,400);
+assert.equal((await catalog.PATCH(req('/api/housing','PATCH',withPhotos([nextImage,nextImage])))).status,400);
+assert.equal((await catalog.PATCH(req('/api/housing','PATCH',withPhotos([nextImage,otherImage])))).status,400);
+assert.equal((await catalog.PATCH(req('/api/housing','PATCH',withPhotos([extras[0],nextImage])))).status,400);
+assert.equal((await catalog.PATCH(req('/api/housing','PATCH',withPhotos([nextImage])))).status,409);
+assert.deepEqual((await search({view:'mine'},'owner'))[0].photos,gallery);
+// The previous client omitting photos must not erase the gallery.
+const oldClientEdit = {...galleryEdit,expectedUpdatedAt:(await search({view:'mine'},'owner'))[0].updatedAt,data:{...galleryEdit.data,housing:{guests:5,rooms:3}}};
+assert.equal((await catalog.PATCH(req('/api/housing','PATCH',oldClientEdit))).status,200);
+assert.deepEqual((await search({view:'mine'},'owner'))[0].photos,gallery);
+assert.equal((await uploads.DELETE(req('/api/uploads','DELETE',{url:extras[0]}))).status,409);
+// Photos stay protected even when old enough for abandoned-upload cleanup.
+sqlite.prepare('UPDATE uploads SET created_at=? WHERE owner_id=?').run(Date.now()-2*86400000,'owner');
+const cleanupTrigger = await uploads.POST(req('/api/uploads','POST',upload)); assert.equal(cleanupTrigger.status,201);
+for (const url of gallery) assert.ok(blobs.has(url.slice('/api/media/'.length)));
+// Cover can be switched to a former extra and an omitted photo then removed.
+const reordered = [extras[0],nextImage,...extras.slice(2)];
+const reorderedEdit = {...galleryEdit,expectedUpdatedAt:(await search({view:'mine'},'owner'))[0].updatedAt,data:{...galleryEdit.data,imageUrl:extras[0],housing:{guests:5,rooms:3,photos:reordered}}};
+assert.equal((await catalog.PATCH(req('/api/housing','PATCH',reorderedEdit))).status,200);
+assert.deepEqual((await search({view:'mine'},'owner'))[0].photos,reordered);
+assert.equal((await uploads.DELETE(req('/api/uploads','DELETE',{url:extras[1]}))).status,200);
+assert.ok(!blobs.has(extras[1].slice('/api/media/'.length)));
+// New publications persist multiple photos too.
+const freshCover = (await cleanupTrigger.json()).url;
+const freshExtraResponse = await uploads.POST(req('/api/uploads','POST',upload));
+const freshExtra = (await freshExtraResponse.json()).url;
+assert.equal((await listing.POST(req('/api/listings','POST',{...payload,imageUrl:freshCover,housing:{guests:2,rooms:1,photos:[freshCover,otherImage]}}))).status,400);
+assert.equal((await listing.POST(req('/api/listings','POST',{...payload,imageUrl:freshCover,housing:{guests:2,rooms:1,photos:[freshCover,nextImage]}}))).status,409);
+const createdGallery = await listing.POST(req('/api/listings','POST',{...payload,imageUrl:freshCover,housing:{guests:2,rooms:1,photos:[freshCover,freshExtra]}}));
+assert.equal(createdGallery.status,201,await createdGallery.clone().text());
+const galleryId = (await createdGallery.json()).listing.id;
+assert.deepEqual((await search({view:'mine'},'owner')).find(row=>row.id===galleryId).photos,[freshCover,freshExtra]);
+sqlite.prepare("UPDATE listings SET status='paused' WHERE id=?").run(galleryId);
 sqlite.prepare("UPDATE listings SET status='restricted' WHERE id=?").run(item.id);
 assert.equal((await catalog.PATCH(req('/api/housing','PATCH',pausedEdit))).status,403);
 assert.equal((await status.POST(req('/api/listings/status','POST',{listingId:item.id,status:'active'}))).status,404);
 assert.equal((await search({})).length,0);
 sqlite.close();
-console.log('PASS housing: create/search/favorites, edit and photo replacement, owner isolation, stale conflict, search index and coordinates, paused state, moderation restriction. No network writes.');
+console.log('PASS housing: publishing/editing, five-photo galleries, cover and deletion, ownership/limits, stale conflict and old-client preservation, cleanup protection, search/favorites/coordinates/moderation. No network writes.');

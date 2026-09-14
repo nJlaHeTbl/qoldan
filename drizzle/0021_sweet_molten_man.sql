@@ -1,0 +1,1 @@
+ALTER TABLE `housing_details` ADD `photos` text DEFAULT '[]' NOT NULL;

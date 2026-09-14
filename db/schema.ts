@@ -124,6 +124,7 @@ export const housingDetails = sqliteTable('housing_details', {
   rooms: integer('rooms').notNull(),
   searchText: text('search_text').notNull(),
   locationSearch: text('location_search').notNull(),
+  photos: text('photos').notNull().default('[]'),
 });
 
 export const listingLocations = sqliteTable('listing_locations', {

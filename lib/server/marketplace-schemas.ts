@@ -82,6 +82,8 @@ export const listingInput = z
     housing: z.object({
       guests: z.number().int().min(1).max(50),
       rooms: z.number().int().min(1).max(30),
+      photos: z.array(z.string().regex(/^\/api\/media\/[0-9a-f-]{36}\.(jpg|png|webp)$/i)).min(1).max(5)
+        .refine(photos => new Set(photos).size === photos.length, 'Уберите повторяющиеся фотографии').optional(),
     }).optional(),
     latitude: z.number().min(40).max(56).optional(),
     longitude: z.number().min(45).max(88).optional(),
@@ -94,6 +96,7 @@ export const listingInput = z
   )
   .superRefine((data, context) => {
     if (isHousingCategory(data.category)) {
+      if (data.housing?.photos && data.housing.photos[0] !== data.imageUrl) context.addIssue({ code: 'custom', path: ['housing', 'photos'], message: 'Первая фотография должна быть главной' });
       if (!data.housing) context.addIssue({ code: 'custom', path: ['housing'], message: 'Укажите количество комнат и гостей' });
       if (data.type !== 'Сдам' || data.unit !== '/ сутки') context.addIssue({ code: 'custom', path: ['type'], message: 'Жильё публикуется в аренду с ценой за сутки' });
       if (!/^[1-9]\d{0,6}$/.test(data.price)) context.addIssue({ code: 'custom', path: ['price'], message: 'Укажите цену от 1 до 9 999 999 тенге за сутки' });

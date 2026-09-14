@@ -16,7 +16,8 @@ import {
   getMarketplaceDb,
 } from '@/lib/server/marketplace-db';
 import { RecentViewTracker } from '@/components/RecentViewTracker';
-import { isHousingCategory } from '@/lib/housing';
+import { isHousingCategory, getHousingPhotos } from '@/lib/housing';
+import { HousingGallery } from '@/components/HousingGallery';
 
 const SITE_ORIGIN = 'https://qoldan-zhetisu.nuc9i218.chatgpt.site';
 
@@ -40,6 +41,7 @@ type ListingDetailRow = {
   verified_business_id: string | null;
   guests: number | null;
   rooms: number | null;
+  photos: string | null;
   latitude: number | null;
   longitude: number | null;
 };
@@ -59,7 +61,7 @@ const getListing = cache(async (id: string) => {
               listings.delivery, listings.created_at,
               users.display_name AS owner_name,
               verified_business.id AS verified_business_id,
-              housing_details.guests, housing_details.rooms,
+              housing_details.guests, housing_details.rooms, housing_details.photos,
               listing_locations.latitude, listing_locations.longitude
        FROM listings
        JOIN users ON users.id = listings.owner_id
@@ -171,10 +173,10 @@ export default async function ListingPage({ params }: ListingPageProps) {
       </header>
       <section className="listing-page-shell">
         <article className="listing-page-card">
-          <div className="listing-page-photo">
+          {isHousingCategory(listing.category) ? <HousingGallery title={listing.title} photos={getHousingPhotos(listing.image_url, listing.photos)} /> : <div className="listing-page-photo">
             <img src={listing.image_url} alt={listing.title} />
             <span className="listing-page-type">{listing.offer_type}</span>
-          </div>
+          </div>}
           <div className="listing-page-content">
             <small>
               {listing.category} · {listing.region}

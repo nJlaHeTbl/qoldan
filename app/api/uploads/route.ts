@@ -8,6 +8,7 @@ import {
   unauthorized,
   upsertViewer,
 } from '@/lib/server/marketplace-db';
+import { photoReferenceSql } from '@/lib/server/housing-photos';
 
 const allowedTypes = new Map([
   ['image/jpeg', 'jpg'],
@@ -37,6 +38,10 @@ async function cleanupOwnedStaleUploads(db: D1Database, ownerId: string) {
              SELECT 1 FROM listings
              WHERE listings.image_url = '/api/media/' || uploads.key
            )
+           AND NOT EXISTS (
+             SELECT 1 FROM housing_details h, json_each(h.photos) p
+             WHERE p.value = '/api/media/' || uploads.key
+           )
          ORDER BY uploads.created_at ASC
          LIMIT 10`,
       )
@@ -53,6 +58,9 @@ async function cleanupOwnedStaleUploads(db: D1Database, ownerId: string) {
              AND NOT EXISTS (
                SELECT 1 FROM listings
                WHERE listings.image_url = '/api/media/' || uploads.key
+             ) AND NOT EXISTS (
+               SELECT 1 FROM housing_details h, json_each(h.photos) p
+               WHERE p.value = '/api/media/' || uploads.key
              )`,
         )
         .bind(upload.key, ownerId)
@@ -215,8 +223,8 @@ export async function DELETE(request: Request) {
       .first();
     if (!upload) return Response.json({ deleted: false });
     const linkedListing = await db
-      .prepare('SELECT id FROM listings WHERE image_url = ? LIMIT 1')
-      .bind(`/api/media/${key}`)
+      .prepare(photoReferenceSql + ' LIMIT 1')
+      .bind(`/api/media/${key}`, `/api/media/${key}`)
       .first();
     if (linkedListing) {
       return Response.json(

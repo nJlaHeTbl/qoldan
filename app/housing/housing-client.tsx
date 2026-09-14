@@ -2,13 +2,14 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { ArrowLeft, BedDouble, Heart, MapPin, Plus, Phone, Search } from 'lucide-react';
 import { KAZAKHSTAN_REGIONS } from '@/lib/regions';
-import { HOUSING_CATEGORIES, type HousingListing } from '@/lib/housing';
+import { HOUSING_CATEGORIES, getHousingPhotos, type HousingListing } from '@/lib/housing';
 import { getRegionCenter } from '@/lib/geo';
 import { LocationFields } from '@/components/LocationFields';
 import { SettlementSearch } from '@/components/SettlementSearch';
 import { MarketplaceMap } from '@/components/MarketplaceMap';
 
 type Filters = { region: string; kind: string; q: string; place: string[]; guests: string; maxPrice: string; view: string };
+type Photo = { id: string; preview: string; file?: File; url?: string };
 const initialFilters: Filters = { region: 'Весь Казахстан', kind: 'all', q: '', place: [], guests: '0', maxPrice: '0', view: 'all' };
 async function api(url: string, body: unknown, method = 'POST') {
   const response = await fetch(url, { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
@@ -35,20 +36,31 @@ export default function HousingClient({ signedIn, signInPath }: { signedIn: bool
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
-  const [photo, setPhoto] = useState<File | null>(null);
-  const [preview, setPreview] = useState('');
-  const photoUpload = useRef<{ file: File; url: string } | null>(null);
+  const [photos, setPhotos] = useState<Photo[]>([]);
+  const uploadedPhotos = useRef(new Map<string, string>());
+  const objectUrls = useRef(new Set<string>());
+  const [uploadProgress, setUploadProgress] = useState('');
+  function clearPhotos() {
+    objectUrls.current.forEach(url => URL.revokeObjectURL(url)); objectUrls.current.clear();
+    uploadedPhotos.current.clear(); setPhotos([]); setUploadProgress('');
+  }
+  function removePhoto(photo: Photo) {
+    if (saveLock.current) return;
+    if (objectUrls.current.delete(photo.preview)) URL.revokeObjectURL(photo.preview);
+    setPhotos(current => current.filter(value => value.id !== photo.id)); dirtyForm.current = true;
+  }
   const saveLock = useRef(false);
   const noticeRef = useRef<HTMLParagraphElement>(null);
   function openForm(item: HousingListing | null = null) {
     if (saveLock.current || (showForm && dirtyForm.current && !window.confirm('В форме есть несохранённые изменения. Открыть другую форму без сохранения?'))) return;
-    setEditing(item); setFormSession(value => value + 1); setPhoto(null); photoUpload.current = null;
+    clearPhotos(); setEditing(item); setFormSession(value => value + 1);
+    if (item) setPhotos(getHousingPhotos(item.image, item.photos).map(url => ({ id: url, preview: url, url })));
     setFormError(''); setNotice(''); dirtyForm.current = false; setShowForm(true);
     requestAnimationFrame(() => document.getElementById('housing-publish-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   }
   function closeForm() {
     if (saveLock.current || (dirtyForm.current && !window.confirm('Закрыть форму без сохранения изменений?'))) return;
-    setShowForm(false); setEditing(null); setPhoto(null); photoUpload.current = null; dirtyForm.current = false;
+    setShowForm(false); setEditing(null); clearPhotos(); dirtyForm.current = false;
     setRevision(value => value + 1);
   }
   useEffect(() => {
@@ -58,11 +70,7 @@ export default function HousingClient({ signedIn, signInPath }: { signedIn: bool
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
   }, [showForm]);
-  useEffect(() => {
-    if (!photo) { setPreview(''); return; }
-    const url = URL.createObjectURL(photo); setPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [photo]);
+  useEffect(() => () => { objectUrls.current.forEach(url => URL.revokeObjectURL(url)); }, []);
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true); setError('');
@@ -105,39 +113,43 @@ export default function HousingClient({ signedIn, signInPath }: { signedIn: bool
   async function publish(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (saveLock.current) return;
-    if (!photo && !editing) { setFormError('Добавьте настоящую фотографию жилья.'); return; }
+    if (!photos.length) { setFormError('Добавьте хотя бы одну настоящую фотографию жилья.'); return; }
     saveLock.current = true; setSaving(true); setFormError('');
     const form = event.currentTarget, values = new FormData(form);
     try {
-      let imageUrl = editing?.image || '';
-      if (photo) {
-        imageUrl = photoUpload.current?.file === photo ? photoUpload.current.url : '';
+      const photoUrls: string[] = [];
+      for (const [index, photo] of photos.entries()) {
+        let url = photo.url || uploadedPhotos.current.get(photo.id);
+        if (!url && photo.file) {
+          setUploadProgress(`Загружаем фотографию ${index + 1} из ${photos.length}…`);
+          const upload = new FormData(); upload.append('image', photo.file);
+          const response = await fetch('/api/uploads', { method: 'POST', body: upload });
+          const data = await response.json() as { url: string; error?: string };
+          if (!response.ok) throw new Error(data.error || 'Не удалось загрузить фотографию');
+          url = data.url; uploadedPhotos.current.set(photo.id, url);
+        }
+        if (!url) throw new Error('Выберите фотографию заново');
+        photoUrls.push(url);
       }
-      if (photo && !imageUrl) {
-        const upload = new FormData(); upload.append('image', photo);
-        const response = await fetch('/api/uploads', { method: 'POST', body: upload });
-        const data = await response.json() as { url: string; error?: string };
-        if (!response.ok) throw new Error(data.error || 'Не удалось загрузить фотографию');
-        imageUrl = data.url; photoUpload.current = { file: photo, url: imageUrl };
-      }
+      const imageUrl = photoUrls[0]; setUploadProgress('Сохраняем объявление…');
       const latitude = String(values.get('latitude') || ''), longitude = String(values.get('longitude') || '');
       const data = {
         title: values.get('title'), price: values.get('price'), category: values.get('category'),
         unit: '/ сутки', type: 'Сдам', location: values.get('location'), region: values.get('region'),
         phone: values.get('phone'), available: values.get('available'), description: values.get('description'),
         sellerType: values.get('sellerType'), imageUrl,
-        housing: { guests: Number(values.get('guests')), rooms: Number(values.get('rooms')) },
+        housing: { guests: Number(values.get('guests')), rooms: Number(values.get('rooms')), photos: photoUrls },
         ...(latitude && longitude ? { latitude: Number(latitude), longitude: Number(longitude) } : {}),
       };
       if (editing) await api('/api/housing', { listingId: editing.id, expectedUpdatedAt: editing.updatedAt, data }, 'PATCH');
       else await api('/api/listings', data);
-      photoUpload.current = null; setPhoto(null); setShowForm(false);
+      clearPhotos(); setShowForm(false);
       setFilters({ ...initialFilters, view: 'mine' }); setDraft({ ...initialFilters, view: 'mine' }); setPlaceText(''); setPage(1); setRevision(value => value + 1);
       setNotice(editing ? (editing.status === 'paused' ? 'Изменения сохранены. Объявление осталось на паузе.' : 'Изменения сохранены и видны посетителям.') : 'Объявление опубликовано. Оно доступно посетителям в разделе «Жильё».');
       setEditing(null); dirtyForm.current = false;
       requestAnimationFrame(() => { noticeRef.current?.focus(); noticeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); });
     } catch (e) { setFormError((e as Error).message + ' Ваши поля сохранены на этой странице.'); }
-    finally { saveLock.current = false; setSaving(false); }
+    finally { saveLock.current = false; setSaving(false); setUploadProgress(''); }
   }
   return <main className="housing-page">
     <header className="housing-header">
@@ -170,14 +182,21 @@ export default function HousingClient({ signedIn, signInPath }: { signedIn: bool
               onPointChange={() => { dirtyForm.current = true; }} fieldName="location" /></div>
             <label className="housing-wide">Свободные даты и время заезда<input name="available" defaultValue={editing?.available || ''} maxLength={160} placeholder="Например, с 20 сентября, заезд с 14:00. Уточняйте по телефону." /></label>
             <label className="housing-wide">Описание и условия<textarea name="description" defaultValue={editing?.description || ''} required minLength={20} maxLength={1200} rows={5} placeholder="Спальные места, удобства, адрес или ориентир, залог, правила проживания. Для гостиницы описывайте конкретный тип номера." /></label>
-            <label className="housing-wide">{editing ? 'Заменить фотографию (необязательно)' : 'Фотография'} — JPG, PNG или WebP до 5 МБ<input type="file" accept="image/jpeg,image/png,image/webp" required={!editing} onChange={e => {
-              const file = e.target.files?.[0];
-              if (file && (file.size > 5000000 || !['image/jpeg','image/png','image/webp'].includes(file.type))) { setFormError('Выберите JPG, PNG или WebP до 5 МБ'); e.target.value = ''; setPhoto(null); return; }
-              setPhoto(file || null); setFormError('');
+            <label className="housing-wide">Добавить фотографии — {photos.length} из 5. JPG, PNG или WebP до 5 МБ каждая<input type="file" multiple accept="image/jpeg,image/png,image/webp" disabled={photos.length >= 5} onChange={e => {
+              const files = Array.from(e.target.files || []); e.target.value = '';
+              if (photos.length + files.length > 5) { setFormError('Можно добавить до пяти фотографий. Удалите лишние или выберите меньше файлов.'); return; }
+              if (files.some(file => file.size > 5000000 || !['image/jpeg','image/png','image/webp'].includes(file.type))) { setFormError('Каждая фотография должна быть JPG, PNG или WebP до 5 МБ.'); return; }
+              const added = files.map(file => { const preview = URL.createObjectURL(file); objectUrls.current.add(preview); return { id: crypto.randomUUID(), file, preview }; });
+              setPhotos(current => [...current, ...added]); setFormError('');
             }} /></label>
-            {(preview || editing?.image) && <img className="housing-photo-preview" src={preview || editing?.image} alt="Фотография объявления" />}
+            <div className="housing-wide housing-photo-editor">{photos.map((photo, index) => <div key={photo.id}>
+              <img src={photo.preview} alt={`Фотография ${index + 1}`} />
+              <div><button type="button" aria-pressed={index === 0} onClick={() => { setPhotos(current => [photo, ...current.filter(value => value.id !== photo.id)]); dirtyForm.current = true; }}>{index === 0 ? 'Главная' : 'Сделать главной'}</button>
+              <button type="button" aria-label={`Удалить фотографию ${index + 1}`} onClick={() => removePhoto(photo)}>Удалить</button></div>
+            </div>)}</div>
           </div>
           {formError && <p role="alert" className="housing-error">{formError}</p>}
+          <p role="status">{uploadProgress}</p>
           <div className="housing-actions"><button className="housing-primary" type="submit">{saving ? 'Сохраняем…' : editing ? 'Сохранить изменения' : 'Опубликовать'}</button><button type="button" onClick={closeForm}>Закрыть форму</button></div>
         </fieldset>
       </form>

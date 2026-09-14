@@ -14,6 +14,7 @@ import {
   parseJson,
 } from '@/lib/server/marketplace-schemas';
 import { normalizeHousingSearch } from '@/lib/housing';
+import { photoReferenceSql, validateHousingPhotos } from '@/lib/server/housing-photos';
 
 const listingImagePattern =
   /^\/api\/media\/([0-9a-f-]{36}\.(?:jpg|png|webp))$/i;
@@ -26,8 +27,8 @@ async function discardUnusedUpload(
   try {
     const imageUrl = `/api/media/${key}`;
     const linkedListing = await db
-      .prepare('SELECT id FROM listings WHERE image_url = ? LIMIT 1')
-      .bind(imageUrl)
+      .prepare(photoReferenceSql + ' LIMIT 1')
+      .bind(imageUrl, imageUrl)
       .first();
     if (linkedListing) return;
     await getMarketplaceImages().delete(key);
@@ -62,14 +63,18 @@ export async function POST(request: Request) {
       );
     }
     const linkedListing = await db
-      .prepare('SELECT id FROM listings WHERE image_url = ? LIMIT 1')
-      .bind(input.imageUrl)
+      .prepare(photoReferenceSql + ' LIMIT 1')
+      .bind(input.imageUrl, input.imageUrl)
       .first();
     if (linkedListing) {
       return Response.json(
         { error: 'Эта фотография уже используется в объявлении.' },
         { status: 409 },
       );
+    }
+    if (input.housing) {
+      const photoError = await validateHousingPhotos(db, viewer.id, input.housing.photos || [input.imageUrl]);
+      if (photoError) return photoError;
     }
     const hourMs = 60 * 60 * 1000;
     const limited = await getRateLimitResponse(
@@ -85,7 +90,7 @@ export async function POST(request: Request) {
       'Можно опубликовать до 8 объявлений в час. Попробуйте немного позже.',
     );
     if (limited) {
-      await discardUnusedUpload(db, viewer.id, imageKey);
+      if (!input.housing) await discardUnusedUpload(db, viewer.id, imageKey);
       return limited;
     }
     const id = crypto.randomUUID();
@@ -126,10 +131,10 @@ export async function POST(request: Request) {
       const statements = [listingStatement];
       if (input.housing) {
         statements.push(db.prepare(
-          'INSERT INTO housing_details (listing_id, guests, rooms, search_text, location_search) VALUES (?, ?, ?, ?, ?)'
+          'INSERT INTO housing_details (listing_id, guests, rooms, search_text, location_search, photos) VALUES (?, ?, ?, ?, ?, ?)'
         ).bind(id, input.housing.guests, input.housing.rooms,
           normalizeHousingSearch([input.title, input.location, input.description].join(' ')),
-          normalizeHousingSearch(input.location)));
+          normalizeHousingSearch(input.location), JSON.stringify(input.housing.photos || [input.imageUrl])));
       }
       if (input.latitude !== undefined && input.longitude !== undefined) {
         statements.push(
@@ -144,7 +149,7 @@ export async function POST(request: Request) {
       }
       await db.batch(statements);
     } catch (error) {
-      await discardUnusedUpload(db, viewer.id, imageKey);
+      if (!input.housing) await discardUnusedUpload(db, viewer.id, imageKey);
       throw error;
     }
     return Response.json(
