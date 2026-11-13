@@ -19,13 +19,41 @@ export async function POST(request: Request) {
     const input = await parseJson(request, listingStatusInput);
     await ensureMarketplaceSchema();
     await upsertViewer(viewer);
+    if (input.status === 'active') {
+      // A moderator's restriction is also stored as 'paused'; only a moderator or an
+      // approved appeal (both write a 'restore' action) may lift it.
+      const restricted = await getMarketplaceDb()
+        .prepare(
+          `SELECT 1 AS locked FROM listings
+           WHERE id = ? AND owner_id = ?
+             AND (SELECT action FROM moderation_actions
+                  WHERE target_type = 'listing' AND target_id = listings.id
+                    AND action IN ('restrict', 'restore')
+                  ORDER BY created_at DESC, rowid DESC LIMIT 1) = 'restrict'`,
+        )
+        .bind(input.listingId, viewer.id)
+        .first();
+      if (restricted) {
+        return Response.json(
+          {
+            error:
+              'Объявление скрыто модератором. Его нельзя опубликовать самостоятельно — подайте апелляцию.',
+          },
+          { status: 403 },
+        );
+      }
+    }
     const result = await getMarketplaceDb()
       .prepare(
         `UPDATE listings
          SET status = ?, updated_at = MAX(updated_at + 1, ?)
-         WHERE id = ? AND owner_id = ? AND status IN ('active', 'paused')`,
+         WHERE id = ? AND owner_id = ? AND status IN ('active', 'paused')
+           AND (? != 'active' OR (SELECT action FROM moderation_actions
+                WHERE target_type = 'listing' AND target_id = listings.id
+                  AND action IN ('restrict', 'restore')
+                ORDER BY created_at DESC, rowid DESC LIMIT 1) IS NOT 'restrict')`,
       )
-      .bind(input.status, Date.now(), input.listingId, viewer.id)
+      .bind(input.status, Date.now(), input.listingId, viewer.id, input.status)
       .run();
     if (!result.meta.changes) {
       return Response.json(

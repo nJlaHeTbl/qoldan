@@ -134,7 +134,12 @@ export async function POST(request: Request) {
             `INSERT OR IGNORE INTO conversations
              (id, context_type, context_id, context_title, context_owner_id,
               participant_id, created_at, updated_at)
-             VALUES (?, 'request', ?, ?, ?, ?, ?, ?)`,
+             SELECT ?, 'request', ?, ?, ?, ?, ?, ?
+             WHERE EXISTS (
+               SELECT 1 FROM requests WHERE id = ?2 AND owner_id = ?4 AND status = 'open'
+             ) AND NOT EXISTS (
+               SELECT 1 FROM request_selections WHERE request_id = ?2 AND status != 'cancelled'
+             )`,
           )
           .bind(
             conversationId,
