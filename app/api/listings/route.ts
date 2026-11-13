@@ -1,7 +1,6 @@
 import {
   ensureMarketplaceSchema,
   getMarketplaceDb,
-  getMarketplaceImages,
   getRateLimitResponse,
   getViewer,
   serverError,
@@ -15,6 +14,7 @@ import {
 } from '@/lib/server/marketplace-schemas';
 import { normalizeHousingSearch } from '@/lib/housing';
 import { photoClaimGuardSql, photoReferenceSql, validateHousingPhotos } from '@/lib/server/housing-photos';
+import { deleteUnusedUpload } from '@/lib/server/upload-cleanup';
 
 const listingImagePattern =
   /^\/api\/media\/([0-9a-f-]{36}\.(?:jpg|png|webp))$/i;
@@ -25,17 +25,7 @@ async function discardUnusedUpload(
   key: string,
 ) {
   try {
-    const imageUrl = `/api/media/${key}`;
-    const linkedListing = await db
-      .prepare(photoReferenceSql + ' LIMIT 1')
-      .bind(imageUrl, imageUrl)
-      .first();
-    if (linkedListing) return;
-    await getMarketplaceImages().delete(key);
-    await db
-      .prepare('DELETE FROM uploads WHERE key = ? AND owner_id = ?')
-      .bind(key, ownerId)
-      .run();
+    await deleteUnusedUpload(db, ownerId, key);
   } catch (error) {
     console.error('Unable to clean an unused listing upload', error);
   }

@@ -8,6 +8,7 @@ import * as housing from '../lib/housing.ts';
 import * as regions from '../lib/regions.ts';
 const require = createRequire(import.meta.url), sqlite = new DatabaseSync(':memory:');
 for (const file of fs.readdirSync('drizzle').filter(name => name.endsWith('.sql')).sort()) sqlite.exec(fs.readFileSync('drizzle/' + file, 'utf8'));
+let beforeUploadDelete = null, beforeStorageDelete = null;
 const db = {
   prepare(sql) {
     return {
@@ -15,7 +16,12 @@ const db = {
       bind(...values) { this.args = values; return this; },
       async first() { return sqlite.prepare(sql).get(...this.args) || null; },
       async all() { return { results: sqlite.prepare(sql).all(...this.args) }; },
-      async run() { const result = sqlite.prepare(sql).run(...this.args); return { meta: { changes: Number(result.changes) } }; },
+      async run() {
+        if (/^DELETE FROM uploads\b/.test(sql.trim()) && beforeUploadDelete) {
+          const hook = beforeUploadDelete; beforeUploadDelete = null; await hook(this.args[0]);
+        }
+        const result = sqlite.prepare(sql).run(...this.args); return { meta: { changes: Number(result.changes) } };
+      },
     };
   },
   queue: Promise.resolve(),
@@ -27,7 +33,13 @@ const db = {
   },
 };
 const blobs = new Map();
-const images = { async put(key, stream) { blobs.set(key, await new Response(stream).arrayBuffer()); }, async delete(key) { blobs.delete(key); } };
+const images = {
+  async put(key, stream) { blobs.set(key, await new Response(stream).arrayBuffer()); },
+  async delete(key) {
+    if (beforeStorageDelete) { const hook = beforeStorageDelete; beforeStorageDelete = null; await hook(key); }
+    blobs.delete(key);
+  },
+};
 const loaded = new Map();
 function compile(path) {
   if (loaded.has(path)) return loaded.get(path);
@@ -201,5 +213,76 @@ for (const row of await search({view:'mine'},'racer')) {
   const extra = row.photos.includes(raceD) ? [] : [raceE];
   assert.equal((await catalog.PATCH(req('/api/housing','PATCH',{listingId:row.id,expectedUpdatedAt:row.updatedAt,data:{...payload,imageUrl:row.image,housing:{guests:3,rooms:1,photos:[...row.photos,...extra]}}},'racer'))).status,200);
 }
+// Deterministic interleavings: cleanup must never remove a photo claimed by a save.
+const cleanupOwner = 'cleanup-race';
+const cleanupUpload = async () => {
+  const response = await uploads.POST(req('/api/uploads','POST',upload,cleanupOwner));
+  assert.equal(response.status,201);
+  return (await response.json()).url;
+};
+const cleanupCover = await cleanupUpload(), cleanupExtra = await cleanupUpload();
+const cleanupCreated = await listing.POST(req('/api/listings','POST',{...payload,imageUrl:cleanupCover},cleanupOwner));
+assert.equal(cleanupCreated.status,201);
+const cleanupId = (await cleanupCreated.json()).listing.id;
+const cleanupEdit = async extra => {
+  const row = (await search({view:'mine'},cleanupOwner)).find(row => row.id === cleanupId);
+  return catalog.PATCH(req('/api/housing','PATCH',{
+    listingId: row.id, expectedUpdatedAt: row.updatedAt,
+    data: {...payload,imageUrl:row.image,housing:{guests:2,rooms:1,photos:[row.image,extra]}},
+  },cleanupOwner));
+};
+const cleanupDelete = url => uploads.DELETE(req('/api/uploads','DELETE',{url},cleanupOwner));
+let concurrentSave;
+beforeStorageDelete = async key => {
+  assert.equal(key,cleanupExtra.slice('/api/media/'.length));
+  concurrentSave = await cleanupEdit(cleanupExtra);
+};
+assert.equal((await cleanupDelete(cleanupExtra)).status,200);
+assert.equal(concurrentSave.status,400,'A deletion already in storage must block a new gallery claim');
+assert.deepEqual((await search({view:'mine'},cleanupOwner))[0].photos,[cleanupCover]);
+assert.ok(!blobs.has(cleanupExtra.slice('/api/media/'.length)));
+
+// The reverse order: a save that wins must prevent storage deletion entirely.
+const savedExtra = await cleanupUpload();
+beforeUploadDelete = async key => {
+  assert.equal(key,savedExtra.slice('/api/media/'.length));
+  concurrentSave = await cleanupEdit(savedExtra);
+};
+assert.equal((await cleanupDelete(savedExtra)).status,409);
+assert.equal(concurrentSave.status,200);
+assert.ok(blobs.has(savedExtra.slice('/api/media/'.length)));
+assert.ok(sqlite.prepare('SELECT key FROM uploads WHERE key=?').get(savedExtra.slice('/api/media/'.length)));
+assert.deepEqual((await search({view:'mine'},cleanupOwner))[0].photos,[cleanupCover,savedExtra]);
+
+// The same deletion guard protects a new publication's cover.
+const deletedCover = await cleanupUpload();
+beforeStorageDelete = async () => {
+  concurrentSave = await listing.POST(req('/api/listings','POST',{...payload,imageUrl:deletedCover},cleanupOwner));
+};
+assert.equal((await cleanupDelete(deletedCover)).status,200);
+assert.equal(concurrentSave.status,400);
+assert.equal((await search({view:'mine'},cleanupOwner)).length,1);
+
+// A failed storage operation restores metadata, preserves the file and permits retry.
+const retryPhoto = await cleanupUpload(), retryKey = retryPhoto.slice('/api/media/'.length);
+const metadata = sqlite.prepare('SELECT * FROM uploads WHERE key=?').get(retryKey);
+const foreignDelete = await uploads.DELETE(req('/api/uploads','DELETE',{url:retryPhoto},'other'));
+assert.equal(foreignDelete.status,200);
+assert.deepEqual(await foreignDelete.json(),{deleted:false});
+beforeStorageDelete = async () => { throw new Error('Simulated storage deletion failure'); };
+const originalError = console.error, loggedErrors = [];
+let failedDeletion;
+try { console.error = (...args) => loggedErrors.push(args); failedDeletion = await cleanupDelete(retryPhoto); }
+finally { console.error = originalError; }
+assert.equal(failedDeletion.status,500);
+assert.ok(loggedErrors.some(args => args.some(arg => String(arg).includes('Simulated storage deletion failure'))));
+assert.deepEqual(sqlite.prepare('SELECT * FROM uploads WHERE key=?').get(retryKey),metadata);
+assert.ok(blobs.has(retryKey));
+assert.deepEqual(await (await cleanupDelete(retryPhoto)).json(),{deleted:true});
+assert.ok(!blobs.has(retryKey));
+assert.equal(sqlite.prepare('SELECT key FROM uploads WHERE key=?').get(retryKey),undefined);
+assert.deepEqual(await (await cleanupDelete(retryPhoto)).json(),{deleted:false});
+assert.equal(beforeStorageDelete,null);
+assert.equal(beforeUploadDelete,null);
 sqlite.close();
-console.log('PASS housing: publishing/editing, five-photo galleries, cover and deletion, ownership/limits, stale conflict and old-client preservation, cleanup protection, search/favorites/coordinates/moderation, simultaneous photo claims. No network writes.');
+console.log('PASS housing: publishing/editing, five-photo galleries, cover and deletion, ownership/limits, stale conflict and old-client preservation, cleanup protection, search/favorites/coordinates/moderation, simultaneous photo claims, save/delete races and storage-failure retry. No network writes.');

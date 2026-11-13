@@ -8,7 +8,7 @@ import {
   unauthorized,
   upsertViewer,
 } from '@/lib/server/marketplace-db';
-import { photoReferenceSql } from '@/lib/server/housing-photos';
+import { deleteUnusedUpload } from '@/lib/server/upload-cleanup';
 
 const allowedTypes = new Map([
   ['image/jpeg', 'jpg'],
@@ -18,19 +18,11 @@ const allowedTypes = new Map([
 const uploadUrlPattern = /^\/api\/media\/([0-9a-f-]{36}\.(?:jpg|png|webp))$/i;
 const abandonedUploadAgeMs = 24 * 60 * 60 * 1000;
 
-type StaleUpload = {
-  key: string;
-  content_type: string;
-  size: number;
-  created_at: number;
-};
-
 async function cleanupOwnedStaleUploads(db: D1Database, ownerId: string) {
   try {
     const staleUploads = await db
       .prepare(
-        `SELECT uploads.key, uploads.content_type, uploads.size,
-                uploads.created_at
+        `SELECT uploads.key
          FROM uploads
          WHERE uploads.owner_id = ?
            AND uploads.created_at < ?
@@ -46,45 +38,11 @@ async function cleanupOwnedStaleUploads(db: D1Database, ownerId: string) {
          LIMIT 10`,
       )
       .bind(ownerId, Date.now() - abandonedUploadAgeMs)
-      .all<StaleUpload>();
+      .all<{ key: string }>();
     if (staleUploads.results.length === 0) return;
 
-    const images = getMarketplaceImages();
     for (const upload of staleUploads.results) {
-      const deletion = await db
-        .prepare(
-          `DELETE FROM uploads
-           WHERE key = ? AND owner_id = ?
-             AND NOT EXISTS (
-               SELECT 1 FROM listings
-               WHERE listings.image_url = '/api/media/' || uploads.key
-             ) AND NOT EXISTS (
-               SELECT 1 FROM housing_details h, json_each(h.photos) p
-               WHERE p.value = '/api/media/' || uploads.key
-             )`,
-        )
-        .bind(upload.key, ownerId)
-        .run();
-      if (!deletion.meta.changes) continue;
-      try {
-        await images.delete(upload.key);
-      } catch (error) {
-        await db
-          .prepare(
-            `INSERT OR IGNORE INTO uploads
-             (key, owner_id, content_type, size, created_at)
-             VALUES (?, ?, ?, ?, ?)`,
-          )
-          .bind(
-            upload.key,
-            ownerId,
-            upload.content_type,
-            upload.size,
-            upload.created_at,
-          )
-          .run();
-        throw error;
-      }
+      await deleteUnusedUpload(db, ownerId, upload.key);
     }
   } catch (error) {
     console.error('Unable to clean stale uploads', error);
@@ -217,27 +175,14 @@ export async function DELETE(request: Request) {
     }
     await ensureMarketplaceSchema();
     const db = getMarketplaceDb();
-    const upload = await db
-      .prepare('SELECT key FROM uploads WHERE key = ? AND owner_id = ?')
-      .bind(key, viewer.id)
-      .first();
-    if (!upload) return Response.json({ deleted: false });
-    const linkedListing = await db
-      .prepare(photoReferenceSql + ' LIMIT 1')
-      .bind(`/api/media/${key}`, `/api/media/${key}`)
-      .first();
-    if (linkedListing) {
+    const result = await deleteUnusedUpload(db, viewer.id, key);
+    if (result === 'in-use') {
       return Response.json(
         { error: 'Фотография уже привязана к объявлению' },
         { status: 409 },
       );
     }
-    await getMarketplaceImages().delete(key);
-    await db
-      .prepare('DELETE FROM uploads WHERE key = ? AND owner_id = ?')
-      .bind(key, viewer.id)
-      .run();
-    return Response.json({ deleted: true });
+    return Response.json({ deleted: result === 'deleted' });
   } catch (error) {
     return serverError(error);
   }
