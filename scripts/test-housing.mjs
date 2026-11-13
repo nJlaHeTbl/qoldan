@@ -18,7 +18,9 @@ const db = {
       async run() { const result = sqlite.prepare(sql).run(...this.args); return { meta: { changes: Number(result.changes) } }; },
     };
   },
-  async batch(statements) {
+  queue: Promise.resolve(),
+  batch(statements) { const run = this.queue.then(() => this.runBatch(statements)); this.queue = run.catch(() => {}); return run; },
+  async runBatch(statements) {
     sqlite.exec('BEGIN');
     try { const results = []; for (const statement of statements) results.push(await statement.run()); sqlite.exec('COMMIT'); return results; }
     catch (error) { sqlite.exec('ROLLBACK'); throw error; }
@@ -174,5 +176,30 @@ sqlite.prepare("UPDATE listings SET status='restricted' WHERE id=?").run(item.id
 assert.equal((await catalog.PATCH(req('/api/housing','PATCH',pausedEdit))).status,403);
 assert.equal((await status.POST(req('/api/listings/status','POST',{listingId:item.id,status:'active'}))).status,404);
 assert.equal((await search({})).length,0);
+// Two simultaneous saves cannot both claim one photo (write-time guard, not only the pre-check).
+sqlite.prepare('DELETE FROM listings WHERE owner_id=?').run('racer');
+const raceUpload = async () => (await (await uploads.POST(req('/api/uploads','POST',upload,'racer'))).json()).url;
+const raceA = await raceUpload(), raceB = await raceUpload();
+const raced = await Promise.all([
+  listing.POST(req('/api/listings','POST',{...payload,imageUrl:raceA,housing:{guests:2,rooms:1,photos:[raceA,raceB]}},'racer')),
+  listing.POST(req('/api/listings','POST',{...payload,imageUrl:raceB,housing:{guests:2,rooms:1,photos:[raceB]}},'racer')),
+]);
+assert.deepEqual(raced.map(r => r.status).sort((a,b) => a-b),[201,409]);
+assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM listings WHERE owner_id='racer'").get().n,1);
+assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM housing_details h JOIN listings l ON l.id=h.listing_id WHERE l.owner_id='racer'").get().n,1);
+// Same for two simultaneous edits adding one new photo to two different listings.
+const raceC = await raceUpload(), raceD = await raceUpload(), raceE = await raceUpload();
+const second = await listing.POST(req('/api/listings','POST',{...payload,imageUrl:raceC,housing:{guests:2,rooms:1,photos:[raceC]}},'racer'));
+assert.equal(second.status,201);
+const mineRows = await search({view:'mine'},'racer');
+assert.equal(mineRows.length,2);
+const racedEdits = await Promise.all(mineRows.map(row => catalog.PATCH(req('/api/housing','PATCH',{listingId:row.id,expectedUpdatedAt:row.updatedAt,data:{...payload,imageUrl:row.image,housing:{guests:2,rooms:1,photos:[...row.photos,raceD]}}},'racer'))));
+assert.deepEqual(racedEdits.map(r => r.status).sort((a,b) => a-b),[200,409]);
+assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM housing_details h, json_each(h.photos) p WHERE p.value=?").get(raceD).n,1);
+// A lost race leaves the losing listing fully editable afterwards.
+for (const row of await search({view:'mine'},'racer')) {
+  const extra = row.photos.includes(raceD) ? [] : [raceE];
+  assert.equal((await catalog.PATCH(req('/api/housing','PATCH',{listingId:row.id,expectedUpdatedAt:row.updatedAt,data:{...payload,imageUrl:row.image,housing:{guests:3,rooms:1,photos:[...row.photos,...extra]}}},'racer'))).status,200);
+}
 sqlite.close();
-console.log('PASS housing: publishing/editing, five-photo galleries, cover and deletion, ownership/limits, stale conflict and old-client preservation, cleanup protection, search/favorites/coordinates/moderation. No network writes.');
+console.log('PASS housing: publishing/editing, five-photo galleries, cover and deletion, ownership/limits, stale conflict and old-client preservation, cleanup protection, search/favorites/coordinates/moderation, simultaneous photo claims. No network writes.');

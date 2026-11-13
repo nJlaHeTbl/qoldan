@@ -14,7 +14,7 @@ import {
   parseJson,
 } from '@/lib/server/marketplace-schemas';
 import { normalizeHousingSearch } from '@/lib/housing';
-import { photoReferenceSql, validateHousingPhotos } from '@/lib/server/housing-photos';
+import { photoClaimGuardSql, photoReferenceSql, validateHousingPhotos } from '@/lib/server/housing-photos';
 
 const listingImagePattern =
   /^\/api\/media\/([0-9a-f-]{36}\.(?:jpg|png|webp))$/i;
@@ -95,6 +95,7 @@ export async function POST(request: Request) {
     }
     const id = crypto.randomUUID();
     const now = Date.now();
+    const claimedPhotos = input.housing?.photos || [input.imageUrl];
     const listingStatement = db
       .prepare(
         `INSERT INTO listings
@@ -102,7 +103,8 @@ export async function POST(request: Request) {
           offer_type, image_url, phone, available, description, seller_type,
           delivery, livestock_type, livestock_quantity, livestock_price_mode,
           livestock_breed, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)`,
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?
+         WHERE ${photoClaimGuardSql("''")}`,
       )
       .bind(
         id,
@@ -126,15 +128,17 @@ export async function POST(request: Request) {
         input.livestockBreed || null,
         now,
         now,
+        JSON.stringify(claimedPhotos),
+        viewer.id,
       );
     try {
       const statements = [listingStatement];
       if (input.housing) {
         statements.push(db.prepare(
-          'INSERT INTO housing_details (listing_id, guests, rooms, search_text, location_search, photos) VALUES (?, ?, ?, ?, ?, ?)'
+          'INSERT INTO housing_details (listing_id, guests, rooms, search_text, location_search, photos) SELECT ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM listings WHERE id = ?)'
         ).bind(id, input.housing.guests, input.housing.rooms,
           normalizeHousingSearch([input.title, input.location, input.description].join(' ')),
-          normalizeHousingSearch(input.location), JSON.stringify(input.housing.photos || [input.imageUrl])));
+          normalizeHousingSearch(input.location), JSON.stringify(claimedPhotos), id));
       }
       if (input.latitude !== undefined && input.longitude !== undefined) {
         statements.push(
@@ -142,12 +146,19 @@ export async function POST(request: Request) {
             .prepare(
               `INSERT INTO listing_locations
                (listing_id, latitude, longitude, updated_at)
-               VALUES (?, ?, ?, ?)`,
+               SELECT ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM listings WHERE id = ?)`,
             )
-            .bind(id, input.latitude, input.longitude, now),
+            .bind(id, input.latitude, input.longitude, now, id),
         );
       }
-      await db.batch(statements);
+      const written = await db.batch(statements);
+      // The photo was claimed by a simultaneous save between the checks above and this write.
+      if (!written[0].meta.changes) {
+        return Response.json(
+          { error: 'Эта фотография уже используется в объявлении.' },
+          { status: 409 },
+        );
+      }
     } catch (error) {
       if (!input.housing) await discardUnusedUpload(db, viewer.id, imageKey);
       throw error;

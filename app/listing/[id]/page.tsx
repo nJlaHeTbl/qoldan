@@ -187,7 +187,7 @@ export default async function ListingPage({ params }: ListingPageProps) {
             </div>
             <p style={{whiteSpace:'pre-line'}}>{listing.description || listingDescription(listing)}</p>
             <div className="listing-page-facts">
-              {listing.guests && <span>{listing.rooms} комн. · до {listing.guests} гостей · Свободные даты уточняйте у владельца</span>}
+              {listing.guests && <span>{listing.rooms} комн. · до {listing.guests} гостей{listing.available ? '' : ' · Свободные даты уточняйте у владельца'}</span>}
               {listing.latitude != null && listing.longitude != null && <a href={`https://www.openstreetmap.org/?mlat=${listing.latitude}&mlon=${listing.longitude}#map=16/${listing.latitude}/${listing.longitude}`} target="_blank" rel="noreferrer"><MapPin /> Посмотреть указанную точку на карте</a>}
               <span>
                 <MapPin /> {listing.location}, {listing.region}

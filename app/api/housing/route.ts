@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { getMarketplaceDb, getViewer, serverError, unauthorized } from '@/lib/server/marketplace-db';
 import { HOUSING_CATEGORIES, isHousingCategory, normalizeHousingSearch, getHousingPhotos } from '@/lib/housing';
-import { validateHousingPhotos } from '@/lib/server/housing-photos';
+import { photoClaimGuardSql, validateHousingPhotos } from '@/lib/server/housing-photos';
 import { listingInput, parseJson, invalidInput } from '@/lib/server/marketplace-schemas';
 import { KAZAKHSTAN_REGION_FILTERS } from '@/lib/regions';
 
@@ -90,9 +90,10 @@ export async function PATCH(request: Request) {
         category = ?, offer_type = 'Сдам', image_url = ?, phone = ?, available = ?, description = ?,
         seller_type = ?, updated_at = ?
         WHERE id = ? AND owner_id = ? AND updated_at = ? AND status IN ('active', 'paused')
-          AND EXISTS (SELECT 1 FROM housing_details WHERE listing_id = listings.id)`)
+          AND EXISTS (SELECT 1 FROM housing_details WHERE listing_id = listings.id)
+          AND ${photoClaimGuardSql('listings.id')}`)
         .bind(data.title, data.price, data.location, data.region, data.category, data.imageUrl, data.phone,
-          data.available || null, data.description || null, data.sellerType, updatedAt, listingId, viewer.id, expectedUpdatedAt),
+          data.available || null, data.description || null, data.sellerType, updatedAt, listingId, viewer.id, expectedUpdatedAt, JSON.stringify(photos), viewer.id),
       // The batch is atomic; a stale first update must not touch the search index or coordinates.
       db.prepare('UPDATE housing_details SET guests = ?, rooms = ?, search_text = ?, location_search = ?, photos = ? WHERE listing_id = ? AND changes() = 1')
         .bind(data.housing.guests, data.housing.rooms,
@@ -108,9 +109,14 @@ export async function PATCH(request: Request) {
       statements.push(db.prepare('DELETE FROM listing_locations WHERE listing_id = ? AND changes() = 1').bind(listingId));
     }
     const result = await db.batch(statements);
-    if (!result[0].meta.changes) return Response.json({
+    if (!result[0].meta.changes) {
+      // Nothing was written: either a photo was claimed meanwhile, or the form is stale.
+      const lateError = await validateHousingPhotos(db, viewer.id, photos, listingId);
+      if (lateError) return lateError;
+      return Response.json({
       error: 'Объявление уже изменилось в другой вкладке. Закройте форму, обновите список и откройте редактирование заново. Ваши правки не записаны.',
-    }, { status: 409 });
+      }, { status: 409 });
+    }
     return Response.json({ listingId, updatedAt }, { headers: { 'cache-control': 'no-store' } });
   } catch (error) {
     try { return invalidInput(error); } catch { return serverError(error); }

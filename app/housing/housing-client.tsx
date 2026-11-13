@@ -40,13 +40,20 @@ export default function HousingClient({ signedIn, signInPath }: { signedIn: bool
   const uploadedPhotos = useRef(new Map<string, string>());
   const objectUrls = useRef(new Set<string>());
   const [uploadProgress, setUploadProgress] = useState('');
-  function clearPhotos() {
+  // Best effort: the server refuses to delete a photo that is still linked to a listing.
+  function discardUploads(urls: string[]) {
+    for (const url of urls) void fetch('/api/uploads', { method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url }) }).catch(() => null);
+  }
+  function clearPhotos(discard = true) {
+    if (discard) discardUploads([...uploadedPhotos.current.values()]);
     objectUrls.current.forEach(url => URL.revokeObjectURL(url)); objectUrls.current.clear();
     uploadedPhotos.current.clear(); setPhotos([]); setUploadProgress('');
   }
   function removePhoto(photo: Photo) {
     if (saveLock.current) return;
     if (objectUrls.current.delete(photo.preview)) URL.revokeObjectURL(photo.preview);
+    const uploaded = uploadedPhotos.current.get(photo.id);
+    if (uploaded) { uploadedPhotos.current.delete(photo.id); discardUploads([uploaded]); }
     setPhotos(current => current.filter(value => value.id !== photo.id)); dirtyForm.current = true;
   }
   const saveLock = useRef(false);
@@ -143,7 +150,8 @@ export default function HousingClient({ signedIn, signInPath }: { signedIn: bool
       };
       if (editing) await api('/api/housing', { listingId: editing.id, expectedUpdatedAt: editing.updatedAt, data }, 'PATCH');
       else await api('/api/listings', data);
-      clearPhotos(); setShowForm(false);
+      if (editing) discardUploads(getHousingPhotos(editing.image, editing.photos).filter(url => !photoUrls.includes(url)));
+      clearPhotos(false); setShowForm(false);
       setFilters({ ...initialFilters, view: 'mine' }); setDraft({ ...initialFilters, view: 'mine' }); setPlaceText(''); setPage(1); setRevision(value => value + 1);
       setNotice(editing ? (editing.status === 'paused' ? 'Изменения сохранены. Объявление осталось на паузе.' : 'Изменения сохранены и видны посетителям.') : 'Объявление опубликовано. Оно доступно посетителям в разделе «Жильё».');
       setEditing(null); dirtyForm.current = false;
@@ -237,7 +245,7 @@ export default function HousingClient({ signedIn, signInPath }: { signedIn: bool
           </div>
           {item.mine && <div className="housing-owner"><span>{item.status === 'active' ? 'Опубликовано' : item.status === 'paused' ? 'На паузе' : 'Ограничено модерацией'}</span>{['active','paused'].includes(item.status) && <>
             <button type="button" disabled={busy || saving} onClick={() => openForm(item)}>Редактировать</button>
-            <button type="button" disabled={busy || saving} onClick={() => void toggleStatus(item)}>{item.status === 'active' ? 'Снять с публикации' : 'Опубликовать снова'}</button>
+            <button type="button" disabled={busy || saving || (showForm && editing?.id === item.id)} title={showForm && editing?.id === item.id ? 'Сначала сохраните или закройте форму редактирования' : undefined} onClick={() => void toggleStatus(item)}>{item.status === 'active' ? 'Снять с публикации' : 'Опубликовать снова'}</button>
           </>}</div>}
         </div>
       </article>)}</div>
