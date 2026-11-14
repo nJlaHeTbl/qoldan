@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Manrope } from 'next/font/google';
 import './globals.css';
 import CookieNotice from '@/components/CookieNotice';
+import LegalFooter from '@/components/LegalFooter';
 const manrope = Manrope({
   variable: '--font-manrope',
   subsets: ['latin', 'cyrillic'],
@@ -31,6 +32,7 @@ export default function RootLayout({
     <html lang="ru">
       <body className={manrope.variable}>
         {children}
+        <LegalFooter />
         <CookieNotice />
       </body>
     </html>

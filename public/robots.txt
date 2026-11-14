@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /map-editor
+
+Sitemap: https://qoldan-zhetisu.nuc9i218.chatgpt.site/sitemap.xml
