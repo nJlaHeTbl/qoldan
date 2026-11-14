@@ -299,6 +299,9 @@ export const businessVerificationInput = z.object({
     .string()
     .trim()
     .regex(/^\d{12}$/, 'БИН должен состоять из 12 цифр'),
+  consent: z.literal(true, {
+    error: 'Подтвердите согласие на обработку данных проверки',
+  }),
   phone: phoneText,
   region: marketRegion,
   referenceUrl: z

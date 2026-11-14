@@ -6,6 +6,7 @@ import { HOUSING_CATEGORIES, getHousingPhotos, type HousingListing } from '@/lib
 import { getRegionCenter } from '@/lib/geo';
 import { LocationFields } from '@/components/LocationFields';
 import { SettlementSearch } from '@/components/SettlementSearch';
+import ConsentNote from '@/components/ConsentNote';
 import { MarketplaceMap } from '@/components/MarketplaceMap';
 
 type Filters = { region: string; kind: string; q: string; place: string[]; guests: string; maxPrice: string; view: string };
@@ -205,6 +206,7 @@ export default function HousingClient({ signedIn, signInPath }: { signedIn: bool
           </div>
           {formError && <p role="alert" className="housing-error">{formError}</p>}
           <p role="status">{uploadProgress}</p>
+          <ConsentNote />
           <div className="housing-actions"><button className="housing-primary" type="submit">{saving ? 'Сохраняем…' : editing ? 'Сохранить изменения' : 'Опубликовать'}</button><button type="button" onClick={closeForm}>Закрыть форму</button></div>
         </fieldset>
       </form>

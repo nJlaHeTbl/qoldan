@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Manrope } from 'next/font/google';
 import './globals.css';
+import CookieNotice from '@/components/CookieNotice';
 const manrope = Manrope({
   variable: '--font-manrope',
   subsets: ['latin', 'cyrillic'],
@@ -28,7 +29,10 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ru">
-      <body className={manrope.variable}>{children}</body>
+      <body className={manrope.variable}>
+        {children}
+        <CookieNotice />
+      </body>
     </html>
   );
 }

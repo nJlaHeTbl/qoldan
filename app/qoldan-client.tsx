@@ -10,6 +10,7 @@ import {
   type ChangeEvent,
 } from 'react';
 import { type DateRange } from 'react-day-picker';
+import ConsentNote from '@/components/ConsentNote';
 import {
   ArrowRight,
   ArrowUpDown,
@@ -4196,6 +4197,7 @@ export default function QoldanClient({
           profileType: fieldText(fields, 'profileType'),
           organizationName: fieldText(fields, 'organizationName'),
           bin: fieldText(fields, 'bin').replace(/\D/g, ''),
+          consent: fields.get('consent') === 'on',
           phone: fieldText(fields, 'phone'),
           region: fieldText(fields, 'region'),
           referenceUrl: fieldText(fields, 'referenceUrl'),
@@ -6917,6 +6919,7 @@ export default function QoldanClient({
                       }
                     />
                   </label>
+                  <ConsentNote lang={appLang} />
                   <button
                     className="submit-button"
                     type="submit"
@@ -7027,6 +7030,7 @@ export default function QoldanClient({
                       placeholder={internal.requestForm.whenPlaceholder}
                     />
                   </label>
+                  <ConsentNote lang={appLang} />
                   <button
                     className="submit-button"
                     type="submit"
@@ -7377,6 +7381,7 @@ export default function QoldanClient({
                         placeholder={internal.requestDetail.commentPlaceholder}
                       />
                     </label>
+                    <ConsentNote lang={appLang} />
                     <button
                       className="submit-button"
                       type="submit"
@@ -8072,6 +8077,7 @@ export default function QoldanClient({
                       placeholder={internal.booking.commentPlaceholder}
                     />
                   </label>
+                  <ConsentNote lang={appLang} />
                   <button
                     className="submit-button"
                     type="submit"
@@ -8267,6 +8273,7 @@ export default function QoldanClient({
                       placeholder="Алматы, Алатауский район"
                     />
                   </label>
+                  <ConsentNote lang={appLang} />
                   <button
                     className="submit-button"
                     type="submit"
@@ -8319,6 +8326,7 @@ export default function QoldanClient({
                     Одна апелляция на одно решение. Команда сохранит ответ в
                     разделе «Мои апелляции».
                   </p>
+                  <ConsentNote lang={appLang} />
                   <button
                     className="submit-button"
                     type="submit"
@@ -8894,11 +8902,22 @@ export default function QoldanClient({
                       placeholder="Чем занимается организация и что можно проверить в открытых источниках"
                     />
                   </label>
+                  <label className="wide">
+                    <input type="checkbox" name="consent" required />{' '}
+                    Согласен(на) на обработку БИН, телефона и сведений об
+                    организации для проверки профиля. БИН и данные проверки не
+                    публикуются (
+                    <a href="/legal/privacy" target="_blank" rel="noopener">
+                      политика данных
+                    </a>
+                    ).
+                  </label>
                   <p className="verification-terms wide">
                     Значок означает, что команда Qoldan вручную сверила данные
                     заявки. Это не государственная гарантия сделки — перед
                     оплатой всё равно проверяйте товар и условия.
                   </p>
+                  <ConsentNote lang={appLang} />
                   <button
                     className="submit-button"
                     type="submit"
@@ -9998,6 +10017,7 @@ export default function QoldanClient({
                       не заменяет юридический договор или акт с подписями.
                     </span>
                   </div>
+                  <ConsentNote lang={appLang} />
                   <button
                     className="submit-button"
                     type="submit"
@@ -10066,6 +10086,7 @@ export default function QoldanClient({
                       после завершения бронирования.
                     </span>
                   </div>
+                  <ConsentNote lang={appLang} />
                   <button
                     className="submit-button"
                     type="submit"
@@ -10136,6 +10157,7 @@ export default function QoldanClient({
                       он отметил работу выполненной.
                     </span>
                   </div>
+                  <ConsentNote lang={appLang} />
                   <button
                     className="submit-button"
                     type="submit"
@@ -10403,6 +10425,7 @@ export default function QoldanClient({
                         />
                       </label>
                       <small>{internal.support.formHint}</small>
+                      <ConsentNote lang={appLang} />
                       <button
                         className="submit-button"
                         type="submit"
