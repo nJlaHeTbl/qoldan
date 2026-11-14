@@ -80,6 +80,24 @@ const winner = sqlite.prepare('SELECT responses.owner_id AS id FROM request_sele
 assert.deepEqual(conversations.map(row => row.participant_id), [winner], 'a lost selection race must not leave a chat with the losing provider');
 await ok(selection.POST(req('/api/responses/selection', 'POST', { requestId: request.id, action: 'cancel' })), 200, 'cancel');
 
+// --- withdrawing a response ---
+const wreq = (await (await ok(requests.POST(req('/api/requests', 'POST', { ...requestBody, title: 'LOCAL TEST Нужен трактор' })), 201, 'create second request')).json()).request;
+const wresp = async id => (await (await ok(responses.POST(req('/api/responses', 'POST', { requestId: wreq.id, price: '50000' }, id)), 201, 'respond second')).json()).response.id;
+const wA = await wresp('provA'), wB = await wresp('provB');
+const withdraw = (id, who) => responses.DELETE(req('/api/responses?id=' + id, 'DELETE', undefined, who));
+await ok(withdraw(wA, null), 401, 'guest cannot withdraw');
+await ok(withdraw('not-an-id', 'provA'), 400, 'bad id');
+await ok(withdraw(wA, 'provB'), 404, 'cannot withdraw someone else response');
+await ok(withdraw(wA, 'owner'), 404, 'request owner cannot withdraw a provider response');
+await ok(selection.POST(req('/api/responses/selection', 'POST', { requestId: wreq.id, responseId: wB, action: 'select' })), 200, 'select second');
+await ok(withdraw(wB, 'provB'), 409, 'selected response cannot be withdrawn');
+await ok(withdraw(wA, 'provA'), 409, 'no withdrawal once a provider is chosen');
+await ok(selection.POST(req('/api/responses/selection', 'POST', { requestId: wreq.id, action: 'cancel' })), 200, 'cancel second selection');
+await ok(withdraw(wA, 'provA'), 200, 'withdraw after selection cancelled');
+assert.equal(sqlite.prepare('SELECT response_count FROM requests WHERE id=?').get(wreq.id).response_count, 1);
+assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM responses WHERE id=?').get(wA).n, 0);
+await ok(responses.POST(req('/api/responses', 'POST', { requestId: wreq.id, price: '40000' }, 'provA')), 201, 'can respond again after withdrawing');
+
 // --- moderation lock on requests ---
 const moderate = (targetType, targetId, action, id = 'mod', origin) => moderation.POST(req('/api/moderation/actions', 'POST', { targetType, targetId, action, note: 'Проверка модерации' }, id, origin));
 const setRequestStatus = status => requestStatus.POST(req('/api/requests/status', 'POST', { requestId: request.id, status }));

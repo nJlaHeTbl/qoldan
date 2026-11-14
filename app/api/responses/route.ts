@@ -143,3 +143,53 @@ export async function POST(request: Request) {
     }
   }
 }
+
+export async function DELETE(request: Request) {
+  const viewer = getViewer(request);
+  if (!viewer) return unauthorized();
+  try {
+    const id = new URL(request.url).searchParams.get('id') ?? '';
+    if (!/^[0-9a-f-]{36}$/i.test(id)) {
+      return Response.json({ error: 'Отклик не найден' }, { status: 400 });
+    }
+    await ensureMarketplaceSchema();
+    const db = getMarketplaceDb();
+    const mine = await db
+      .prepare('SELECT id, request_id FROM responses WHERE id = ? AND owner_id = ?')
+      .bind(id, viewer.id)
+      .first<{ id: string; request_id: string }>();
+    if (!mine) {
+      return Response.json({ error: 'Отклик не найден' }, { status: 404 });
+    }
+    const now = Date.now();
+    const writes = await db.batch([
+      db
+        .prepare(
+          `DELETE FROM responses
+           WHERE id = ? AND owner_id = ?
+             AND NOT EXISTS (SELECT 1 FROM request_selections WHERE response_id = responses.id)
+             AND EXISTS (SELECT 1 FROM requests WHERE id = responses.request_id AND status = 'open')`,
+        )
+        .bind(id, viewer.id),
+      db
+        .prepare(
+          `UPDATE requests
+           SET response_count = MAX(response_count - 1, 0), updated_at = ?
+           WHERE id = ? AND changes() = 1`,
+        )
+        .bind(now, mine.request_id),
+    ]);
+    if (!writes[0].meta.changes) {
+      return Response.json(
+        {
+          error:
+            'Отклик нельзя снять: заказчик уже выбрал исполнителя или заявка закрыта.',
+        },
+        { status: 409 },
+      );
+    }
+    return Response.json({ ok: true });
+  } catch (error) {
+    return serverError(error);
+  }
+}

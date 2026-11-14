@@ -4666,6 +4666,35 @@ export default function QoldanClient({
       setSubmitting(null);
     }
   };
+  const withdrawResponse = async (responseId: string) => {
+    if (!selectedRequest) return;
+    if (!window.confirm('Снять ваш отклик с заявки?')) return;
+    setSubmitting('response-withdraw');
+    try {
+      const response = await fetch(
+        `/api/responses?id=${encodeURIComponent(responseId)}`,
+        { method: 'DELETE' },
+      );
+      if (!response.ok) throw new Error(await apiError(response));
+      setAllResponses((previous) =>
+        previous.filter((item) => item.id !== responseId),
+      );
+      setAllRequests((previous) =>
+        previous.map((item) =>
+          item.id === selectedRequest.id
+            ? { ...item, responses: Math.max(item.responses - 1, 0) }
+            : item,
+        ),
+      );
+      notify('Отклик снят');
+    } catch (error) {
+      notify(
+        error instanceof Error ? error.message : 'Не удалось снять отклик',
+      );
+    } finally {
+      setSubmitting(null);
+    }
+  };
   const updateRequestSelection = async (
     action: 'select' | 'cancel' | 'complete',
     responseId?: string,
@@ -7346,6 +7375,22 @@ export default function QoldanClient({
                     <div>
                       <b>{internal.requestDetail.responseSent}</b>
                       <span>{internal.requestDetail.responseSentHint}</span>
+                      <button
+                        className="report-inline"
+                        type="button"
+                        disabled={submitting === 'response-withdraw'}
+                        onClick={() => {
+                          const mineResponse = selectedResponses.find(
+                            (response) => response.mine,
+                          );
+                          if (mineResponse)
+                            void withdrawResponse(String(mineResponse.id));
+                        }}
+                      >
+                        {submitting === 'response-withdraw'
+                          ? 'Снимаем…'
+                          : 'Снять отклик'}
+                      </button>
                     </div>
                   </div>
                 ) : selectedRequest.status === 'closed' ? null : !isSignedIn ? (
