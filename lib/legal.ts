@@ -3,10 +3,10 @@
 export const LEGAL_UPDATED = '14 ноября 2026';
 
 export const OPERATOR = {
-  name: '[НАИМЕНОВАНИЕ ОПЕРАТОРА]',
-  id: '[БИН/ИИН ОПЕРАТОРА]',
-  address: '[ЮРИДИЧЕСКИЙ АДРЕС]',
-  email: '[E-MAIL ДЛЯ ЗАПРОСОВ]',
+  name: 'Zhumash Miras (физическое лицо)',
+  id: 'ИИН сообщается по обоснованному запросу пользователя или уполномоченного органа',
+  address: 'Республика Казахстан; для корреспонденции используйте e-mail',
+  email: 'zhumash.miras05@gmail.com',
 } as const;
 
 export const LEGAL_DOCS = [

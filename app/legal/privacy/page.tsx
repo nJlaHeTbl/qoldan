@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import LegalPage, { DataTable, Op, Todo } from '@/components/LegalPage';
+import LegalPage, { DataTable, Op } from '@/components/LegalPage';
 
 export const metadata: Metadata = {
   title: 'Политика защиты персональных данных | Qoldan',
@@ -103,7 +103,7 @@ export default function PrivacyPage() {
         <li>Загруженные, но не прикреплённые к объявлению фото удаляются автоматически не позднее чем через 24 часа.</li>
         <li>Черновики форм и список недавних просмотров хранятся только в вашем браузере, пока вы их не очистите.</li>
         <li>
-          После запроса на удаление мы удалим или обезличим данные в срок <Todo>[СРОК, ДНЕЙ]</Todo>.
+          После запроса на удаление мы удалим или обезличим данные в срок 30 календарных дней.
           Жалобы и решения модерации могут храниться дольше, если это нужно для защиты от мошенничества
           или требуется законом.
         </li>
