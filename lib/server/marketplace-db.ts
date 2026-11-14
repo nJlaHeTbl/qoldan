@@ -1,6 +1,8 @@
 import { env } from 'cloudflare:workers';
 
 export type Viewer = {
+  /** True only for the built-in dev user served from localhost; never from headers alone. */
+  local?: boolean;
   id: string;
   email: string;
   displayName: string;
@@ -49,6 +51,9 @@ export function getViewer(request: Request): Viewer | null {
     return {
       id,
       email,
+      local:
+        id === 'local-qoldan-user' &&
+        ['localhost', '127.0.0.1'].includes(new URL(request.url).hostname),
       displayName:
         decodeDisplayName(request) ||
         email.split('@')[0] ||
@@ -61,6 +66,7 @@ export function getViewer(request: Request): Viewer | null {
     return {
       id: 'local-qoldan-user',
       email: 'local@qoldan.test',
+      local: true,
       displayName: 'Азамат',
     };
   }
@@ -68,7 +74,7 @@ export function getViewer(request: Request): Viewer | null {
 }
 
 export function canModerate(viewer: Viewer) {
-  if (viewer.id === 'local-qoldan-user') return true;
+  if (viewer.local === true) return true;
   const bindings = getMarketplaceBindings();
   const configuredIds = bindings.QOLDAN_ADMIN_USER_IDS || '';
   const configuredEmails = bindings.QOLDAN_ADMIN_EMAILS || '';
