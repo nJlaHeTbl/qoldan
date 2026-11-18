@@ -7503,3 +7503,13 @@ footer {
 .my-auctions-list a small{font-size:12px;font-weight:700;color:#5f6a62}
 .my-auctions-list a small.outbid{color:#b4440f}
 .my-auctions-list a small.lead{color:var(--green)}
+.auction-strip{margin-top:28px}
+.auction-strip-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.auction-strip-card{display:grid;gap:4px;text-align:left;padding:0 0 12px;border:1px solid var(--line);border-radius:16px;background:#fff;color:var(--ink);font:inherit;cursor:pointer;overflow:hidden}
+.auction-strip-card img{width:100%;aspect-ratio:8/5;object-fit:cover;background:#eef0ec}
+.auction-strip-card b,.auction-strip-card span,.auction-strip-card small{padding:0 12px;overflow:hidden;text-overflow:ellipsis}
+.auction-strip-card b{font-size:15px;white-space:nowrap;padding-top:8px}
+.auction-strip-card span{font-size:14px;font-weight:700;color:var(--green)}
+.auction-strip-card small{font-size:12px;color:var(--muted)}
+.auction-strip-card:focus-visible{outline:3px solid #b9dcc7;outline-offset:2px}
+@media(max-width:620px){.auction-strip-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}}

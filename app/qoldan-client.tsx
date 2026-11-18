@@ -2860,6 +2860,16 @@ export default function QoldanClient({
     (request) => !isDemoRequest(request.id),
   ).length;
   const demoRequestCount = allRequests.length - realRequestCount;
+  // Running auctions that end first; shown on the home page so the section is useful from day one.
+  const endingSoonAuctions = allListings
+    .filter(
+      (listing) =>
+        listing.auction?.phase === 'active' &&
+        listing.status !== 'paused' &&
+        !isDemoListing(listing.id),
+    )
+    .sort((a, b) => (a.auction?.endsAt ?? 0) - (b.auction?.endsAt ?? 0))
+    .slice(0, 4);
   const listingContentMode: ContentMode =
     listingContentModeChoice ?? (realListingCount > 0 ? 'real' : 'all');
   const requestContentMode: ContentMode =
@@ -5413,6 +5423,59 @@ export default function QoldanClient({
         </div>
       </section>
       <a className="housing-entry wrap" href="/housing"><span><b>{appLang === 'kk' ? 'Тәуліктік тұрғын үй' : appLang === 'en' ? 'Short stays' : 'Жильё на сутки'}</b><span>{appLang === 'kk' ? 'Қонақүйлер мен пәтерлер · жеке бөлім' : appLang === 'en' ? 'Hotels and apartments · separate section' : 'Гостиницы и квартиры · отдельный раздел'}</span></span><ArrowRight size={22} /></a>
+      {endingSoonAuctions.length > 0 && (
+        <section className="auction-strip wrap" aria-label="Скоро заканчиваются торги">
+          <div className="section-head">
+            <div>
+              <small>ОНЛАЙН-ТОРГИ</small>
+              <h2>Скоро заканчиваются торги</h2>
+            </div>
+          </div>
+          <div className="auction-strip-grid">
+            {endingSoonAuctions.map((listing) => (
+              <button
+                type="button"
+                key={listing.id}
+                className="auction-strip-card"
+                onClick={() => openListing(listing)}
+              >
+                <img
+                  src={listing.image}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  width="320"
+                  height="200"
+                />
+                <b>{listing.title}</b>
+                <span>
+                  {(
+                    listing.auction?.currentBid ??
+                    listing.auction?.startPrice ??
+                    0
+                  ).toLocaleString('ru-RU')}{' '}
+                  ₸ ·{' '}
+                  {listing.auction && listing.auction.bidCount > 0
+                    ? `ставок: ${listing.auction.bidCount}`
+                    : 'ставок нет'}
+                </span>
+                <small>
+                  До{' '}
+                  {new Date(listing.auction?.endsAt ?? 0).toLocaleString(
+                    'ru-RU',
+                    {
+                      day: '2-digit',
+                      month: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    },
+                  )}
+                </small>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
       <section className="categories wrap">
         <div className="section-head">
           <div>
