@@ -1,4 +1,5 @@
 import { env } from 'cloudflare:workers';
+import { authMode, sessionUser } from '@/lib/server/auth';
 
 export type Viewer = {
   /** True only for the built-in dev user served from localhost; never from headers alone. */
@@ -13,6 +14,10 @@ type MarketplaceBindings = Cloudflare.Env & {
   IMAGES: R2Bucket;
   QOLDAN_ADMIN_USER_IDS?: string;
   QOLDAN_ADMIN_EMAILS?: string;
+  QOLDAN_AUTH_MODE?: string;
+  QOLDAN_AUTH_SECRET?: string;
+  QOLDAN_AUTH_CHANNELS?: string;
+  QOLDAN_AUTH_SENDER?: string;
 };
 
 export function getMarketplaceBindings() {
@@ -46,6 +51,12 @@ function decodeDisplayName(request: Request) {
 
 // Async on purpose: on our own hosting the viewer comes from a session stored in the database.
 export async function getViewer(request: Request): Promise<Viewer | null> {
+  const bindings = getMarketplaceBindings();
+  if (authMode(bindings) === 'own') {
+    // Own hosting: only our session cookie counts; platform headers are ignored (anyone could send them).
+    const user = await sessionUser(getMarketplaceDb(), bindings, request);
+    return user ? { id: user.id, email: user.email, displayName: user.display_name } : null;
+  }
   const id = request.headers.get('oai-authenticated-user-id');
   const email = request.headers.get('oai-authenticated-user-email');
   if (id && email) {

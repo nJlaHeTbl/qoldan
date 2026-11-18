@@ -29,6 +29,7 @@ export const EXPORT_TABLES: ReadonlyArray<readonly [string, string]> = [
   ['bids', 'bidder_id = ?1'],
   ['settlement_edits', 'owner_id = ?1'],
   ['moderation_actions', 'target_owner_id = ?1'],
+  ['login_identities', 'user_id = ?1'],
 ];
 
 // Staff identities are not the user's data.

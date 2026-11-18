@@ -17,6 +17,7 @@ const TESTS = [
   'test-smart-search',
   'test-portable',
   'test-server-messages',
+  'test-auth',
   'test-legal',
 ];
 

@@ -176,6 +176,13 @@
       "when": 1795016406182,
       "tag": "0024_perfect_thing",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1795027410916,
+      "tag": "0025_flowery_meteorite",
+      "breakpoints": true
     }
   ]
 }

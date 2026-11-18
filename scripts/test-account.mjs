@@ -45,7 +45,8 @@ const auctions = compile('app/api/auctions/route.ts');
 // --- coverage: every table that references users is exported or deliberately skipped ---
 const accountSource = fs.readFileSync('lib/server/account.ts', 'utf8');
 const exported = new Set([...accountSource.matchAll(/\['(\w+)', '/g)].map(match => match[1]));
-const skipped = new Set(['users']);
+// sessions hold only token hashes: exporting them would help nobody and is a security risk.
+const skipped = new Set(['users', 'sessions']);
 for (const { name } of sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all()) {
   if (name.startsWith('sqlite') || name.startsWith('_') || skipped.has(name)) continue;
   const pointsToUsers = sqlite.prepare(`PRAGMA foreign_key_list(${name})`).all().some(fk => fk.table === 'users');

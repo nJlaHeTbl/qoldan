@@ -655,3 +655,51 @@ export const bids = sqliteTable(
     index('bids_bidder_created_at_idx').on(table.bidderId, table.createdAt),
   ],
 );
+
+// Own sign-in (used on self-hosting; the ChatGPT platform signs users in itself). No passwords: a one-time
+// code goes to the phone or e-mail. Only hashes of codes and session tokens are stored.
+export const loginIdentities = sqliteTable(
+  'login_identities',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    channel: text('channel').notNull(),
+    destination: text('destination').notNull(),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => [
+    uniqueIndex('login_identities_channel_destination_unique').on(table.channel, table.destination),
+    index('login_identities_user_id_idx').on(table.userId),
+  ],
+);
+
+export const authCodes = sqliteTable(
+  'auth_codes',
+  {
+    id: text('id').primaryKey(),
+    channel: text('channel').notNull(),
+    destination: text('destination').notNull(),
+    codeHash: text('code_hash').notNull(),
+    attempts: integer('attempts').notNull().default(0),
+    expiresAt: integer('expires_at').notNull(),
+    consumedAt: integer('consumed_at'),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => [index('auth_codes_destination_created_at_idx').on(table.channel, table.destination, table.createdAt)],
+);
+
+export const sessions = sqliteTable(
+  'sessions',
+  {
+    tokenHash: text('token_hash').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: integer('created_at').notNull(),
+    expiresAt: integer('expires_at').notNull(),
+    lastSeenAt: integer('last_seen_at').notNull(),
+  },
+  (table) => [index('sessions_user_id_idx').on(table.userId)],
+);
