@@ -2706,17 +2706,27 @@ footer {
   grid-template-columns: 1fr 1fr;
   gap: 9px;
 }
-.listing-page-actions a {
-  min-height: 45px;
-  border-radius: 11px;
+.listing-page-actions a,
+.listing-page-actions button {
+  min-height: 48px;
+  border: 0;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 7px;
   background: var(--ink);
   color: #fff;
-  font-size: 11px;
-  font-weight: 850;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  text-align: center;
+}
+.listing-page-actions .reveal-phone-error {
+  grid-column: 1 / -1;
+  color: #b42318;
+  font-size: 13px;
 }
 .listing-page-actions a.whatsapp {
   background: #25d366;
@@ -2729,8 +2739,8 @@ footer {
   padding: 11px 12px;
   border-radius: 10px;
   background: #f5f7f3;
-  color: #778078;
-  font-size: 9px;
+  color: #5f6a62;
+  font-size: 12px;
   line-height: 1.5;
 }
 .request-page-shell {
@@ -6745,8 +6755,20 @@ footer {
   .listing-page-content h1 {
     font-size: 27px;
   }
+  .listing-page {
+    padding-bottom: 96px;
+  }
   .listing-page-actions {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    background: rgba(255, 255, 255, 0.96);
+    border-top: 1px solid var(--line);
+    box-shadow: 0 -6px 20px rgba(23, 35, 27, 0.08);
   }
   .request-page-card {
     border-radius: 16px;
