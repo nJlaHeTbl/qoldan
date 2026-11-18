@@ -1,6 +1,7 @@
 import { sites } from '@openai/sites-vite-plugin';
 import tailwindcss from '@tailwindcss/postcss';
 import vinext from 'vinext';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import hostingConfig from './.openai/hosting.json';
 
@@ -35,6 +36,20 @@ const localBindingConfig = {
 };
 
 export default defineConfig(async () => {
+  // Self-hosting build (QOLDAN_TARGET=node): no platform plugins; `cloudflare:workers` is replaced by the
+  // Node stand-in (SQLite file + file storage). Without the variable the build is exactly the platform build.
+  if (process.env.QOLDAN_TARGET === 'node') {
+    return {
+      css: { postcss: { plugins: [tailwindcss()] } },
+      plugins: [vinext()],
+      resolve: {
+        alias: {
+          'cloudflare:workers': fileURLToPath(new URL('./lib/server/node-env.ts', import.meta.url)),
+        },
+      },
+    };
+  }
+
   // Keep Wrangler and Miniflare state project-local. These are non-secret tool
   // settings; application environment belongs in ignored `.env*` files.
   process.env.WRANGLER_WRITE_LOGS ??= 'false';

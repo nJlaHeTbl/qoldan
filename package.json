@@ -12,6 +12,8 @@
     "db:generate": "drizzle-kit generate",
     "lint": "oxlint",
     "check": "node scripts/check.mjs",
+    "build:node": "node scripts/build-node.mjs",
+    "start:node": "node dist/standalone/server.js",
     "test": "node scripts/check.mjs --no-build",
     "format": "oxfmt"
   },

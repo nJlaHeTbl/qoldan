@@ -12,6 +12,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Self-hosting build emits dist/standalone/server.js (see vite.config.ts and docs/INFRASTRUCTURE.md).
+  ...(process.env.QOLDAN_TARGET === 'node' ? { output: 'standalone' as const } : {}),
   async headers() {
     return [
       { source: '/', headers: securityHeaders },

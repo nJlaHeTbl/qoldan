@@ -55,10 +55,22 @@
 vinext умеет собирать самостоятельный Node-сервер: `output: "standalone"` в `next.config.ts` →
 `node dist/standalone/server.js` (адрес задаётся переменной `HOST`).
 
+**Сборка под Node готова и проверена вживую (19.11.2026):** `npm run build:node` (или `node scripts/build-node.mjs`)
+собирает `dist/standalone/server.js`; `cloudflare:workers` подменяется `lib/server/node-env.ts` (SQLite-файл, файлы фото,
+настройки `QOLDAN_*` из окружения), миграции `drizzle/` применяются при старте автоматически. Проверено на запущенном
+Node-сервере: страницы, 26 миграций, вход по коду, создание заявки, экспорт, загрузка и выдача фото.
+Запуск из корня проекта:
+
+```bash
+PORT=3000 HOST=0.0.0.0 QOLDAN_DATA_DIR=/var/lib/qoldan QOLDAN_AUTH_MODE=own QOLDAN_AUTH_SECRET=<32+ символа> node dist/standalone/server.js
+```
+
+Обычная сборка для платформы (`vinext build`) не изменилась.
+
 План переезда после выбора провайдера:
-1. В `marketplace-db.ts` выбирать источник по окружению: на Workers — `cloudflare:workers`, на Node — адаптеры из
-   `portable.ts` (через псевдоним сборки Vite, чтобы Node-код не попадал в сборку для Workers).
-2. Включить `output: "standalone"` для сборки под Node; применить миграции `drizzle/` к файлу базы.
+1. ~~Сборка под Node и адаптеры~~ — готово (см. выше).
+2. На сервере: Node 24, запуск как сервис (systemd), обратный прокси с HTTPS (nginx/Caddy), папка данных на
+   отдельном диске.
 3. Свой вход: **серверная часть готова** (`lib/server/auth.ts`, `app/api/auth/code|verify|logout`, миграция `0025`,
    тест `test-auth`). Включается переменными `QOLDAN_AUTH_MODE=own`, `QOLDAN_AUTH_SECRET` (32+ символа, секрет),
    `QOLDAN_AUTH_CHANNELS=phone,email`. Страница входа `/signin`, выход по ссылке и страницы сайта (`app/chatgpt-auth.ts`)
