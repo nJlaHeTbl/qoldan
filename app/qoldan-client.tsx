@@ -15,6 +15,7 @@ import AuctionFields from '@/components/AuctionFields';
 import AuctionPanel from '@/components/AuctionPanel';
 import MyAuctions from '@/components/MyAuctions';
 import type { AuctionSummary } from '@/lib/auction';
+import { matchesSmartQuery, parseSmartQuery } from '@/lib/smart-search';
 import ConsentNote from '@/components/ConsentNote';
 import {
   ArrowRight,
@@ -3146,19 +3147,15 @@ export default function QoldanClient({
     if (listing.distance !== 'Рядом') return listing.distance;
     return hasExactCoordinates(listing) ? 'точка указана' : 'место указано';
   };
+  // «перфоратор в аренду в Талдыкоргане до 5000» → words + deal type + place + price limit.
+  const smartQuery = useMemo(() => parseSmartQuery(query), [query]);
   const filtered = useMemo(
     () =>
       allListings
         .filter(
           (i) =>
             (!isHousingCategory(i.category) || myOnly || favoriteOnly) &&
-            (i.title.toLowerCase().includes(query.toLowerCase()) ||
-              i.category.toLowerCase().includes(query.toLowerCase()) ||
-              i.location.toLowerCase().includes(query.toLowerCase()) ||
-              i.region?.toLowerCase().includes(query.toLowerCase()) ||
-              i.description?.toLowerCase().includes(query.toLowerCase()) ||
-              i.livestockType?.toLowerCase().includes(query.toLowerCase()) ||
-              i.livestockBreed?.toLowerCase().includes(query.toLowerCase())) &&
+            matchesSmartQuery(i, smartQuery, type === 'Все' ? undefined : type) &&
             (type === 'Все' || i.type === type) &&
             (categoryFilter === 'Все категории' ||
               i.category === categoryFilter) &&
@@ -3218,7 +3215,7 @@ export default function QoldanClient({
         }),
     [
       allListings,
-      query,
+      smartQuery,
       type,
       categoryFilter,
       maxDistance,
@@ -5434,6 +5431,11 @@ export default function QoldanClient({
               {tr.search}
             </button>
           </div>
+          {smartQuery.hints.length > 0 && (smartQuery.type || smartQuery.place || smartQuery.maxPrice !== undefined || smartQuery.minPrice !== undefined) && (
+            <output className="smart-hint">
+              Понял запрос: {smartQuery.hints.join(' · ')}
+            </output>
+          )}
           <div className="quick-search">
             <span>{tr.popular}</span>
             {tr.popularItems.map(([value, label]) => (

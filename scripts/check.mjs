@@ -14,6 +14,7 @@ const TESTS = [
   'test-auctions',
   'test-account',
   'test-chat',
+  'test-smart-search',
   'test-legal',
 ];
 
