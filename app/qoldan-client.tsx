@@ -18,6 +18,7 @@ import AuctionPanel from '@/components/AuctionPanel';
 import MyAuctions from '@/components/MyAuctions';
 import type { AuctionSummary } from '@/lib/auction';
 import { matchesSmartQuery, parseSmartQuery } from '@/lib/smart-search';
+import { formatPriceText } from '@/lib/price';
 import { currentUiLang, translateServerMessage } from '@/lib/server-messages';
 import { copyFor, money as uiMoney, dateTime as uiDateTime } from '@/lib/ui-copy';
 import ConsentNote from '@/components/ConsentNote';
@@ -6124,7 +6125,7 @@ export default function QoldanClient({
                       </div>
                     )}
                     <div className="price">
-                      {item.price} <span>{item.unit}</span>
+                      {formatPriceText(item.price)} <span>{item.unit}</span>
                     </div>
                     {item.auction && item.auction.phase !== 'cancelled' && (
                       <span className="auction-badge">
@@ -7723,7 +7724,7 @@ export default function QoldanClient({
                   </div>
                   <h2>{selectedListing.title}</h2>
                   <div className="detail-price">
-                    {selectedListing.price} <span>{selectedListing.unit}</span>
+                    {formatPriceText(selectedListing.price)} <span>{selectedListing.unit}</span>
                   </div>
                   <p>
                     {selectedListing.description ||
@@ -8144,7 +8145,7 @@ export default function QoldanClient({
                                 </small>
                                 <b>{listing.title}</b>
                                 <em>
-                                  {listing.price} {listing.unit}
+                                  {formatPriceText(listing.price)} {listing.unit}
                                 </em>
                                 <i>
                                   <MapPin /> {listing.location}
@@ -8260,7 +8261,7 @@ export default function QoldanClient({
                     <small>{internal.booking.eyebrow}</small>
                     <h2>{selectedListing.title}</h2>
                     <p>
-                      {selectedListing.price} {selectedListing.unit} ·{' '}
+                      {formatPriceText(selectedListing.price)} {selectedListing.unit} ·{' '}
                       {internal.booking.payOwner}
                     </p>
                   </div>

@@ -7554,3 +7554,15 @@ a:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible,te
 .signin-form input[inputmode=numeric]{letter-spacing:.3em;font-weight:800;font-variant-numeric:tabular-nums}
 .signin-form button[type=submit]{min-height:48px;border:0;border-radius:12px;background:var(--green);color:#fff;font:inherit;font-weight:800;cursor:pointer}
 .signin-form button[type=submit]:disabled{opacity:.55;cursor:not-allowed}
+
+/* ---- Similar listings on the listing page ---- */
+.listing-similar{max-width:1120px;margin:24px auto 0;padding:0 16px 32px}
+.listing-similar h2{font-size:20px;margin:0 0 12px}
+.listing-similar-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.listing-similar-card{display:grid;gap:4px;padding:0 0 12px;border:1px solid var(--line);border-radius:16px;background:#fff;color:var(--ink);overflow:hidden}
+.listing-similar-card img{width:100%;aspect-ratio:8/5;object-fit:cover;background:#eef0ec}
+.listing-similar-card b,.listing-similar-card span,.listing-similar-card small{padding:0 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.listing-similar-card b{font-size:15px;padding-top:8px}
+.listing-similar-card span{font-size:14px;font-weight:700;color:var(--green)}
+.listing-similar-card small{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px}
+@media(max-width:620px){.listing-similar-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}}

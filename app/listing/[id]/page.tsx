@@ -17,6 +17,7 @@ import { RecentViewTracker } from '@/components/RecentViewTracker';
 import { isHousingCategory, getHousingPhotos } from '@/lib/housing';
 import { HousingGallery } from '@/components/HousingGallery';
 import RevealPhone from '@/components/RevealPhone';
+import { formatPriceText } from '@/lib/price';
 import AuctionPanel from '@/components/AuctionPanel';
 import { describeAttributes, readAttributes } from '@/lib/listing-attributes';
 import { chatGPTSignInPath } from '../../chatgpt-auth';
@@ -82,6 +83,22 @@ const getListing = cache(async (id: string) => {
     .first<ListingDetailRow>();
 });
 
+type SimilarRow = { id: string; title: string; price: string; unit: string | null; location: string; image_url: string };
+
+// Same category, active only, the current region first, newest next. Cheap: uses the category/status indexes.
+const getSimilar = cache(async (id: string, category: string, region: string) =>
+  (
+    await getMarketplaceDb()
+      .prepare(
+        `SELECT id, title, price, unit, location, image_url FROM listings
+         WHERE category = ? AND status = 'active' AND id != ?
+         ORDER BY (region = ?) DESC, created_at DESC LIMIT 4`,
+      )
+      .bind(category, id, region)
+      .all<SimilarRow>()
+  ).results,
+);
+
 const absoluteListingImage = (value: string) => {
   try {
     const image = new URL(value, SITE_ORIGIN);
@@ -113,11 +130,12 @@ export async function generateMetadata({
     };
   }
   const image = absoluteListingImage(listing.image_url);
-  const title = `${listing.title} — ${listing.price}`;
+  const title = `${listing.title} — ${formatPriceText(listing.price)}`;
   const description = listingDescription(listing);
   return {
     title: `${title} | Qoldan`,
     description,
+    alternates: { canonical: `${SITE_ORIGIN}/listing/${listing.id}` },
     openGraph: {
       title,
       description,
@@ -159,6 +177,28 @@ export default async function ListingPage({ params }: ListingPageProps) {
     );
   }
 
+  const similar = await getSimilar(listing.id, listing.category, listing.region);
+  const image = absoluteListingImage(listing.image_url);
+  const priceNumber = Number(String(listing.price).replace(/[^\d]/g, ''));
+  // schema.org description of the offer: lets search engines show price and place in results.
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: listing.title,
+    description: listingDescription(listing),
+    category: listing.category,
+    ...(image ? { image: [image] } : {}),
+    offers: {
+      '@type': 'Offer',
+      url: `${SITE_ORIGIN}/listing/${listing.id}`,
+      priceCurrency: 'KZT',
+      ...(priceNumber > 0 ? { price: priceNumber } : {}),
+      availability: 'https://schema.org/InStock',
+      areaServed: `${listing.location}, ${listing.region}`,
+      seller: { '@type': listing.verified_business_id ? 'Organization' : 'Person', name: listing.owner_name },
+    },
+  };
+
 
   return (
     <main id="main-content" tabIndex={-1} className="listing-page">
@@ -184,7 +224,7 @@ export default async function ListingPage({ params }: ListingPageProps) {
             </small>
             <h1>{listing.title}</h1>
             <div className="listing-page-price">
-              {listing.price}{isHousingCategory(listing.category) ? ' ₸' : ''} <span>{listing.unit || ''}</span>
+              {formatPriceText(listing.price)}{isHousingCategory(listing.category) && !/^\d+$/.test(String(listing.price).trim()) ? ' ₸' : ''} <span>{listing.unit || ''}</span>
             </div>
             <p style={{whiteSpace:'pre-line'}}>{listing.description || listingDescription(listing)}</p>
             <div className="listing-page-facts">
@@ -249,6 +289,31 @@ export default async function ListingPage({ params }: ListingPageProps) {
           </div>
         </article>
       </section>
+      {similar.length > 0 && (
+        <section className="listing-similar" aria-labelledby="similar-title">
+          <h2 id="similar-title">Похожие объявления</h2>
+          <div className="listing-similar-grid">
+            {similar.map((item) => (
+              <Link key={item.id} href={`/listing/${item.id}`} className="listing-similar-card">
+                <img src={item.image_url} alt="" loading="lazy" decoding="async" width="320" height="200" />
+                <b>{item.title}</b>
+                <span>
+                  {formatPriceText(item.price)}
+                  {item.unit ? ` ${item.unit}` : ''}
+                </span>
+                <small>
+                  <MapPin size={13} /> {item.location}
+                </small>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+      <script
+        type="application/ld+json"
+        // Structured data for search engines; JSON.stringify output with "<" escaped cannot break out of the tag.
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, '\\u003c') }}
+      />
     </main>
   );
 }
