@@ -11,6 +11,12 @@ import {
   savedSearchSelect,
   type SavedSearchRow,
 } from '@/lib/server/saved-searches';
+import {
+  AUCTION_COLUMNS,
+  settleDueAuctions,
+  toAuctionSummary,
+  type AuctionRow,
+} from '@/lib/server/auctions';
 
 export const dynamic = 'force-dynamic';
 
@@ -138,6 +144,19 @@ export async function GET(request: Request) {
     const viewerCanModerate = authenticatedViewer
       ? canModerate(authenticatedViewer)
       : false;
+    await settleDueAuctions(db);
+    const auctionRows = await db
+      .prepare(
+        `SELECT ${AUCTION_COLUMNS} FROM auctions
+         WHERE auctions.status = 'active' OR auctions.settled_at >= ?
+         LIMIT 500`,
+      )
+      .bind(Date.now() - 30 * 24 * 60 * 60 * 1000)
+      .all<AuctionRow>();
+    const auctionNow = Date.now();
+    const auctionByListing = new Map(
+      auctionRows.results.map((row) => [row.listing_id, toAuctionSummary(row, auctionNow)]),
+    );
     const [listingResult, requestResult, reviewResult] = await Promise.all([
       db
         .prepare(
@@ -690,6 +709,7 @@ export async function GET(request: Request) {
         // POST /api/listings/phone (signed in, rate limited, logged, owner consent required).
         phone: row.owner_id === viewer.id ? row.phone : undefined,
         hasPhone: Boolean(row.show_phone) && Boolean(row.phone),
+        auction: auctionByListing.get(String(row.id)),
         available: row.available || undefined,
         description: row.description || undefined,
         sellerType: row.seller_type,

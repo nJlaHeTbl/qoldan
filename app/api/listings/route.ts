@@ -13,6 +13,7 @@ import {
   parseJson,
 } from '@/lib/server/marketplace-schemas';
 import { normalizeHousingSearch } from '@/lib/housing';
+import { AUCTION_MAX_ACTIVE_PER_SELLER } from '@/lib/auction';
 import { photoClaimGuardSql, photoReferenceSql, validateHousingPhotos } from '@/lib/server/housing-photos';
 import { deleteUnusedUpload } from '@/lib/server/upload-cleanup';
 
@@ -83,6 +84,21 @@ export async function POST(request: Request) {
       if (!input.housing) await discardUnusedUpload(db, viewer.id, imageKey);
       return limited;
     }
+    if (input.auction) {
+      const running = await db
+        .prepare(
+          "SELECT COUNT(*) AS n FROM auctions WHERE seller_id = ? AND status = 'active' AND ends_at > ?",
+        )
+        .bind(viewer.id, Date.now())
+        .first<{ n: number }>();
+      if (Number(running?.n) >= AUCTION_MAX_ACTIVE_PER_SELLER) {
+        await discardUnusedUpload(db, viewer.id, imageKey);
+        return Response.json(
+          { error: `Одновременно можно вести до ${AUCTION_MAX_ACTIVE_PER_SELLER} торгов.` },
+          { status: 429 },
+        );
+      }
+    }
     const id = crypto.randomUUID();
     const now = Date.now();
     const claimedPhotos = input.housing?.photos || [input.imageUrl];
@@ -130,6 +146,33 @@ export async function POST(request: Request) {
         ).bind(id, input.housing.guests, input.housing.rooms,
           normalizeHousingSearch([input.title, input.location, input.description].join(' ')),
           normalizeHousingSearch(input.location), JSON.stringify(claimedPhotos), id));
+      }
+      if (input.auction) {
+        // Same atomic batch as the listing: an auction never exists without its listing and vice versa.
+        statements.push(
+          db
+            .prepare(
+              `INSERT INTO auctions
+               (id, listing_id, seller_id, start_price, min_step, reserve_price, starts_at, ends_at,
+                base_ends_at, status, created_at, updated_at)
+               SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?
+               WHERE EXISTS (SELECT 1 FROM listings WHERE id = ?)`,
+            )
+            .bind(
+              crypto.randomUUID(),
+              id,
+              viewer.id,
+              input.auction.startPrice,
+              input.auction.minStep,
+              input.auction.reservePrice ?? null,
+              now,
+              now + input.auction.durationHours * 3_600_000,
+              now + input.auction.durationHours * 3_600_000,
+              now,
+              now,
+              id,
+            ),
+        );
       }
       if (input.latitude !== undefined && input.longitude !== undefined) {
         statements.push(

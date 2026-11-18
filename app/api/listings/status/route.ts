@@ -51,11 +51,28 @@ export async function POST(request: Request) {
            AND (? != 'active' OR (SELECT action FROM moderation_actions
                 WHERE target_type = 'listing' AND target_id = listings.id
                   AND action IN ('restrict', 'restore')
-                ORDER BY created_at DESC, rowid DESC LIMIT 1) IS NOT 'restrict')`,
+                ORDER BY created_at DESC, rowid DESC LIMIT 1) IS NOT 'restrict')
+           AND (?6 = 'active' OR NOT EXISTS (
+                SELECT 1 FROM auctions WHERE listing_id = listings.id
+                  AND status = 'active' AND bid_count > 0 AND ends_at > ?7))`,
       )
-      .bind(input.status, Date.now(), input.listingId, viewer.id, input.status)
+      .bind(input.status, Date.now(), input.listingId, viewer.id, input.status, input.status, Date.now())
       .run();
     if (!result.meta.changes) {
+      const bidding = await getMarketplaceDb()
+        .prepare(
+          `SELECT 1 AS locked FROM auctions JOIN listings ON listings.id = auctions.listing_id
+           WHERE auctions.listing_id = ? AND listings.owner_id = ? AND auctions.status = 'active'
+             AND auctions.bid_count > 0 AND auctions.ends_at > ?`,
+        )
+        .bind(input.listingId, viewer.id, Date.now())
+        .first();
+      if (bidding) {
+        return Response.json(
+          { error: 'Нельзя скрыть объявление, пока идут торги со ставками.' },
+          { status: 409 },
+        );
+      }
       return Response.json(
         { error: 'Объявление не найдено или принадлежит другому пользователю' },
         { status: 404 },

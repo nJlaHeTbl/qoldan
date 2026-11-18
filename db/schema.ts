@@ -592,3 +592,64 @@ export const phoneReveals = sqliteTable(
     ),
   ],
 );
+
+// Online auctions without real money: one auction per listing, bids are append-only.
+export const auctions = sqliteTable(
+  'auctions',
+  {
+    id: text('id').primaryKey(),
+    listingId: text('listing_id')
+      .notNull()
+      .references(() => listings.id, { onDelete: 'cascade' }),
+    sellerId: text('seller_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    startPrice: integer('start_price').notNull(),
+    minStep: integer('min_step').notNull(),
+    // Hidden from bidders; only "reserve met / not met" is disclosed after the auction ends.
+    reservePrice: integer('reserve_price'),
+    startsAt: integer('starts_at').notNull(),
+    endsAt: integer('ends_at').notNull(),
+    baseEndsAt: integer('base_ends_at').notNull(),
+    extensions: integer('extensions').notNull().default(0),
+    status: text('status').notNull().default('active'),
+    currentBid: integer('current_bid'),
+    bidCount: integer('bid_count').notNull().default(0),
+    leaderId: text('leader_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    result: text('result'),
+    winnerId: text('winner_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    settledAt: integer('settled_at'),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (table) => [
+    uniqueIndex('auctions_listing_id_unique').on(table.listingId),
+    index('auctions_status_ends_at_idx').on(table.status, table.endsAt),
+    index('auctions_seller_id_idx').on(table.sellerId),
+  ],
+);
+
+export const bids = sqliteTable(
+  'bids',
+  {
+    id: text('id').primaryKey(),
+    auctionId: text('auction_id')
+      .notNull()
+      .references(() => auctions.id, { onDelete: 'cascade' }),
+    bidderId: text('bidder_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    amount: integer('amount').notNull(),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => [
+    // Two simultaneous equal bids can never both be accepted.
+    uniqueIndex('bids_auction_amount_unique').on(table.auctionId, table.amount),
+    index('bids_auction_created_at_idx').on(table.auctionId, table.createdAt),
+    index('bids_bidder_created_at_idx').on(table.bidderId, table.createdAt),
+  ],
+);

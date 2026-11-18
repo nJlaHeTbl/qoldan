@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { isHousingCategory } from '@/lib/housing';
+import { AUCTION_MAX_AMOUNT, isAuctionCategory } from '@/lib/auction';
 
 import {
   KAZAKHSTAN_MARKET_REGIONS,
@@ -87,6 +88,16 @@ export const listingInput = z
       photos: z.array(z.string().regex(/^\/api\/media\/[0-9a-f-]{36}\.(jpg|png|webp)$/i)).min(1).max(5)
         .refine(photos => new Set(photos).size === photos.length, 'Уберите повторяющиеся фотографии').optional(),
     }).optional(),
+    // Optional online auction instead of a fixed price (no money moves through Qoldan).
+    auction: z
+      .object({
+        startPrice: z.number().int().min(1).max(AUCTION_MAX_AMOUNT),
+        minStep: z.number().int().min(1).max(AUCTION_MAX_AMOUNT),
+        reservePrice: z.number().int().min(1).max(AUCTION_MAX_AMOUNT).optional(),
+        durationHours: z.union([z.literal(24), z.literal(72), z.literal(168)]),
+      })
+      .strict()
+      .optional(),
     latitude: z.number().min(40).max(56).optional(),
     longitude: z.number().min(45).max(88).optional(),
   })
@@ -103,6 +114,12 @@ export const listingInput = z
       if (data.type !== 'Сдам' || data.unit !== '/ сутки') context.addIssue({ code: 'custom', path: ['type'], message: 'Жильё публикуется в аренду с ценой за сутки' });
       if (!/^[1-9]\d{0,6}$/.test(data.price)) context.addIssue({ code: 'custom', path: ['price'], message: 'Укажите цену от 1 до 9 999 999 тенге за сутки' });
     } else if (data.housing) context.addIssue({ code: 'custom', path: ['category'], message: 'Характеристики жилья доступны только в разделе жилья' });
+    if (data.auction) {
+      if (!isAuctionCategory(data.category) || data.type !== 'Продам') context.addIssue({ code: 'custom', path: ['auction'], message: 'Торги доступны для продажи техники, инструмента, оборудования и стройматериалов' });
+      if (data.price !== String(data.auction.startPrice)) context.addIssue({ code: 'custom', path: ['price'], message: 'Цена объявления должна совпадать со стартовой ценой торгов' });
+      if (data.auction.reservePrice !== undefined && data.auction.reservePrice < data.auction.startPrice) context.addIssue({ code: 'custom', path: ['auction', 'reservePrice'], message: 'Резервная цена не может быть ниже стартовой' });
+      if (data.auction.minStep > data.auction.startPrice) context.addIssue({ code: 'custom', path: ['auction', 'minStep'], message: 'Шаг ставки не может быть больше стартовой цены' });
+    }
     if (data.category !== 'Скот и животные') return;
     if (data.type !== 'Продам') {
       context.addIssue({

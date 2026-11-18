@@ -12,6 +12,7 @@ export const OPERATOR = {
 export const LEGAL_DOCS = [
   { href: '/legal/privacy', title: 'Политика защиты персональных данных' },
   { href: '/legal/terms', title: 'Публичная оферта (пользовательское соглашение)' },
+  { href: '/legal/auctions', title: 'Правила онлайн-торгов' },
   { href: '/legal/returns', title: 'Условия возврата, отмены и споров' },
   { href: '/legal/cookies', title: 'Политика cookie и локального хранилища' },
 ] as const;

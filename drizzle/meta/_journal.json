@@ -162,6 +162,13 @@
       "when": 1794991461320,
       "tag": "0022_known_ozymandias",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1794996119951,
+      "tag": "0023_bright_puff_adder",
+      "breakpoints": true
     }
   ]
 }
