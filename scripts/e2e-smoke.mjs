@@ -40,7 +40,9 @@ async function check(label, fn) {
   }
 }
 const get = (path) => fetch(origin + path, { redirect: 'manual' });
-const json = (path, method, body) => fetch(origin + path, { method, headers: { 'content-type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+const jsonHeaders = { 'content-type': 'application/json' };
+const post = (path, body) => fetch(origin + path, { method: 'POST', headers: jsonHeaders, body: JSON.stringify(body) });
+const patch = (path, body) => fetch(origin + path, { method: 'PATCH', headers: jsonHeaders, body: JSON.stringify(body) });
 
 try {
   await waitForServer();
@@ -78,16 +80,16 @@ try {
 
   let requestId = '';
   await check('request flow: create, read, edit, close (local user)', async () => {
-    const created = await json('/api/requests', 'POST', { title: 'E2E Нужен трактор на 10 га', place: 'Талдыкорган', when: 'На этой неделе', budget: 'Договорная', kind: 'agro', region: 'Область Жетісу' });
+    const created = await post('/api/requests', { title: 'E2E Нужен трактор на 10 га', place: 'Талдыкорган', when: 'На этой неделе', budget: 'Договорная', kind: 'agro', region: 'Область Жетісу' });
     assert.equal(created.status, 201, await created.clone().text());
     requestId = (await created.json()).request.id;
     assert.equal((await get('/api/requests/' + requestId)).status, 200);
-    const edited = await json('/api/requests', 'PATCH', { requestId, data: { title: 'E2E Нужен трактор на 12 га', place: 'Талдыкорган', when: 'На этой неделе', budget: 'до 100 000 ₸', kind: 'agro', region: 'Область Жетісу' } });
+    const edited = await patch('/api/requests', { requestId, data: { title: 'E2E Нужен трактор на 12 га', place: 'Талдыкорган', when: 'На этой неделе', budget: 'до 100 000 ₸', kind: 'agro', region: 'Область Жетісу' } });
     assert.equal(edited.status, 200, await edited.clone().text());
     const page = await get('/request/' + requestId);
     assert.equal(page.status, 200);
     assert.match(await page.text(), /12 га/);
-    const closed = await json('/api/requests/status', 'POST', { requestId, status: 'closed' });
+    const closed = await post('/api/requests/status', { requestId, status: 'closed' });
     assert.equal(closed.status, 200, await closed.clone().text());
   });
 
@@ -116,7 +118,7 @@ try {
   });
 
   await check('API refuses bad input with 400, not 500', async () => {
-    const response = await json('/api/requests', 'POST', { title: 'x' });
+    const response = await post('/api/requests', { title: 'x' });
     assert.equal(response.status, 400);
   });
 } finally {
