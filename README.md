@@ -4,6 +4,8 @@
 стройматериалы и остатки, скот, жильё на сутки и заявки «Мне нужно» (обратный аукцион: исполнители сами
 предлагают цену). Qoldan не принимает оплату и не берёт комиссию: участники договариваются напрямую.
 
+**Продолжить работу: [SAVEPOINT.md](SAVEPOINT.md)** (единая точка сохранения).
+
 Подробнее: [PRODUCT_STRUCTURE.md](PRODUCT_STRUCTURE.md) (идея и разделы), [QA_CHECKLIST.md](QA_CHECKLIST.md)
 (что проверено), [docs/LAUNCH.md](docs/LAUNCH.md) (запуск и демонстрация), [docs/GROWTH.md](docs/GROWTH.md) (рост и первые пользователи), [docs/ROADMAP.md](docs/ROADMAP.md) (аудит и дорожная карта), [docs/DESIGN.md](docs/DESIGN.md) (дизайн), [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md) (хостинг и локализация данных), [docs/PAYMENTS.md](docs/PAYMENTS.md) (платежи),
 [docs/compliance-audit.md](docs/compliance-audit.md) (правовая часть и аудиты).
