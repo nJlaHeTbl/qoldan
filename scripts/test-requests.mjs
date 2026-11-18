@@ -170,6 +170,20 @@ assert.deepEqual([outcomes.filter(code => code === 200).length, outcomes.filter(
 const parallel = await Promise.all(extra.map(id => reveal('scraper2', id)));
 assert.deepEqual([parallel.filter(r => r.status === 200).length, parallel.filter(r => r.status === 429).length], [15, 5], 'parallel requests must not slip past the hourly limit');
 
+// --- live sitemap: active listings and open requests only ---
+const sitemap = compile('app/sitemap.xml/route.ts');
+const sitemapXml = async () => (await ok(sitemap.GET(req('/sitemap.xml', 'GET', undefined, null)), 200, 'sitemap')).text();
+let xml = await sitemapXml();
+assert.ok(xml.includes('<loc>https://qoldan.example/legal/privacy</loc>'), 'static legal pages are listed');
+assert.ok(xml.includes('/listing/' + listing.id), 'an active listing is listed');
+assert.ok(xml.includes('/request/' + editable.id), 'an open request is listed');
+assert.ok(!xml.includes('/request/' + closedOne.id), 'a closed request is not listed');
+sqlite.prepare("UPDATE listings SET status = 'paused' WHERE id = ?").run(listing.id);
+xml = await sitemapXml();
+assert.ok(!xml.includes('/listing/' + listing.id), 'a hidden listing disappears from the sitemap');
+assert.ok(!xml.includes('+7') && !xml.includes('@qoldan.test'), 'no personal data in the sitemap');
+sqlite.prepare("UPDATE listings SET status = 'active' WHERE id = ?").run(listing.id);
+
 // --- local-admin shortcut must not be reachable by a spoofed id on a real host ---
 await ok(moderate('request', request.id, 'warn', 'local-qoldan-user'), 403, 'spoofed local id on a public host');
 await ok(moderate('request', request.id, 'warn', 'local-qoldan-user', 'http://localhost:3000'), 201, 'local dev moderator on localhost');
