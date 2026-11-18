@@ -17,6 +17,7 @@ import { RecentViewTracker } from '@/components/RecentViewTracker';
 import { isHousingCategory, getHousingPhotos } from '@/lib/housing';
 import { HousingGallery } from '@/components/HousingGallery';
 import RevealPhone from '@/components/RevealPhone';
+import AuctionPanel from '@/components/AuctionPanel';
 import { chatGPTSignInPath } from '../../chatgpt-auth';
 
 const SITE_ORIGIN = 'https://qoldan-zhetisu.nuc9i218.chatgpt.site';
@@ -218,6 +219,10 @@ export default async function ListingPage({ params }: ListingPageProps) {
               </div>
               {listing.verified_business_id && <ShieldCheck />}
             </div>
+            <AuctionPanel
+              listingId={listing.id}
+              signInPath={chatGPTSignInPath(`/listing/${listing.id}`)}
+            />
             <div className="listing-page-actions">
               {listing.show_phone && listing.has_phone ? (
                 <RevealPhone

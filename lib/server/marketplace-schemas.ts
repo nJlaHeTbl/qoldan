@@ -116,7 +116,7 @@ export const listingInput = z
     } else if (data.housing) context.addIssue({ code: 'custom', path: ['category'], message: 'Характеристики жилья доступны только в разделе жилья' });
     if (data.auction) {
       if (!isAuctionCategory(data.category) || data.type !== 'Продам') context.addIssue({ code: 'custom', path: ['auction'], message: 'Торги доступны для продажи техники, инструмента, оборудования и стройматериалов' });
-      if (data.price !== String(data.auction.startPrice)) context.addIssue({ code: 'custom', path: ['price'], message: 'Цена объявления должна совпадать со стартовой ценой торгов' });
+      if (data.price.replace(/\D/g, '') !== String(data.auction.startPrice)) context.addIssue({ code: 'custom', path: ['price'], message: 'Цена объявления должна совпадать со стартовой ценой торгов' });
       if (data.auction.reservePrice !== undefined && data.auction.reservePrice < data.auction.startPrice) context.addIssue({ code: 'custom', path: ['auction', 'reservePrice'], message: 'Резервная цена не может быть ниже стартовой' });
       if (data.auction.minStep > data.auction.startPrice) context.addIssue({ code: 'custom', path: ['auction', 'minStep'], message: 'Шаг ставки не может быть больше стартовой цены' });
     }

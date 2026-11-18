@@ -11,6 +11,10 @@ import {
 } from 'react';
 import { type DateRange } from 'react-day-picker';
 import RevealPhone from '@/components/RevealPhone';
+import AuctionFields from '@/components/AuctionFields';
+import AuctionPanel from '@/components/AuctionPanel';
+import MyAuctions from '@/components/MyAuctions';
+import type { AuctionSummary } from '@/lib/auction';
 import ConsentNote from '@/components/ConsentNote';
 import {
   ArrowRight,
@@ -104,6 +108,7 @@ type Listing = {
   owner?: string;
   phone?: string;
   hasPhone?: boolean;
+  auction?: AuctionSummary;
   available?: string;
   deposit?: string;
   sellerType?: 'Частное лицо' | 'Компания' | 'Магазин';
@@ -2684,6 +2689,7 @@ export default function QoldanClient({
     | 'profile'
     | 'provider'
     | 'saved-searches'
+    | 'my-auctions'
     | 'recent'
     | 'verification'
     | 'notifications'
@@ -4553,6 +4559,17 @@ export default function QoldanClient({
           ),
           sellerType: fieldText(f, 'sellerType'),
           delivery: f.get('delivery') === 'on',
+          auction:
+            f.get('saleMode') === 'auction'
+              ? {
+                  startPrice: Number(fieldText(f, 'price')),
+                  minStep: Number(fieldText(f, 'auctionStep')),
+                  reservePrice: fieldText(f, 'auctionReserve')
+                    ? Number(fieldText(f, 'auctionReserve'))
+                    : undefined,
+                  durationHours: Number(fieldText(f, 'auctionDuration')),
+                }
+              : undefined,
           latitude: listingCoords?.latitude,
           longitude: listingCoords?.longitude,
           livestockType:
@@ -5982,6 +5999,15 @@ export default function QoldanClient({
                     <div className="price">
                       {item.price} <span>{item.unit}</span>
                     </div>
+                    {item.auction && item.auction.phase !== 'cancelled' && (
+                      <span className="auction-badge">
+                        {item.auction.phase === 'ended'
+                          ? 'Торги завершены'
+                          : item.auction.phase === 'scheduled'
+                            ? 'Скоро торги'
+                            : `Торги · ${(item.auction.currentBid ?? item.auction.startPrice).toLocaleString('ru-RU')} ₸`}
+                      </span>
+                    )}
                     <div className="meta">
                       <span>
                         <MapPin size={14} />
@@ -6868,6 +6894,7 @@ export default function QoldanClient({
                       </select>
                     </label>
                   )}
+                  {listingFlow === 'standard' && <AuctionFields />}
                   <LocationFields fieldName="location"
                     initialRegion={listingDraft?.fields.region || (selectedRegion === 'Весь Казахстан' ? 'Область Жетісу' : selectedRegion)}
                     initialPlace={listingDraft?.fields.location || ''}
@@ -7535,6 +7562,12 @@ export default function QoldanClient({
                     {selectedListing.description ||
                       internal.detail.noDescription}
                   </p>
+                  {selectedListing.auction && (
+                    <AuctionPanel
+                      listingId={String(selectedListing.id)}
+                      signInPath={signInPath}
+                    />
+                  )}
                   <div className="detail-facts">
                     {selectedListing.livestockQuantity &&
                       selectedListing.livestockType && (
@@ -8599,6 +8632,9 @@ export default function QoldanClient({
                     <Bookmark /> {internal.profile.savedSearches}
                     <b>{savedSearchNewCount || savedSearches.length}</b>
                   </button>
+                  <button onClick={() => setModal('my-auctions')}>
+                    <Clock3 /> Мои торги
+                  </button>
                   <button onClick={() => setModal('recent')}>
                     <History /> {internal.profile.recent}
                     <b>{recentItems.length}</b>
@@ -8752,6 +8788,21 @@ export default function QoldanClient({
                     </span>
                   </div>
                 )}
+              </>
+            )}
+            {modal === 'my-auctions' && (
+              <>
+                <div className="modal-title">
+                  <span>
+                    <Clock3 />
+                  </span>
+                  <div>
+                    <small>ОНЛАЙН-ТОРГИ</small>
+                    <h2>Мои торги</h2>
+                    <p>Ваши ставки и торги, которые вы ведёте. Данные обновляются сами.</p>
+                  </div>
+                </div>
+                <MyAuctions onClose={() => setModal(null)} />
               </>
             )}
             {modal === 'saved-searches' && (
