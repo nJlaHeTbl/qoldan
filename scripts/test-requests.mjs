@@ -51,6 +51,8 @@ const selection = compile('app/api/responses/selection/route.ts');
 const moderation = compile('app/api/moderation/actions/route.ts');
 const listings = compile('app/api/listings/route.ts');
 const listingStatus = compile('app/api/listings/status/route.ts');
+const phoneRoute = compile('app/api/listings/phone/route.ts');
+const bootstrap = compile('app/api/bootstrap/route.ts');
 const uploads = compile('app/api/uploads/route.ts');
 const identity = id => id ? { 'oai-authenticated-user-id': id, 'oai-authenticated-user-email': id + '@qoldan.test' } : {};
 const req = (path, method, body, id = 'owner', origin = 'https://qoldan.example') => {
@@ -124,6 +126,31 @@ assert.equal(sqlite.prepare('SELECT status FROM listings WHERE id=?').get(listin
 await ok(moderate('listing', listing.id, 'restore'), 201, 'restore listing');
 await ok(setListingStatus('paused'), 200, 'owner pauses after restore');
 await ok(setListingStatus('active'), 200, 'owner resumes after restore');
+
+// --- phone privacy: never in public payloads, only through the rate-limited "show phone" action ---
+const PHONE = '+70000000000';
+const phoneOf = async who => (await (await ok(bootstrap.GET(req('/api/bootstrap', 'GET', undefined, who)), 200, 'bootstrap ' + who)).json()).listings.find(item => item.id === listing.id);
+for (const who of [null, 'buyer1']) { const seen = await phoneOf(who); assert.ok(seen, 'listing visible'); assert.equal(seen.phone, undefined, 'phone must not reach ' + (who || 'guests')); assert.equal(seen.hasPhone, true); }
+assert.equal((await phoneOf('seller')).phone, PHONE, 'owner still sees own phone');
+const guestHtml = await (await ok(bootstrap.GET(req('/api/bootstrap', 'GET', undefined, null)), 200, 'guest bootstrap')).text();
+assert.ok(!guestHtml.includes(PHONE), 'guest payload must not contain the number anywhere');
+const reveal = (who, id = listing.id) => phoneRoute.POST(req('/api/listings/phone', 'POST', { listingId: id }, who));
+await ok(reveal(null), 401, 'guest cannot reveal');
+assert.equal((await (await ok(reveal('buyer1'), 200, 'signed-in reveal')).json()).phone, PHONE);
+assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM phone_reveals WHERE viewer_id = ?').get('buyer1').n, 1);
+await ok(reveal('buyer1'), 200, 'repeat reveal');
+assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM phone_reveals WHERE viewer_id = ?').get('buyer1').n, 1, 'repeat reveal is not logged twice');
+await ok(reveal('buyer1', crypto.randomUUID()), 404, 'unknown listing');
+sqlite.prepare('UPDATE listings SET show_phone = 0 WHERE id = ?').run(listing.id);
+assert.equal((await phoneOf('buyer2')).hasPhone, false);
+await ok(reveal('buyer2'), 403, 'owner withheld consent');
+assert.equal((await (await ok(reveal('seller'), 200, 'owner can read own')).json()).phone, PHONE);
+sqlite.prepare('UPDATE listings SET show_phone = 1 WHERE id = ?').run(listing.id);
+const baseListing = sqlite.prepare('SELECT * FROM listings WHERE id = ?').get(listing.id);
+for (let i = 0; i < 20; i++) { const copy = { ...baseListing, id: crypto.randomUUID(), image_url: '/api/media/' + crypto.randomUUID() + '.png' }; sqlite.prepare('INSERT INTO listings (' + Object.keys(copy).join(',') + ') VALUES (' + Object.keys(copy).map(() => '?').join(',') + ')').run(...Object.values(copy)); }
+const extra = sqlite.prepare("SELECT id FROM listings WHERE id != ? AND owner_id = 'seller' LIMIT 20").all(listing.id).map(row => row.id);
+const outcomes = []; for (const id of extra) outcomes.push((await reveal('scraper', id)).status);
+assert.deepEqual([outcomes.filter(code => code === 200).length, outcomes.filter(code => code === 429).length], [15, 5], 'scraping is cut off after 15 new numbers per hour: ' + outcomes);
 
 // --- local-admin shortcut must not be reachable by a spoofed id on a real host ---
 await ok(moderate('request', request.id, 'warn', 'local-qoldan-user'), 403, 'spoofed local id on a public host');

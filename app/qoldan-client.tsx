@@ -10,6 +10,7 @@ import {
   type ChangeEvent,
 } from 'react';
 import { type DateRange } from 'react-day-picker';
+import RevealPhone from '@/components/RevealPhone';
 import ConsentNote from '@/components/ConsentNote';
 import {
   ArrowRight,
@@ -102,6 +103,7 @@ type Listing = {
   description?: string;
   owner?: string;
   phone?: string;
+  hasPhone?: boolean;
   available?: string;
   deposit?: string;
   sellerType?: 'Частное лицо' | 'Компания' | 'Магазин';
@@ -4539,6 +4541,7 @@ export default function QoldanClient({
           type: listingFlow === 'livestock' ? 'Продам' : fieldText(f, 'type'),
           imageUrl: upload.url,
           phone: fieldText(f, 'phone'),
+          showPhone: f.get('showPhone') === 'on',
           available:
             listingFlow === 'livestock'
               ? 'Продажа по договорённости'
@@ -6906,6 +6909,18 @@ export default function QoldanClient({
                       placeholder="+7 700 123 45 67"
                     />
                   </label>
+                  <label className="check-line">
+                    <input
+                      name="showPhone"
+                      type="checkbox"
+                      defaultChecked={
+                        listingDraft
+                          ? listingDraft.fields.showPhone === 'on'
+                          : true
+                      }
+                    />{' '}
+                    Показывать мой номер вошедшим пользователям (по кнопке «Показать телефон»)
+                  </label>
                   <label>
                     {internal.listing.seller}
                     <select
@@ -7677,10 +7692,7 @@ export default function QoldanClient({
                   )}
                   {!selectedListing.mine && (
                     <div className="contact-actions">
-                      {isDemoListing(selectedListing.id) ||
-                      !selectedListing.phone ||
-                      selectedListing.phone.replace(/\D/g, '') ===
-                        '77000000000' ? (
+                      {isDemoListing(selectedListing.id) ? (
                         <div className="demo-contact">
                           <b>{internal.detail.demoListing}</b>
                           <span>{internal.detail.demoListingHint}</span>
@@ -7706,22 +7718,29 @@ export default function QoldanClient({
                           </button>
                         </div>
                       ) : (
-                        <>
-                          <a
-                            className="call-button"
-                            href={`tel:${selectedListing.phone}`}
-                          >
-                            {internal.detail.call}
-                          </a>
-                          <a
-                            className="whatsapp-button"
-                            target="_blank"
-                            rel="noreferrer"
-                            href={`https://wa.me/${(selectedListing.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(`${appLang === 'kk' ? 'Сәлеметсіз бе! Qoldan хабарландыруы бойынша жазып тұрмын' : appLang === 'en' ? 'Hello! I am contacting you about a Qoldan listing' : 'Здравствуйте! Пишу по объявлению Qoldan'}: ${selectedListing.title}`)}`}
-                          >
-                            <MessageCircle /> WhatsApp
-                          </a>
-                        </>
+                        selectedListing.hasPhone ? (
+                          <RevealPhone
+                            listingId={String(selectedListing.id)}
+                            signInPath={signInPath}
+                            title={selectedListing.title}
+                            showLabel="Показать телефон"
+                            callLabel={internal.detail.call}
+                            buttonClass="call-button"
+                            callClass="call-button"
+                            whatsappClass="whatsapp-button"
+                            whatsappText={
+                              appLang === 'kk'
+                                ? 'Сәлеметсіз бе! Qoldan хабарландыруы бойынша жазып тұрмын'
+                                : appLang === 'en'
+                                  ? 'Hello! I am contacting you about a Qoldan listing'
+                                  : 'Здравствуйте! Пишу по объявлению Qoldan'
+                            }
+                          />
+                        ) : (
+                          <p className="phone-hidden-note">
+                            Владелец не показывает номер. Напишите ему в чате Qoldan.
+                          </p>
+                        )
                       )}
                       {!isDemoListing(selectedListing.id) && (
                         <button

@@ -1,12 +1,13 @@
 'use client';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { ArrowLeft, BedDouble, Heart, MapPin, Plus, Phone, Search } from 'lucide-react';
+import { ArrowLeft, BedDouble, Heart, MapPin, Plus, Search } from 'lucide-react';
 import { KAZAKHSTAN_REGIONS } from '@/lib/regions';
 import { HOUSING_CATEGORIES, getHousingPhotos, type HousingListing } from '@/lib/housing';
 import { getRegionCenter } from '@/lib/geo';
 import { LocationFields } from '@/components/LocationFields';
 import { SettlementSearch } from '@/components/SettlementSearch';
 import ConsentNote from '@/components/ConsentNote';
+import RevealPhone from '@/components/RevealPhone';
 import { MarketplaceMap } from '@/components/MarketplaceMap';
 
 type Filters = { region: string; kind: string; q: string; place: string[]; guests: string; maxPrice: string; view: string };
@@ -144,7 +145,7 @@ export default function HousingClient({ signedIn, signInPath }: { signedIn: bool
       const data = {
         title: values.get('title'), price: values.get('price'), category: values.get('category'),
         unit: '/ сутки', type: 'Сдам', location: values.get('location'), region: values.get('region'),
-        phone: values.get('phone'), available: values.get('available'), description: values.get('description'),
+        phone: values.get('phone'), showPhone: values.get('showPhone') === 'on', available: values.get('available'), description: values.get('description'),
         sellerType: values.get('sellerType'), imageUrl,
         housing: { guests: Number(values.get('guests')), rooms: Number(values.get('rooms')), photos: photoUrls },
         ...(latitude && longitude ? { latitude: Number(latitude), longitude: Number(longitude) } : {}),
@@ -186,6 +187,7 @@ export default function HousingClient({ signedIn, signInPath }: { signedIn: bool
             <label>Максимум гостей<input name="guests" type="number" required min="1" max="50" defaultValue={editing?.guests ?? 2} /></label>
             <label>Количество комнат<input name="rooms" type="number" required min="1" max="30" defaultValue={editing?.rooms ?? 1} /></label>
             <label>Телефон для гостей<input name="phone" defaultValue={editing?.phone} type="tel" required minLength={10} maxLength={32} placeholder="+7 …" autoComplete="tel" /></label>
+        <label className="check-line"><input name="showPhone" type="checkbox" defaultChecked={editing ? editing.hasPhone !== false : true} /> Показывать мой номер вошедшим пользователям (по кнопке «Показать телефон»)</label>
             <div className="housing-wide"><LocationFields initialRegion={editing?.region || (filters.region === 'Весь Казахстан' ? 'Область Жетісу' : filters.region)} initialPlace={editing?.location}
               initialPoint={editing?.latitude != null && editing.longitude != null ? { latitude: editing.latitude, longitude: editing.longitude } : null}
               onPointChange={() => { dirtyForm.current = true; }} fieldName="location" /></div>
@@ -241,7 +243,7 @@ export default function HousingClient({ signedIn, signInPath }: { signedIn: bool
           <b className="housing-price">{Number(item.price).toLocaleString('ru-RU')} ₸ <small>/ сутки</small></b>
           <p>{item.rooms} комн. · до {item.guests} гостей</p><p><MapPin size={15} /> {item.location} · {item.region}</p>
           <p className="housing-description">{item.description}</p><p>{item.available || 'Свободные даты уточняйте у владельца'}</p>
-          <div className="housing-actions">{item.status === 'active' && <a className="housing-primary" href={'tel:+' + item.phone.replace(/\D/g, '')}><Phone size={16} /> Позвонить</a>}
+          <div className="housing-actions">{item.status === 'active' && !item.mine && (item.hasPhone ? <RevealPhone listingId={item.id} signInPath={signInPath} title={item.title} buttonClass="housing-primary" callClass="housing-primary" whatsappClass="housing-primary" /> : <span className="phone-hidden-note">Владелец не показывает номер</span>)}
             {signedIn ? <button type="button" disabled={busy} aria-pressed={item.favorite} aria-label={item.favorite ? 'Убрать из избранного' : 'В избранное'} onClick={() => void favorite(item)}><Heart size={18} fill={item.favorite ? 'currentColor' : 'none'} /></button> : <a href={signInPath} target="_top" aria-label="Войти, чтобы добавить в избранное"><Heart size={18} /></a>}
             {item.status === 'active' && <a href={'/listing/' + item.id}>Подробнее</a>}
           </div>

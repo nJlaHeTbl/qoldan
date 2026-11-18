@@ -71,6 +71,8 @@ export const listingInput = z
         'Сначала загрузите фотографию',
       ),
     phone: phoneText,
+    // Owner consent: show the number to signed-in users through "Show phone".
+    showPhone: z.boolean().default(true),
     available: z.string().trim().max(160).optional().default(''),
     description: z.string().trim().max(1200).optional().default(''),
     sellerType: z.enum(sellerTypes),

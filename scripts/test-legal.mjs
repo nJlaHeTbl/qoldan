@@ -12,7 +12,7 @@ const housingClient = read('app/housing/housing-client.tsx');
 // 1. Table -> wording that must appear in the privacy policy.
 const covered = {
   users: 'e-mail', listings: 'Объявления', listing_locations: 'Точка на карте', housing_details: 'жильё',
-  uploads: 'фото', favorites: 'Избранное', saved_searches: 'сохранённые поиски', requests: 'Заявки',
+  uploads: 'фото', phone_reveals: 'Просмотры номеров телефона', favorites: 'Избранное', saved_searches: 'сохранённые поиски', requests: 'Заявки',
   responses: 'отклик', request_selections: 'отклик', request_reviews: 'Отзывы', reviews: 'Отзывы',
   conversations: 'Чаты', messages: 'Чаты', bookings: 'Бронирования', rental_handoffs: 'передача техники',
   reports: 'Жалобы', appeals: 'апелляции', moderation_actions: 'модерации', support_tickets: 'обращения',

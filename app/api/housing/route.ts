@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   if (f.view !== 'all' && !viewer) return unauthorized();
   try {
     const conditions = ["l.category IN ('Посуточные квартиры', 'Гостиницы')"];
-    const values: (string | number)[] = [viewer?.id || '', viewer?.id || ''];
+    const values: (string | number)[] = [viewer?.id || '', viewer?.id || '', viewer?.id || ''];
     if (f.view === 'mine') { conditions.push('l.owner_id = ?'); values.push(viewer!.id); }
     else conditions.push("l.status = 'active'");
     if (f.view === 'favorites') conditions.push('fav.listing_id IS NOT NULL');
@@ -38,7 +38,8 @@ export async function GET(request: Request) {
     if (f.guests) { conditions.push('h.guests >= ?'); values.push(f.guests); }
     const result = await getMarketplaceDb().prepare(`
       SELECT l.id, l.title, l.price, l.category, l.location, l.region, l.image_url AS image,
-             l.description, l.phone, l.available, l.status, u.display_name AS owner,
+             l.description, CASE WHEN l.owner_id = ? THEN l.phone END AS phone,
+             (l.show_phone = 1 AND l.phone != '') AS hasPhone, l.available, l.status, u.display_name AS owner,
              l.updated_at AS updatedAt, l.seller_type AS sellerType,
              h.guests, h.rooms, h.photos, p.latitude, p.longitude,
              (l.owner_id = ?) AS mine, (fav.listing_id IS NOT NULL) AS favorite
@@ -50,7 +51,7 @@ export async function GET(request: Request) {
       ORDER BY l.created_at DESC, l.id DESC LIMIT 25 OFFSET ?
     `).bind(...values, (f.page - 1) * 24).all<Record<string, unknown>>();
     return Response.json({
-      items: result.results.slice(0, 24).map(row => ({ ...row, photos: getHousingPhotos(String(row.image), row.photos), mine: Boolean(row.mine), favorite: Boolean(row.favorite) })),
+      items: result.results.slice(0, 24).map(row => ({ ...row, photos: getHousingPhotos(String(row.image), row.photos), mine: Boolean(row.mine), favorite: Boolean(row.favorite), hasPhone: Boolean(row.hasPhone) })),
       hasMore: result.results.length > 24,
     }, { headers: { 'cache-control': 'private, no-store' } });
   } catch (error) { return serverError(error); }
@@ -87,12 +88,12 @@ export async function PATCH(request: Request) {
     const updatedAt = Math.max(Date.now(), expectedUpdatedAt + 1);
     const statements = [
       db.prepare(`UPDATE listings SET title = ?, price = ?, unit = '/ сутки', location = ?, region = ?,
-        category = ?, offer_type = 'Сдам', image_url = ?, phone = ?, available = ?, description = ?,
+        category = ?, offer_type = 'Сдам', image_url = ?, phone = ?, show_phone = ?, available = ?, description = ?,
         seller_type = ?, updated_at = ?
         WHERE id = ? AND owner_id = ? AND updated_at = ? AND status IN ('active', 'paused')
           AND EXISTS (SELECT 1 FROM housing_details WHERE listing_id = listings.id)
           AND ${photoClaimGuardSql('listings.id')}`)
-        .bind(data.title, data.price, data.location, data.region, data.category, data.imageUrl, data.phone,
+        .bind(data.title, data.price, data.location, data.region, data.category, data.imageUrl, data.phone, data.showPhone ? 1 : 0,
           data.available || null, data.description || null, data.sellerType, updatedAt, listingId, viewer.id, expectedUpdatedAt, JSON.stringify(photos), viewer.id),
       // The batch is atomic; a stale first update must not touch the search index or coordinates.
       db.prepare('UPDATE housing_details SET guests = ?, rooms = ?, search_text = ?, location_search = ?, photos = ? WHERE listing_id = ? AND changes() = 1')

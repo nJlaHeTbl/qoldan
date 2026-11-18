@@ -143,7 +143,7 @@ export async function GET(request: Request) {
         .prepare(
           `SELECT listings.id, listings.title, listings.price, listings.unit,
                           listings.location, listings.region, listings.category,
-                          listings.offer_type, listings.image_url, listings.phone,
+                          listings.offer_type, listings.image_url, listings.phone, listings.show_phone,
                           listings.available, listings.description,
                           listings.seller_type, listings.delivery, listings.owner_id,
                           listings.livestock_type, listings.livestock_quantity,
@@ -686,7 +686,10 @@ export async function GET(request: Request) {
         type: row.offer_type,
         image: row.image_url,
         owner: row.owner_name,
-        phone: row.phone,
+        // The phone number is never part of a public payload: other users get it through
+        // POST /api/listings/phone (signed in, rate limited, logged, owner consent required).
+        phone: row.owner_id === viewer.id ? row.phone : undefined,
+        hasPhone: Boolean(row.show_phone) && Boolean(row.phone),
         available: row.available || undefined,
         description: row.description || undefined,
         sellerType: row.seller_type,

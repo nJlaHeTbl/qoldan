@@ -8,7 +8,7 @@ export function getHousingPhotos(cover: string, serialized: unknown): string[] {
 export const normalizeHousingSearch = (value: string) => value.normalize('NFKC').toLocaleLowerCase('ru-RU').replaceAll('ё', 'е').trim().replace(/\s+/g, ' ');
 export type HousingListing = {
   id: string; title: string; price: string; category: string; location: string; region: string;
-  image: string; description: string; phone: string; owner: string; available: string;
+  image: string; description: string; phone?: string; hasPhone?: boolean; owner: string; available: string;
   photos: string[];
   guests: number; rooms: number; mine: boolean; favorite: boolean; status: string;
   latitude: number | null; longitude: number | null;

@@ -1,0 +1,111 @@
+'use client';
+
+import { useState } from 'react';
+
+type Props = {
+  listingId: string;
+  signInPath: string;
+  title: string;
+  /** Visible label for the first step. */
+  showLabel?: string;
+  callLabel?: string;
+  buttonClass?: string;
+  callClass?: string;
+  whatsappClass?: string;
+  whatsappText?: string;
+};
+
+type State =
+  | { step: 'idle' }
+  | { step: 'loading' }
+  | { step: 'shown'; phone: string }
+  | { step: 'signin' }
+  | { step: 'error'; message: string };
+
+// The number is never present in public pages or API payloads. It is fetched on demand from
+// POST /api/listings/phone, which requires sign-in, enforces rate limits and keeps an audit log.
+export default function RevealPhone({
+  listingId,
+  signInPath,
+  title,
+  showLabel = 'Показать телефон',
+  callLabel = 'Позвонить',
+  buttonClass,
+  callClass,
+  whatsappClass,
+  whatsappText = 'Здравствуйте! Пишу по объявлению Qoldan',
+}: Props) {
+  const [state, setState] = useState<State>({ step: 'idle' });
+
+  const reveal = async () => {
+    setState({ step: 'loading' });
+    try {
+      const response = await fetch('/api/listings/phone', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ listingId }),
+      });
+      if (response.status === 401) {
+        setState({ step: 'signin' });
+        return;
+      }
+      const data = (await response.json().catch(() => ({}))) as {
+        phone?: string;
+        error?: string;
+      };
+      if (!response.ok || !data.phone) {
+        setState({
+          step: 'error',
+          message: data.error || 'Не удалось получить номер. Попробуйте позже.',
+        });
+        return;
+      }
+      setState({ step: 'shown', phone: data.phone });
+    } catch {
+      setState({ step: 'error', message: 'Нет связи. Попробуйте ещё раз.' });
+    }
+  };
+
+  if (state.step === 'shown') {
+    const digits = state.phone.replace(/\D/g, '');
+    return (
+      <>
+        <a className={callClass} href={`tel:${state.phone}`}>
+          {callLabel}: {state.phone}
+        </a>
+        <a
+          className={whatsappClass}
+          target="_blank"
+          rel="noreferrer"
+          href={`https://wa.me/${digits}?text=${encodeURIComponent(`${whatsappText}: ${title}`)}`}
+        >
+          WhatsApp
+        </a>
+      </>
+    );
+  }
+  if (state.step === 'signin') {
+    return (
+      <a className={buttonClass} href={signInPath} target="_top">
+        Войдите, чтобы увидеть номер
+      </a>
+    );
+  }
+  return (
+    <>
+      <button
+        className={buttonClass}
+        type="button"
+        onClick={() => void reveal()}
+        disabled={state.step === 'loading'}
+      >
+        {state.step === 'loading' ? 'Загрузка…' : showLabel}
+      </button>
+      {state.step === 'error' && (
+        <span role="alert" className="reveal-phone-error">
+          {state.message}
+        </span>
+      )}
+    </>
+  );
+}

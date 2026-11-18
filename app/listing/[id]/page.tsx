@@ -7,8 +7,6 @@ import {
   CheckCircle2,
   Construction,
   MapPin,
-  MessageCircle,
-  Phone,
   ShieldCheck,
 } from 'lucide-react';
 import {
@@ -18,6 +16,8 @@ import {
 import { RecentViewTracker } from '@/components/RecentViewTracker';
 import { isHousingCategory, getHousingPhotos } from '@/lib/housing';
 import { HousingGallery } from '@/components/HousingGallery';
+import RevealPhone from '@/components/RevealPhone';
+import { chatGPTSignInPath } from '../../chatgpt-auth';
 
 const SITE_ORIGIN = 'https://qoldan-zhetisu.nuc9i218.chatgpt.site';
 
@@ -31,7 +31,8 @@ type ListingDetailRow = {
   category: string;
   offer_type: 'Продам' | 'Сдам' | 'Окажу услугу';
   image_url: string;
-  phone: string;
+  show_phone: number;
+  has_phone: number;
   available: string | null;
   description: string | null;
   seller_type: string;
@@ -56,7 +57,8 @@ const getListing = cache(async (id: string) => {
     .prepare(
       `SELECT listings.id, listings.title, listings.price, listings.unit,
               listings.location, listings.region, listings.category,
-              listings.offer_type, listings.image_url, listings.phone,
+              listings.offer_type, listings.image_url, listings.show_phone,
+              (listings.phone != '') AS has_phone,
               listings.available, listings.description, listings.seller_type,
               listings.delivery, listings.created_at,
               users.display_name AS owner_name,
@@ -154,10 +156,6 @@ export default async function ListingPage({ params }: ListingPageProps) {
     );
   }
 
-  const phoneDigits = listing.phone.replace(/\D/g, '');
-  const whatsappText = encodeURIComponent(
-    `Здравствуйте! Пишу по объявлению Qoldan: ${listing.title}`,
-  );
 
   return (
     <main className="listing-page">
@@ -221,17 +219,16 @@ export default async function ListingPage({ params }: ListingPageProps) {
               {listing.verified_business_id && <ShieldCheck />}
             </div>
             <div className="listing-page-actions">
-              <a href={`tel:${listing.phone}`}>
-                <Phone /> Позвонить
-              </a>
-              <a
-                className="whatsapp"
-                href={`https://wa.me/${phoneDigits}?text=${whatsappText}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <MessageCircle /> WhatsApp
-              </a>
+              {listing.show_phone && listing.has_phone ? (
+                <RevealPhone
+                  listingId={listing.id}
+                  signInPath={chatGPTSignInPath(`/listing/${listing.id}`)}
+                  title={listing.title}
+                  whatsappClass="whatsapp"
+                />
+              ) : (
+                <span>Владелец не показывает номер. Напишите ему в чате Qoldan.</span>
+              )}
             </div>
             <p className="listing-page-safety">
               Qoldan не принимает оплату. Уточните состояние, условия и личность

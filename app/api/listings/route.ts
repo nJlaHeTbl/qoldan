@@ -90,10 +90,10 @@ export async function POST(request: Request) {
       .prepare(
         `INSERT INTO listings
          (id, owner_id, title, price, unit, location, region, category,
-          offer_type, image_url, phone, available, description, seller_type,
+          offer_type, image_url, phone, show_phone, available, description, seller_type,
           delivery, livestock_type, livestock_quantity, livestock_price_mode,
           livestock_breed, status, created_at, updated_at)
-         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?
          WHERE ${photoClaimGuardSql("''")}`,
       )
       .bind(
@@ -108,6 +108,7 @@ export async function POST(request: Request) {
         input.type,
         input.imageUrl,
         input.phone,
+        input.showPhone ? 1 : 0,
         input.available || null,
         input.description || null,
         input.sellerType,

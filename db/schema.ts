@@ -94,6 +94,7 @@ export const listings = sqliteTable(
     offerType: text('offer_type').notNull(),
     imageUrl: text('image_url').notNull(),
     phone: text('phone').notNull(),
+    showPhone: integer('show_phone', { mode: 'boolean' }).notNull().default(true),
     available: text('available'),
     description: text('description'),
     sellerType: text('seller_type').notNull(),
@@ -562,6 +563,31 @@ export const supportTickets = sqliteTable(
     ),
     index('support_tickets_status_created_at_idx').on(
       table.status,
+      table.createdAt,
+    ),
+  ],
+);
+
+// Audit log of "show phone" actions: rate limiting, abuse detection and consent evidence.
+export const phoneReveals = sqliteTable(
+  'phone_reveals',
+  {
+    id: text('id').primaryKey(),
+    listingId: text('listing_id')
+      .notNull()
+      .references(() => listings.id, { onDelete: 'cascade' }),
+    viewerId: text('viewer_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => [
+    uniqueIndex('phone_reveals_listing_viewer_unique').on(
+      table.listingId,
+      table.viewerId,
+    ),
+    index('phone_reveals_viewer_created_at_idx').on(
+      table.viewerId,
       table.createdAt,
     ),
   ],
