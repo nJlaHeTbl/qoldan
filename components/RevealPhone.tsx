@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { copyFor, type Lang } from '@/lib/ui-copy';
+import { translateServerMessage } from '@/lib/server-messages';
 
 type Props = {
   listingId: string;
@@ -60,7 +61,7 @@ export default function RevealPhone({
       if (!response.ok || !data.phone) {
         setState({
           step: 'error',
-          message: data.error || c.failed,
+          message: data.error ? translateServerMessage(data.error, lang) : c.failed,
         });
         return;
       }

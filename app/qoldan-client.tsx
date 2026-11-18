@@ -18,6 +18,7 @@ import AuctionPanel from '@/components/AuctionPanel';
 import MyAuctions from '@/components/MyAuctions';
 import type { AuctionSummary } from '@/lib/auction';
 import { matchesSmartQuery, parseSmartQuery } from '@/lib/smart-search';
+import { currentUiLang, translateServerMessage } from '@/lib/server-messages';
 import { copyFor, money as uiMoney, dateTime as uiDateTime } from '@/lib/ui-copy';
 import ConsentNote from '@/components/ConsentNote';
 import {
@@ -467,9 +468,9 @@ const clearFormFields = (form: HTMLFormElement) => {
 const apiError = async (response: Response) => {
   try {
     const body = (await response.json()) as { error?: string };
-    return body.error || 'Не удалось сохранить изменения';
+    return translateServerMessage(body.error || 'Не удалось сохранить изменения', currentUiLang());
   } catch {
-    return 'Не удалось сохранить изменения';
+    return translateServerMessage('Не удалось сохранить изменения', currentUiLang());
   }
 };
 const isDemoListing = (id: Listing['id']) => {
