@@ -568,12 +568,12 @@ export async function GET(request: Request) {
       const base = { kind: 'response' as const, createdAt: at };
       if (row.seller_id === viewer.id) {
         if (row.status === 'active' && Number(row.bid_count) > 0) {
-          return [{ ...base, id: `auction-bid-${row.id}-${row.bid_count}`, title: 'Новая ставка в ваших торгах', description: `«${title}» · сейчас ${money}` }];
+          return [{ ...base, id: `auction-bid-${String(row.id)}-${String(row.bid_count)}`, title: 'Новая ставка в ваших торгах', description: `«${title}» · сейчас ${money}` }];
         }
         if (row.status === 'ended') {
           return [{
             ...base,
-            id: `auction-end-${row.id}`,
+            id: `auction-end-${String(row.id)}`,
             title: row.result === 'sold' ? 'Торги завершены: товар продан' : row.result === 'reserve_not_met' ? 'Торги завершены: резервная цена не достигнута' : 'Торги завершены без ставок',
             description: row.result === 'sold' ? `«${title}» · ${money}. Победитель напишет вам в чате` : `«${title}»`,
           }];
@@ -582,13 +582,13 @@ export async function GET(request: Request) {
       }
       if (!row.i_bid) return [];
       if (row.status === 'active' && row.leader_id !== viewer.id) {
-        return [{ ...base, id: `auction-outbid-${row.id}-${row.bid_count}`, title: 'Вашу ставку перебили', description: `«${title}» · сейчас ${money}` }];
+        return [{ ...base, id: `auction-outbid-${String(row.id)}-${String(row.bid_count)}`, title: 'Вашу ставку перебили', description: `«${title}» · сейчас ${money}` }];
       }
       if (row.status === 'ended' && row.winner_id === viewer.id) {
-        return [{ ...base, id: `auction-won-${row.id}`, title: 'Вы выиграли торги', description: `«${title}» · ${money}. Напишите продавцу в чате Qoldan` }];
+        return [{ ...base, id: `auction-won-${String(row.id)}`, title: 'Вы выиграли торги', description: `«${title}» · ${money}. Напишите продавцу в чате Qoldan` }];
       }
       if (row.status === 'ended') {
-        return [{ ...base, id: `auction-lost-${row.id}`, title: 'Торги завершены', description: `«${title}» · победила другая ставка` }];
+        return [{ ...base, id: `auction-lost-${String(row.id)}`, title: 'Торги завершены', description: `«${title}» · победила другая ставка` }];
       }
       return [];
     });
