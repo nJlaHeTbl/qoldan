@@ -2,32 +2,14 @@
 // local-admin shortcut. No network or production writes.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { DatabaseSync } from 'node:sqlite';
+import { createSqliteD1 } from '../lib/server/portable.ts';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
 import ts from 'typescript';
 import * as housing from '../lib/housing.ts';
 import * as regions from '../lib/regions.ts';
-const require = createRequire(import.meta.url), sqlite = new DatabaseSync(':memory:');
+const require = createRequire(import.meta.url), db = createSqliteD1(), sqlite = db.sqlite;
 for (const file of fs.readdirSync('drizzle').filter(name => name.endsWith('.sql')).sort()) sqlite.exec(fs.readFileSync('drizzle/' + file, 'utf8'));
-const db = {
-  prepare(sql) {
-    return {
-      args: [],
-      bind(...values) { this.args = values; return this; },
-      async first() { return sqlite.prepare(sql).get(...this.args) || null; },
-      async all() { return { results: sqlite.prepare(sql).all(...this.args) }; },
-      async run() { const result = sqlite.prepare(sql).run(...this.args); return { meta: { changes: Number(result.changes) } }; },
-    };
-  },
-  queue: Promise.resolve(),
-  batch(statements) { const run = this.queue.then(() => this.runBatch(statements)); this.queue = run.catch(() => {}); return run; },
-  async runBatch(statements) {
-    sqlite.exec('BEGIN');
-    try { const results = []; for (const statement of statements) results.push(await statement.run()); sqlite.exec('COMMIT'); return results; }
-    catch (error) { sqlite.exec('ROLLBACK'); throw error; }
-  },
-};
 const blobs = new Map();
 const images = { async put(key, stream) { blobs.set(key, await new Response(stream).arrayBuffer()); }, async delete(key) { blobs.delete(key); } };
 const loaded = new Map();
