@@ -7477,7 +7477,7 @@ footer {
 .auction-seller p{margin:0}
 .auction-seller button{background:#fff;color:#b42318;border:1px solid #e8b4ae}
 .auction-hint{margin:0;font-size:13px;color:var(--muted)}
-.auction-message{margin:0;font-size:14px;font-weight:700}
+.auction-message{display:block;margin:0;font-size:14px;font-weight:700}
 .auction-message.ok{color:var(--green)}
 .auction-message.error{color:#b42318}
 .auction-history{display:grid;gap:6px;font-size:14px}

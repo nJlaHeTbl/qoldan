@@ -72,7 +72,8 @@ export default function AuctionPanel({
   }, [apply, listingId]);
 
   useEffect(() => {
-    void load();
+    const first = setTimeout(() => void load(), 0);
+    return () => clearTimeout(first);
   }, [load]);
 
   const phase = data?.auction?.phase;
@@ -96,7 +97,7 @@ export default function AuctionPanel({
   const running = auction.phase === 'active' && left > 0;
   const price = auction.currentBid ?? auction.startPrice;
 
-  const submit = async (event: React.FormEvent) => {
+  const submit = async (event: { preventDefault(): void }) => {
     event.preventDefault();
     setMessage(null);
     const value = Number(amount);
@@ -242,9 +243,9 @@ export default function AuctionPanel({
       )}
 
       {message && (
-        <p role="status" className={`auction-message ${message.kind}`}>
+        <output className={`auction-message ${message.kind}`}>
           {message.text}
-        </p>
+        </output>
       )}
 
       {data.bids.length > 0 && (
