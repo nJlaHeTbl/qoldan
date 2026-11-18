@@ -120,6 +120,19 @@ sqlite.prepare('DELETE FROM users WHERE id = ?').run(userId);
 assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM login_identities WHERE user_id = ?').get(userId).n, 0);
 assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM sessions WHERE user_id = ?').get(userId).n, 0);
 
+// --- sign out by link: safe redirects only (no open redirect) ---
+const authLib = compile('lib/server/auth.ts');
+const backslashTarget = '/' + String.fromCharCode(92) + 'evil.com';
+const newlineTarget = '/ok' + String.fromCharCode(10) + 'x';
+for (const [target, safe] of [['/', true], ['/housing?region=1', true], ['//evil.com', false], [backslashTarget, false], ['https://evil.com', false], ['/api/auth/logout', false], [newlineTarget, false]]) {
+  assert.equal(authLib.isSafeReturnPath(target), safe, 'return path ' + JSON.stringify(target));
+}
+const linkOut = await logoutRoute.GET(new Request('https://qoldan.example/api/auth/logout?return_to=' + encodeURIComponent(backslashTarget), { headers: { cookie } }));
+assert.equal(linkOut.status, 303);
+assert.equal(linkOut.headers.get('location'), '/', 'an unsafe return target falls back to the home page');
+const linkHome = await logoutRoute.GET(new Request('https://qoldan.example/api/auth/logout?return_to=%2Fhousing', { headers: {} }));
+assert.equal(linkHome.headers.get('location'), '/housing');
+
 console.log = realLog;
 sqlite.close();
 console.log('PASS auth: phone/e-mail normalisation, consent, hashed codes, 5-attempt and 3-per-15-min limits, single-use codes, HttpOnly session cookie, platform headers ignored, expiry, logout, cascade on account deletion.');

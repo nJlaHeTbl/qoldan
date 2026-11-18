@@ -194,7 +194,11 @@ export function readSessionToken(request: Request) {
 }
 
 export async function sessionUser(db: D1Database, env: AuthEnv, request: Request, now = Date.now()) {
-  const token = readSessionToken(request);
+  return sessionUserByToken(db, env, readSessionToken(request), now);
+}
+
+/** Same lookup by raw token (server components read the cookie through next/headers). */
+export async function sessionUserByToken(db: D1Database, env: AuthEnv, token: string | null | undefined, now = Date.now()) {
   if (!token || token.length > 200) return null;
   return db
     .prepare(
@@ -210,6 +214,17 @@ export async function endSession(db: D1Database, env: AuthEnv, request: Request)
   const token = readSessionToken(request);
   if (!token) return;
   await db.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(await secretHash(env, `session:${token}`)).run();
+}
+
+/**
+ * Same-site relative path only. Rejects '//host', any backslash (browsers read '/\host' as '//host'),
+ * control characters and API targets, so a return link can never send the user to another site.
+ */
+export function isSafeReturnPath(value: string) {
+  if (!value.startsWith('/') || value.startsWith('//')) return false;
+  if (value.includes('\\')) return false;
+  for (let i = 0; i < value.length; i += 1) if (value.charCodeAt(i) < 32) return false;
+  return !value.startsWith('/api/');
 }
 
 export const sessionCookie = (token: string) =>

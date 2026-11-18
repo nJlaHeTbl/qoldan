@@ -1,5 +1,11 @@
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { AUTH, authMode, sessionUserByToken } from '@/lib/server/auth';
+import { getMarketplaceBindings, getMarketplaceDb } from '@/lib/server/marketplace-db';
+
+// Own hosting (QOLDAN_AUTH_MODE=own): users sign in with a one-time code at /signin and are recognised by the
+// session cookie. On the ChatGPT platform the platform signs users in and passes headers.
+const ownAuth = () => authMode(getMarketplaceBindings()) === 'own';
 
 export type ChatGPTUser = {
   userId: string;
@@ -19,6 +25,11 @@ const SIGN_OUT_PATH = '/signout-with-chatgpt';
 const CALLBACK_PATH = '/callback';
 
 export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
+  if (ownAuth()) {
+    const token = (await cookies()).get(AUTH.cookie)?.value;
+    const user = await sessionUserByToken(getMarketplaceDb(), getMarketplaceBindings(), token);
+    return user ? { userId: user.id, displayName: user.display_name, email: user.email, fullName: null } : null;
+  }
   const requestHeaders = await headers();
   const userId = requestHeaders.get(USER_ID_HEADER);
   const email = requestHeaders.get(USER_EMAIL_HEADER);
@@ -49,15 +60,17 @@ export async function requireChatGPTUser(
 
 export function chatGPTSignInPath(returnTo: string): string {
   const safeReturnTo = safeRelativeReturnPath(returnTo);
+  if (ownAuth()) return `/signin?return_to=${encodeURIComponent(safeReturnTo)}`;
   return `${SIGN_IN_PATH}?return_to=${encodeURIComponent(safeReturnTo)}`;
 }
 
 export function chatGPTSignOutPath(returnTo = '/'): string {
   const safeReturnTo = safeRelativeReturnPath(returnTo);
+  if (ownAuth()) return `/api/auth/logout?return_to=${encodeURIComponent(safeReturnTo)}`;
   return `${SIGN_OUT_PATH}?return_to=${encodeURIComponent(safeReturnTo)}`;
 }
 
-function safeRelativeReturnPath(value: string): string {
+export function safeRelativeReturnPath(value: string): string {
   if (!value.startsWith('/') || value.startsWith('//')) return '/';
 
   let url: URL;
@@ -75,7 +88,9 @@ function isReservedAuthPath(pathname: string): boolean {
   return (
     pathname === SIGN_IN_PATH ||
     pathname === SIGN_OUT_PATH ||
-    pathname === CALLBACK_PATH
+    pathname === CALLBACK_PATH ||
+    pathname === '/signin' ||
+    pathname.startsWith('/api/auth/')
   );
 }
 

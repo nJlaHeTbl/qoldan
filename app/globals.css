@@ -7541,3 +7541,16 @@ a:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible,te
 .category-fields{border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:0;min-width:0}
 .category-fields legend{font-weight:800;font-size:14px;padding:0 6px}
 @media(max-width:620px){.category-fields{grid-template-columns:minmax(0,1fr)}}
+
+/* ---- Own sign-in page ---- */
+.signin-page{min-height:100vh;display:grid;align-content:center;justify-items:center;gap:18px;padding:32px 16px;background:var(--paper)}
+.signin-page .brand{font-weight:800;font-size:22px;color:var(--green)}
+.signin-card{width:min(420px,100%);display:grid;gap:14px;padding:24px;border:1px solid var(--line);border-radius:18px;background:#fff;box-shadow:0 10px 30px rgba(23,35,27,.06)}
+.signin-card h1{margin:0;font-size:24px}
+.signin-lead,.signin-sent{margin:0;color:var(--muted);font-size:14px}
+.signin-form{display:grid;gap:12px}
+.signin-form label{display:grid;gap:6px;font-size:14px;font-weight:700}
+.signin-form input[type=tel],.signin-form input[type=email],.signin-form input[inputmode=numeric]{min-height:48px;padding:0 14px;border:1px solid var(--line);border-radius:12px;font:inherit;font-size:17px}
+.signin-form input[inputmode=numeric]{letter-spacing:.3em;font-weight:800;font-variant-numeric:tabular-nums}
+.signin-form button[type=submit]{min-height:48px;border:0;border-radius:12px;background:var(--green);color:#fff;font:inherit;font-weight:800;cursor:pointer}
+.signin-form button[type=submit]:disabled{opacity:.55;cursor:not-allowed}

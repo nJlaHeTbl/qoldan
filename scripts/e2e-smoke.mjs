@@ -3,6 +3,7 @@
 // then stops the server. Writes only synthetic "E2E" rows into the LOCAL database. Run: node scripts/e2e-smoke.mjs
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
+import { readFileSync, rmSync } from 'node:fs';
 
 const PORT = Number(process.env.E2E_PORT || 3107);
 const origin = `http://localhost:${PORT}`;
@@ -15,7 +16,17 @@ const server = spawn(node, ['node_modules/vinext/dist/cli.js', 'dev', '--port', 
 let serverLog = '';
 server.stdout.on('data', (chunk) => { serverLog += chunk; });
 server.stderr.on('data', (chunk) => { serverLog += chunk; });
-const stop = () => { if (!server.killed) server.kill(); };
+// vinext starts child processes; on Windows kill() leaves them running, so kill the whole tree.
+const stop = () => {
+  if (server.exitCode !== null) return;
+  if (process.platform === 'win32') spawnSync('taskkill', ['/PID', String(server.pid), '/T', '/F'], { stdio: 'ignore' });
+  else server.kill();
+  // A force-killed dev server leaves its lock file behind and the next `vinext dev` would refuse to start.
+  try {
+    const lock = JSON.parse(readFileSync('.vinext/dev/lock.json', 'utf8'));
+    if (lock.port === PORT) rmSync('.vinext/dev/lock.json', { force: true });
+  } catch { /* no lock file */ }
+};
 process.on('exit', stop);
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

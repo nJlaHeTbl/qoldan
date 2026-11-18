@@ -61,8 +61,11 @@ vinext умеет собирать самостоятельный Node-серв�
 2. Включить `output: "standalone"` для сборки под Node; применить миграции `drizzle/` к файлу базы.
 3. Свой вход: **серверная часть готова** (`lib/server/auth.ts`, `app/api/auth/code|verify|logout`, миграция `0025`,
    тест `test-auth`). Включается переменными `QOLDAN_AUTH_MODE=own`, `QOLDAN_AUTH_SECRET` (32+ символа, секрет),
-   `QOLDAN_AUTH_CHANNELS=phone,email`. Осталось: страница входа, перевод `app/chatgpt-auth.ts` на сессии и подключение
-   провайдера SMS или e-mail в `getCodeSender` (сейчас есть только `console` для разработки).
+   `QOLDAN_AUTH_CHANNELS=phone,email`. Страница входа `/signin`, выход по ссылке и страницы сайта (`app/chatgpt-auth.ts`)
+   в этом режиме работают по сессии — **проверено вживую** (вход по коду → главная → выход). Осталось только подключить
+   провайдера SMS или e-mail в `getCodeSender` (сейчас есть `console` для разработки).
+   Проверка своего режима локально: файл `.dev.vars` с `QOLDAN_AUTH_MODE=own`, `QOLDAN_AUTH_SECRET=…`,
+   `QOLDAN_AUTH_SENDER=console`, код появляется в журнале dev-сервера. Файл не коммитить.
 4. Перенести данные: экспорт D1 (`wrangler d1 export`) → импорт в SQLite; фото — копированием из R2.
 5. Резервные копии и мониторинг (раздел 4), затем тестовый запуск на поддомене и только потом переключение.
 
