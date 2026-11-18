@@ -7533,3 +7533,7 @@ a:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible,te
 .profile-data a,.profile-data button{min-height:44px;display:flex;align-items:center;justify-content:center;border-radius:12px;font:inherit;font-weight:700;cursor:pointer}
 .profile-data a{background:#fff;border:1px solid var(--line);color:var(--ink)}
 .profile-delete{background:#fff;border:1px solid #e8b4ae;color:#b42318}
+.request-edit-form{grid-column:1/-1;margin-top:10px}
+.request-edit-hint{grid-column:1/-1;margin:0;font-size:13px;color:var(--muted)}
+.request-edit-actions{display:flex;gap:10px;flex-wrap:wrap}
+.request-edit-actions button{min-height:44px}

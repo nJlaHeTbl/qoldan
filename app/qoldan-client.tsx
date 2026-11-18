@@ -2756,6 +2756,7 @@ export default function QoldanClient({
     'all',
   );
   const [requestOwnerOnly, setRequestOwnerOnly] = useState(false);
+  const [requestEditing, setRequestEditing] = useState(false);
   const [requestContentModeChoice, setRequestContentMode] =
     useState<ContentMode | null>(null);
   const [visibleRequestCount, setVisibleRequestCount] =
@@ -4697,6 +4698,44 @@ export default function QoldanClient({
       notify(
         error instanceof Error ? error.message : 'Не удалось отправить отклик',
       );
+    } finally {
+      setSubmitting(null);
+    }
+  };
+  const saveRequestEdit = async (event: SubmitFormEvent) => {
+    event.preventDefault();
+    if (!selectedRequest) return;
+    const f = new FormData(event.currentTarget);
+    setSubmitting('request-edit');
+    try {
+      const response = await fetch('/api/requests', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          requestId: String(selectedRequest.id),
+          data: {
+            title: fieldText(f, 'title'),
+            place: fieldText(f, 'place'),
+            when: fieldText(f, 'when'),
+            budget: fieldText(f, 'budget'),
+            kind: selectedRequest.kind,
+            region: selectedRequest.region,
+            latitude: selectedRequest.latitude,
+            longitude: selectedRequest.longitude,
+          },
+        }),
+      });
+      if (!response.ok) throw new Error(await apiError(response));
+      const data = (await response.json()) as { request: Partial<RequestItem> };
+      const merged = { ...selectedRequest, ...data.request };
+      setSelectedRequest(merged);
+      setAllRequests((previous) =>
+        previous.map((item) => (item.id === selectedRequest.id ? { ...item, ...data.request } : item)),
+      );
+      setRequestEditing(false);
+      notify('Заявка обновлена');
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Не удалось сохранить заявку');
     } finally {
       setSubmitting(null);
     }
@@ -7515,6 +7554,45 @@ export default function QoldanClient({
                           ? 'Открыть снова'
                           : 'Закрыть заявку'}
                     </button>
+                    {selectedRequest.status !== 'closed' &&
+                      selectedRequest.responses === 0 &&
+                      !requestEditing && (
+                        <button type="button" onClick={() => setRequestEditing(true)}>
+                          Изменить
+                        </button>
+                      )}
+                    {requestEditing && selectedRequest.responses === 0 && (
+                      <form key={String(selectedRequest.id)} className="product-form request-edit-form" onSubmit={saveRequestEdit}>
+                        <p className="request-edit-hint">
+                          Изменить заявку можно, пока на неё никто не откликнулся.
+                        </p>
+                        <label className="wide">
+                          Что нужно
+                          <input name="title" required minLength={4} maxLength={160} defaultValue={selectedRequest.title} />
+                        </label>
+                        <label>
+                          Где
+                          <input name="place" required maxLength={160} defaultValue={selectedRequest.place} />
+                        </label>
+                        <label>
+                          Когда
+                          <input name="when" required maxLength={160} defaultValue={selectedRequest.when} />
+                        </label>
+                        <label className="wide">
+                          Бюджет
+                          <input name="budget" required maxLength={80} defaultValue={selectedRequest.budget} />
+                        </label>
+                        <ConsentNote lang={appLang} />
+                        <button className="submit-button" type="submit" disabled={submitting === 'request-edit'}>
+                          {submitting === 'request-edit' ? 'Сохраняем…' : 'Сохранить'}
+                        </button>
+                        <div className="request-edit-actions wide">
+                          <button type="button" onClick={() => setRequestEditing(false)}>
+                            Отмена
+                          </button>
+                        </div>
+                      </form>
+                    )}
                   </div>
                 ) : isDemoRequest(selectedRequest.id) ||
                   selectedRequest.mine ||

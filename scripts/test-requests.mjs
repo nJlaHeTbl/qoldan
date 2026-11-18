@@ -82,6 +82,22 @@ const winner = sqlite.prepare('SELECT responses.owner_id AS id FROM request_sele
 assert.deepEqual(conversations.map(row => row.participant_id), [winner], 'a lost selection race must not leave a chat with the losing provider');
 await ok(selection.POST(req('/api/responses/selection', 'POST', { requestId: request.id, action: 'cancel' })), 200, 'cancel');
 
+// --- editing a request: only the owner, only while open and before the first response ---
+const editable = (await (await ok(requests.POST(req('/api/requests', 'POST', { ...requestBody, title: 'LOCAL TEST Нужна сеялка' })), 201, 'create editable')).json()).request;
+const edit = (data, who = 'owner', requestId = editable.id) => requests.PATCH(req('/api/requests', 'PATCH', { requestId, data: { ...requestBody, ...data } }, who));
+await ok(edit({ title: 'LOCAL TEST Нужна сеялка на 40 га', budget: 'до 200 000 ₸' }), 200, 'owner edits');
+const editedRow = sqlite.prepare('SELECT title, budget FROM requests WHERE id = ?').get(editable.id);
+assert.deepEqual([editedRow.title, editedRow.budget], ['LOCAL TEST Нужна сеялка на 40 га', 'до 200 000 ₸']);
+await ok(edit({ title: 'LOCAL TEST чужая правка' }, 'stranger'), 404, 'a stranger cannot edit');
+await ok(edit({ title: 'LOCAL TEST гость' }, null), 401, 'a guest cannot edit');
+await ok(edit({ title: 'ab' }), 400, 'validation still applies');
+await ok(responses.POST(req('/api/responses', 'POST', { requestId: editable.id, price: '150000' }, 'provC')), 201, 'first response');
+await ok(edit({ budget: 'до 50 000 ₸' }), 409, 'terms are frozen after the first response');
+assert.equal(sqlite.prepare('SELECT budget FROM requests WHERE id = ?').get(editable.id).budget, 'до 200 000 ₸');
+const closedOne = (await (await ok(requests.POST(req('/api/requests', 'POST', { ...requestBody, title: 'LOCAL TEST Нужен грейдер' })), 201, 'create closable')).json()).request;
+await ok(requestStatus.POST(req('/api/requests/status', 'POST', { requestId: closedOne.id, status: 'closed' })), 200, 'close');
+await ok(edit({ title: 'LOCAL TEST Нужен грейдер срочно' }, 'owner', closedOne.id), 409, 'a closed request cannot be edited');
+
 // --- withdrawing a response ---
 const wreq = (await (await ok(requests.POST(req('/api/requests', 'POST', { ...requestBody, title: 'LOCAL TEST Нужен трактор' })), 201, 'create second request')).json()).request;
 const wresp = async id => (await (await ok(responses.POST(req('/api/responses', 'POST', { requestId: wreq.id, price: '50000' }, id)), 201, 'respond second')).json()).response.id;
