@@ -5,7 +5,7 @@
 предлагают цену). Qoldan не принимает оплату и не берёт комиссию: участники договариваются напрямую.
 
 Подробнее: [PRODUCT_STRUCTURE.md](PRODUCT_STRUCTURE.md) (идея и разделы), [QA_CHECKLIST.md](QA_CHECKLIST.md)
-(что проверено), [docs/LAUNCH.md](docs/LAUNCH.md) (запуск и демонстрация),
+(что проверено), [docs/LAUNCH.md](docs/LAUNCH.md) (запуск и демонстрация), [docs/GROWTH.md](docs/GROWTH.md) (рост и первые пользователи),
 [docs/compliance-audit.md](docs/compliance-audit.md) (правовая часть и аудиты).
 
 ## Стек

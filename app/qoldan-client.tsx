@@ -2710,8 +2710,9 @@ export default function QoldanClient({
   const [maxDistance, setMaxDistance] = useState(100);
   const [favoriteOnly, setFavoriteOnly] = useState(false);
   const [myOnly, setMyOnly] = useState(false);
-  const [listingContentMode, setListingContentMode] =
-    useState<ContentMode>('all');
+  // null = automatic: real listings only once at least one exists, otherwise everything.
+  const [listingContentModeChoice, setListingContentMode] =
+    useState<ContentMode | null>(null);
   const [selectedRegion, setSelectedRegion] = useState('Весь Казахстан');
   const [settlementFilter, updateSettlementFilter] = useState('');
   const [settlementAliases, setSettlementAliases] = useState<string[]>([]);
@@ -2747,8 +2748,8 @@ export default function QoldanClient({
     'all',
   );
   const [requestOwnerOnly, setRequestOwnerOnly] = useState(false);
-  const [requestContentMode, setRequestContentMode] =
-    useState<ContentMode>('all');
+  const [requestContentModeChoice, setRequestContentMode] =
+    useState<ContentMode | null>(null);
   const [visibleRequestCount, setVisibleRequestCount] =
     useState(REQUESTS_PAGE_SIZE);
   const [requestSeed, setRequestSeed] = useState('');
@@ -2851,6 +2852,10 @@ export default function QoldanClient({
     (request) => !isDemoRequest(request.id),
   ).length;
   const demoRequestCount = allRequests.length - realRequestCount;
+  const listingContentMode: ContentMode =
+    listingContentModeChoice ?? (realListingCount > 0 ? 'real' : 'all');
+  const requestContentMode: ContentMode =
+    requestContentModeChoice ?? (realRequestCount > 0 ? 'real' : 'all');
   const recentItems = useMemo<RecentItem[]>(
     () =>
       recentViews.reduce<RecentItem[]>((items, view) => {
@@ -2885,7 +2890,7 @@ export default function QoldanClient({
     deliveryOnly,
     companyOnly,
     myOnly,
-    listingContentMode !== 'all',
+    listingContentModeChoice !== null && listingContentModeChoice !== 'all',
     livestockTypeFilter !== 'Все виды',
     livestockPriceModeFilter !== 'all',
     livestockQuantityGroup !== 'all',
@@ -5807,7 +5812,7 @@ export default function QoldanClient({
                   setDeliveryOnly(false);
                   setCompanyOnly(false);
                   setMyOnly(false);
-                  setListingContentMode('all');
+                  setListingContentMode(null);
                   setListingSort('recommended');
                   resetLivestockFilters();
                   setUserCoords(null);
@@ -6029,11 +6034,14 @@ export default function QoldanClient({
                   setDeliveryOnly(false);
                   setCompanyOnly(false);
                   setSelectedRegion('Весь Казахстан');
-                  setListingContentMode('all');
+                  setListingContentMode(null);
                   setListingSort('recommended');
                 }}
               >
                 Сбросить фильтры
+              </button>
+              <button type="button" onClick={() => openRequestForm(query)}>
+                Не нашли? Создайте заявку
               </button>
             </div>
           )}
@@ -7097,6 +7105,18 @@ export default function QoldanClient({
                   >
                     <Share2 /> {internal.requestDetail.share}
                   </button>
+                )}
+                {!isDemoRequest(selectedRequest.id) && (
+                  <a
+                    className="request-share-button"
+                    target="_blank"
+                    rel="noreferrer"
+                    href={`https://wa.me/?text=${encodeURIComponent(
+                      `${selectedRequest.title} — заявка Qoldan. ${selectedRequest.place} · ${selectedRequest.when} · ${selectedRequest.budget}. ${typeof window === 'undefined' ? '' : new URL(`/request/${encodeURIComponent(String(selectedRequest.id))}`, window.location.origin).toString()}`,
+                    )}`}
+                  >
+                    <MessageCircle /> Отправить в WhatsApp
+                  </a>
                 )}
                 {hasExactCoordinates(selectedRequest) && <a className="request-map-link" target="_blank" rel="noreferrer"
                   href={`https://www.openstreetmap.org/?mlat=${selectedRequest.latitude}&mlon=${selectedRequest.longitude}#map=15/${selectedRequest.latitude}/${selectedRequest.longitude}`}>
