@@ -30,7 +30,7 @@ type AppealRow = {
 };
 
 export async function PATCH(request: Request) {
-  const viewer = getViewer(request);
+  const viewer = await getViewer(request);
   if (!viewer) return unauthorized();
   if (!canModerate(viewer)) return forbidden();
   try {

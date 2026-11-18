@@ -68,7 +68,7 @@ function hasValidImageSignature(type: string, bytes: Uint8Array) {
 }
 
 export async function POST(request: Request) {
-  const viewer = getViewer(request);
+  const viewer = await getViewer(request);
   if (!viewer) return unauthorized();
   try {
     const contentLength = Number(request.headers.get('content-length') || 0);
@@ -159,7 +159,7 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const viewer = getViewer(request);
+  const viewer = await getViewer(request);
   if (!viewer) return unauthorized();
   try {
     const body = (await request.json()) as { url?: unknown };

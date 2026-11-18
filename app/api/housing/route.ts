@@ -19,7 +19,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const parsed = filters.safeParse({ ...Object.fromEntries(url.searchParams), place: url.searchParams.getAll('place') });
   if (!parsed.success) return Response.json({ error: 'Проверьте параметры поиска жилья' }, { status: 400 });
-  const f = parsed.data, viewer = getViewer(request);
+  const f = parsed.data, viewer = await getViewer(request);
   if (f.view !== 'all' && !viewer) return unauthorized();
   try {
     const conditions = ["l.category IN ('Посуточные квартиры', 'Гостиницы')"];
@@ -64,7 +64,7 @@ const editInput = z.object({
 });
 
 export async function PATCH(request: Request) {
-  const viewer = getViewer(request);
+  const viewer = await getViewer(request);
   if (!viewer) return unauthorized();
   try {
     const { listingId, expectedUpdatedAt, data } = await parseJson(request, editInput);

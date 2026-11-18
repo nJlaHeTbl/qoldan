@@ -39,7 +39,7 @@ async function findConversation(id: string, viewerId: string) {
 }
 
 export async function GET(request: Request, context: RouteContext) {
-  const viewer = getViewer(request);
+  const viewer = await getViewer(request);
   if (!viewer) return unauthorized();
   try {
     const { id } = await context.params;
@@ -104,7 +104,7 @@ export async function GET(request: Request, context: RouteContext) {
 }
 
 export async function POST(request: Request, context: RouteContext) {
-  const viewer = getViewer(request);
+  const viewer = await getViewer(request);
   if (!viewer) return unauthorized();
   try {
     const input = await parseJson(request, messageInput);

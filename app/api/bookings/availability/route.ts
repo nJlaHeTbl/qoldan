@@ -10,7 +10,7 @@ import {
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-  const viewer = getViewer(request);
+  const viewer = await getViewer(request);
   if (!viewer) return unauthorized();
   try {
     const listingId = new URL(request.url).searchParams.get('listingId') || '';

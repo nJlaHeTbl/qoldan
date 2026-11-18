@@ -44,7 +44,8 @@ function decodeDisplayName(request: Request) {
   }
 }
 
-export function getViewer(request: Request): Viewer | null {
+// Async on purpose: on our own hosting the viewer comes from a session stored in the database.
+export async function getViewer(request: Request): Promise<Viewer | null> {
   const id = request.headers.get('oai-authenticated-user-id');
   const email = request.headers.get('oai-authenticated-user-email');
   if (id && email) {

@@ -19,7 +19,7 @@ const input = z
 
 // Right to erasure: deletes the account and everything the user published or wrote.
 export async function DELETE(request: Request) {
-  const viewer = getViewer(request);
+  const viewer = await getViewer(request);
   if (!viewer) return unauthorized();
   try {
     await parseJson(request, input);

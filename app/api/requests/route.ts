@@ -15,7 +15,7 @@ import {
 } from '@/lib/server/marketplace-schemas';
 
 export async function POST(request: Request) {
-  const viewer = getViewer(request);
+  const viewer = await getViewer(request);
   if (!viewer) return unauthorized();
   try {
     const input = await parseJson(request, requestInput);
@@ -98,7 +98,7 @@ const editInput = z.object({
 // the original terms, so changing them would mislead. The guard lives in the UPDATE itself, so a
 // response that lands at the same moment wins and the edit is refused.
 export async function PATCH(request: Request) {
-  const viewer = getViewer(request);
+  const viewer = await getViewer(request);
   if (!viewer) return unauthorized();
   try {
     const { requestId, data } = await parseJson(request, editInput);

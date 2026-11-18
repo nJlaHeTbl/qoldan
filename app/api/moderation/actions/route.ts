@@ -25,7 +25,7 @@ type TargetRow = {
 };
 
 export async function POST(request: Request) {
-  const viewer = getViewer(request);
+  const viewer = await getViewer(request);
   if (!viewer) return unauthorized();
   if (!canModerate(viewer)) return forbidden();
   try {

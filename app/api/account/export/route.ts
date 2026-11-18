@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 
 // Right of access: the signed-in user downloads everything Qoldan stores about them as JSON.
 export async function GET(request: Request) {
-  const viewer = getViewer(request);
+  const viewer = await getViewer(request);
   if (!viewer) return unauthorized();
   try {
     await ensureMarketplaceSchema();

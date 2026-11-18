@@ -60,7 +60,7 @@ const selectTickets = `SELECT support_tickets.id, support_tickets.owner_id,
   LEFT JOIN users reviewers ON reviewers.id = support_tickets.reviewed_by`;
 
 export async function GET(request: Request) {
-  const viewer = getViewer(request);
+  const viewer = await getViewer(request);
   if (!viewer) {
     return Response.json({ tickets: [], queue: [], canModerate: false });
   }
@@ -104,7 +104,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const viewer = getViewer(request);
+  const viewer = await getViewer(request);
   if (!viewer) return unauthorized();
   try {
     const input = await parseJson(request, supportTicketInput);
@@ -193,7 +193,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const viewer = getViewer(request);
+  const viewer = await getViewer(request);
   if (!viewer) return unauthorized();
   if (!canModerate(viewer)) return forbidden();
   try {

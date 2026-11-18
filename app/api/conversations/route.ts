@@ -42,7 +42,7 @@ function mapConversation(row: ConversationRow) {
 }
 
 export async function GET(request: Request) {
-  const viewer = getViewer(request);
+  const viewer = await getViewer(request);
   if (!viewer) return unauthorized();
   try {
     await ensureMarketplaceSchema();
@@ -100,7 +100,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const viewer = getViewer(request);
+  const viewer = await getViewer(request);
   if (!viewer) return unauthorized();
   try {
     const input = await parseJson(request, conversationInput);

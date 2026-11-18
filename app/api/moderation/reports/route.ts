@@ -80,15 +80,15 @@ type BusinessVerificationRow = {
   reviewer_name: string | null;
 };
 
-function getModerator(request: Request) {
-  const viewer = getViewer(request);
+async function getModerator(request: Request) {
+  const viewer = await getViewer(request);
   if (!viewer) return { viewer: null, response: unauthorized() };
   if (!canModerate(viewer)) return { viewer: null, response: forbidden() };
   return { viewer, response: null };
 }
 
 export async function GET(request: Request) {
-  const moderator = getModerator(request);
+  const moderator = await getModerator(request);
   if (!moderator.viewer) return moderator.response;
   try {
     await ensureMarketplaceSchema();
@@ -262,7 +262,7 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const moderator = getModerator(request);
+  const moderator = await getModerator(request);
   if (!moderator.viewer) return moderator.response;
   try {
     const input = await parseJson(request, moderationReportInput);

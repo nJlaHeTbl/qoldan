@@ -21,7 +21,7 @@ type ProviderRow = {
 };
 
 export async function GET(request: Request, context: RouteContext) {
-  const authenticatedViewer = getViewer(request);
+  const authenticatedViewer = await getViewer(request);
   const viewer = authenticatedViewer || {
     id: '__qoldan_public_guest__',
     email: '',

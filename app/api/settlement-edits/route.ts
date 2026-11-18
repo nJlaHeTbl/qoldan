@@ -14,7 +14,7 @@ const inputSchema = z.object({
 });
 
 export async function GET(request:Request) {
-  const viewer=getViewer(request);
+  const viewer=await getViewer(request);
   if(!viewer) return unauthorized();
   try {
     const admin=canModerate(viewer);
@@ -29,7 +29,7 @@ export async function GET(request:Request) {
 }
 
 export async function POST(request:Request) {
-  const viewer=getViewer(request);
+  const viewer=await getViewer(request);
   if(!viewer) return unauthorized();
   try {
     const parsed=inputSchema.safeParse(await request.json());
@@ -52,7 +52,7 @@ export async function POST(request:Request) {
 }
 
 export async function PATCH(request:Request) {
-  const viewer=getViewer(request);
+  const viewer=await getViewer(request);
   if(!viewer) return unauthorized();
   if(!canModerate(viewer)) return forbidden();
   try {

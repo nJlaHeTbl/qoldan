@@ -13,7 +13,7 @@ const input = z.object({ auctionId: z.uuid() }).strict();
 // A seller may withdraw an auction only while nobody has bid. After the first bid the terms are
 // locked (also enforced by database triggers), so a seller cannot back out of a running auction.
 export async function POST(request: Request) {
-  const viewer = getViewer(request);
+  const viewer = await getViewer(request);
   if (!viewer) return unauthorized();
   try {
     const { auctionId } = await parseJson(request, input);
