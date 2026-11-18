@@ -4701,6 +4701,31 @@ export default function QoldanClient({
       setSubmitting(null);
     }
   };
+  const deleteMyAccount = async () => {
+    const typed = window.prompt(
+      'Аккаунт, объявления, заявки, отклики, сообщения и фото будут удалены без возможности восстановления. Чтобы подтвердить, введите УДАЛИТЬ',
+    );
+    if (typed === null) return;
+    if (typed.trim() !== 'УДАЛИТЬ') {
+      notify('Аккаунт не удалён: нужно ввести слово УДАЛИТЬ');
+      return;
+    }
+    setSubmitting('account-delete');
+    try {
+      const response = await fetch('/api/account', {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ confirm: 'УДАЛИТЬ' }),
+      });
+      if (!response.ok) throw new Error(await apiError(response));
+      notify('Аккаунт и данные удалены');
+      window.setTimeout(() => window.location.assign(signOutPath), 1200);
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Не удалось удалить аккаунт');
+    } finally {
+      setSubmitting(null);
+    }
+  };
   const withdrawResponse = async (responseId: string) => {
     if (!selectedRequest) return;
     if (!window.confirm('Снять ваш отклик с заявки?')) return;
@@ -8763,6 +8788,24 @@ export default function QoldanClient({
                   >
                     <UserRound /> {auth.signOut}
                   </a>
+                  <div className="profile-data">
+                    <b>Мои данные</b>
+                    <p>
+                      Скачайте всё, что Qoldan хранит о вас, или удалите аккаунт вместе с объявлениями,
+                      заявками, откликами и сообщениями.
+                    </p>
+                    <a href="/api/account/export" download>
+                      Скачать мои данные
+                    </a>
+                    <button
+                      type="button"
+                      className="profile-delete"
+                      disabled={submitting === 'account-delete'}
+                      onClick={() => void deleteMyAccount()}
+                    >
+                      {submitting === 'account-delete' ? 'Удаляем…' : 'Удалить аккаунт'}
+                    </button>
+                  </div>
                 </div>
               </>
             )}

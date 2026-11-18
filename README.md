@@ -32,6 +32,7 @@ node --experimental-strip-types scripts/test-housing.mjs           # жильё,
 node --experimental-strip-types scripts/test-request-selection.mjs
 node --experimental-strip-types scripts/test-response-creation.mjs
 node --experimental-strip-types scripts/test-auctions.mjs          # онлайн-торги: ставки, гонки, триггеры
+node --experimental-strip-types scripts/test-account.mjs           # экспорт и удаление аккаунта
 node --experimental-strip-types scripts/test-legal.mjs             # политика данных и согласия
 node --experimental-strip-types scripts/test-settlement-editor.mjs # нужен запущенный dev-сервер
 node node_modules/typescript/bin/tsc --noEmit
