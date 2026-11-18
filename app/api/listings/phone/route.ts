@@ -76,46 +76,57 @@ export async function POST(request: Request) {
       .first<{ found: number }>();
     if (!already) {
       const now = Date.now();
-      const hourly = await db
+      // Check and write in ONE statement so parallel requests cannot slip past the limits.
+      const written = await db
         .prepare(
-          `SELECT created_at FROM phone_reveals
-           WHERE viewer_id = ? AND created_at >= ?
-           ORDER BY created_at DESC LIMIT 1 OFFSET ?`,
+          `INSERT OR IGNORE INTO phone_reveals (id, listing_id, viewer_id, created_at)
+           SELECT ?, ?, ?, ?
+           WHERE (SELECT COUNT(*) FROM phone_reveals WHERE viewer_id = ? AND created_at >= ?) < ?
+             AND (SELECT COUNT(*) FROM phone_reveals WHERE viewer_id = ? AND created_at >= ?) < ?`,
         )
-        .bind(viewer.id, now - HOUR_MS, HOURLY_LIMIT - 1)
-        .first<{ created_at: number }>();
-      const daily = hourly
-        ? null
-        : await db
+        .bind(
+          crypto.randomUUID(),
+          listingId,
+          viewer.id,
+          now,
+          viewer.id,
+          now - HOUR_MS,
+          HOURLY_LIMIT,
+          viewer.id,
+          now - DAY_MS,
+          DAILY_LIMIT,
+        )
+        .run();
+      if (!written.meta.changes) {
+        // Either a parallel request already revealed this number (fine), or a limit was hit.
+        const raced = await db
+          .prepare(
+            `SELECT 1 AS found FROM phone_reveals WHERE listing_id = ? AND viewer_id = ?`,
+          )
+          .bind(listingId, viewer.id)
+          .first<{ found: number }>();
+        if (!raced) {
+          const oldest = await db
             .prepare(
               `SELECT created_at FROM phone_reveals
                WHERE viewer_id = ? AND created_at >= ?
-               ORDER BY created_at DESC LIMIT 1 OFFSET ?`,
+               ORDER BY created_at ASC LIMIT 1`,
             )
-            .bind(viewer.id, now - DAY_MS, DAILY_LIMIT - 1)
+            .bind(viewer.id, now - HOUR_MS)
             .first<{ created_at: number }>();
-      const blocked = hourly
-        ? { at: hourly.created_at, window: HOUR_MS }
-        : daily
-          ? { at: daily.created_at, window: DAY_MS }
-          : null;
-      if (blocked) {
-        // Suspicious pattern (scraping): leave a trace for moderators in the logs.
-        console.warn(
-          JSON.stringify({ event: 'phone_reveal_rate_limited', viewerId: viewer.id }),
-        );
-        return limited(
-          'Слишком много запросов номеров. Попробуйте позже или напишите владельцам в чате.',
-          Math.max(1, Math.ceil((blocked.at + blocked.window - now) / 1000)),
-        );
+          // Suspicious pattern (scraping): leave a trace for moderators in the logs.
+          console.warn(
+            JSON.stringify({ event: 'phone_reveal_rate_limited', viewerId: viewer.id }),
+          );
+          return limited(
+            'Слишком много запросов номеров. Попробуйте позже или напишите владельцам в чате.',
+            Math.max(
+              1,
+              Math.ceil(((oldest?.created_at ?? now) + HOUR_MS - now) / 1000),
+            ),
+          );
+        }
       }
-      await db
-        .prepare(
-          `INSERT OR IGNORE INTO phone_reveals (id, listing_id, viewer_id, created_at)
-           VALUES (?, ?, ?, ?)`,
-        )
-        .bind(crypto.randomUUID(), listingId, viewer.id, now)
-        .run();
     }
     return Response.json(
       { phone: listing.phone },

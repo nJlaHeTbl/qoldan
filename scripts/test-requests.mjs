@@ -151,6 +151,8 @@ for (let i = 0; i < 20; i++) { const copy = { ...baseListing, id: crypto.randomU
 const extra = sqlite.prepare("SELECT id FROM listings WHERE id != ? AND owner_id = 'seller' LIMIT 20").all(listing.id).map(row => row.id);
 const outcomes = []; for (const id of extra) outcomes.push((await reveal('scraper', id)).status);
 assert.deepEqual([outcomes.filter(code => code === 200).length, outcomes.filter(code => code === 429).length], [15, 5], 'scraping is cut off after 15 new numbers per hour: ' + outcomes);
+const parallel = await Promise.all(extra.map(id => reveal('scraper2', id)));
+assert.deepEqual([parallel.filter(r => r.status === 200).length, parallel.filter(r => r.status === 429).length], [15, 5], 'parallel requests must not slip past the hourly limit');
 
 // --- local-admin shortcut must not be reachable by a spoofed id on a real host ---
 await ok(moderate('request', request.id, 'warn', 'local-qoldan-user'), 403, 'spoofed local id on a public host');
