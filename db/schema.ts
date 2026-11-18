@@ -103,6 +103,8 @@ export const listings = sqliteTable(
     livestockQuantity: integer('livestock_quantity'),
     livestockPriceMode: text('livestock_price_mode'),
     livestockBreed: text('livestock_breed'),
+    // Category-specific characteristics as validated JSON (see lib/listing-attributes.ts).
+    attributes: text('attributes').notNull().default('{}'),
     status: text('status').notNull().default('active'),
     createdAt: integer('created_at').notNull(),
     updatedAt: integer('updated_at').notNull(),

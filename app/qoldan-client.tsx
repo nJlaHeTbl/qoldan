@@ -12,6 +12,8 @@ import {
 import { type DateRange } from 'react-day-picker';
 import RevealPhone from '@/components/RevealPhone';
 import AuctionFields from '@/components/AuctionFields';
+import CategoryFields, { readCategoryFields } from '@/components/CategoryFields';
+import { describeAttributes, type ListingAttributes } from '@/lib/listing-attributes';
 import AuctionPanel from '@/components/AuctionPanel';
 import MyAuctions from '@/components/MyAuctions';
 import type { AuctionSummary } from '@/lib/auction';
@@ -110,6 +112,7 @@ type Listing = {
   phone?: string;
   hasPhone?: boolean;
   auction?: AuctionSummary;
+  attributes?: ListingAttributes;
   available?: string;
   deposit?: string;
   sellerType?: 'Частное лицо' | 'Компания' | 'Магазин';
@@ -4567,6 +4570,7 @@ export default function QoldanClient({
           ),
           sellerType: fieldText(f, 'sellerType'),
           delivery: f.get('delivery') === 'on',
+          attributes: listingFlow === 'standard' ? readCategoryFields(f) : undefined,
           auction:
             f.get('saleMode') === 'auction'
               ? {
@@ -7024,6 +7028,7 @@ export default function QoldanClient({
                       </select>
                     </label>
                   )}
+                  {listingFlow === 'standard' && <CategoryFields />}
                   {listingFlow === 'standard' && <AuctionFields />}
                   <LocationFields fieldName="location"
                     initialRegion={listingDraft?.fields.region || (selectedRegion === 'Весь Казахстан' ? 'Область Жетісу' : selectedRegion)}
@@ -7763,6 +7768,11 @@ export default function QoldanClient({
                       <Clock3 />
                       {selectedListing.available || internal.detail.negotiable}
                     </span>
+                    {describeAttributes(selectedListing.attributes ?? {}).map((fact) => (
+                      <span key={fact}>
+                        <CheckCircle2 /> {fact}
+                      </span>
+                    ))}
                     {selectedListing.deposit && (
                       <span>
                         <CheckCircle2 />

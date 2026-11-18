@@ -1,0 +1,1 @@
+ALTER TABLE `listings` ADD `attributes` text DEFAULT '{}' NOT NULL;

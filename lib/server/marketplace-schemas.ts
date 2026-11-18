@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { isHousingCategory } from '@/lib/housing';
 import { AUCTION_MAX_AMOUNT, isAuctionCategory } from '@/lib/auction';
+import { attributeGroup, attributeSchemas } from '@/lib/listing-attributes';
 
 import {
   KAZAKHSTAN_MARKET_REGIONS,
@@ -88,6 +89,8 @@ export const listingInput = z
       photos: z.array(z.string().regex(/^\/api\/media\/[0-9a-f-]{36}\.(jpg|png|webp)$/i)).min(1).max(5)
         .refine(photos => new Set(photos).size === photos.length, 'Уберите повторяющиеся фотографии').optional(),
     }).optional(),
+    // Category-specific characteristics; validated per group below and cleaned before storage.
+    attributes: z.record(z.string(), z.unknown()).optional(),
     // Optional online auction instead of a fixed price (no money moves through Qoldan).
     auction: z
       .object({
@@ -114,6 +117,13 @@ export const listingInput = z
       if (data.type !== 'Сдам' || data.unit !== '/ сутки') context.addIssue({ code: 'custom', path: ['type'], message: 'Жильё публикуется в аренду с ценой за сутки' });
       if (!/^[1-9]\d{0,6}$/.test(data.price)) context.addIssue({ code: 'custom', path: ['price'], message: 'Укажите цену от 1 до 9 999 999 тенге за сутки' });
     } else if (data.housing) context.addIssue({ code: 'custom', path: ['category'], message: 'Характеристики жилья доступны только в разделе жилья' });
+    if (data.attributes) {
+      const group = attributeGroup(data.category, data.type);
+      if (group) {
+        const check = attributeSchemas[group].safeParse(data.attributes);
+        if (!check.success) context.addIssue({ code: 'custom', path: ['attributes'], message: 'Проверьте характеристики: ' + (check.error.issues[0]?.message ?? 'неверное значение') });
+      }
+    }
     if (data.auction) {
       if (!isAuctionCategory(data.category) || data.type !== 'Продам') context.addIssue({ code: 'custom', path: ['auction'], message: 'Торги доступны для продажи техники, инструмента, оборудования и стройматериалов' });
       if (data.price.replace(/\D/g, '') !== String(data.auction.startPrice)) context.addIssue({ code: 'custom', path: ['price'], message: 'Цена объявления должна совпадать со стартовой ценой торгов' });

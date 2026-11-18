@@ -169,6 +169,13 @@
       "when": 1794996119951,
       "tag": "0023_bright_puff_adder",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1795016406182,
+      "tag": "0024_perfect_thing",
+      "breakpoints": true
     }
   ]
 }

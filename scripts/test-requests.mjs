@@ -170,6 +170,19 @@ assert.deepEqual([outcomes.filter(code => code === 200).length, outcomes.filter(
 const parallel = await Promise.all(extra.map(id => reveal('scraper2', id)));
 assert.deepEqual([parallel.filter(r => r.status === 200).length, parallel.filter(r => r.status === 429).length], [15, 5], 'parallel requests must not slip past the hourly limit');
 
+// --- category-specific characteristics ---
+const attrUpload = async who => (await (await ok(uploads.POST(req('/api/uploads', 'POST', png, who)), 201, 'upload')).json()).url;
+const machine = { title: 'LOCAL TEST Вспашка МТЗ-82', category: 'Сельхозуслуги', price: '9000', unit: '/ га', type: 'Окажу услугу', region: 'Область Жетісу', location: 'Коксу', description: 'Тестовое описание без настоящего объекта.', phone: '+70000000002', sellerType: 'Частное лицо' };
+const created = (await (await ok(listings.POST(req('/api/listings', 'POST', { ...machine, imageUrl: await attrUpload('farmer'), attributes: { withOperator: true, rate: 'га', serviceArea: 'Коксуский район', travel: true, quantity: 5, junk: 'x' } }, 'farmer')), 201, 'machinery with attributes')).json()).listing;
+assert.deepEqual(JSON.parse(sqlite.prepare('SELECT attributes FROM listings WHERE id = ?').get(created.id).attributes), { withOperator: true, rate: 'га', serviceArea: 'Коксуский район', travel: true }, 'only the machinery fields are kept');
+const seenAttrs = (await (await ok(bootstrap.GET(req('/api/bootstrap', 'GET', undefined, null)), 200, 'bootstrap attrs')).json()).listings.find(item => item.id === created.id).attributes;
+assert.equal(seenAttrs.rate, 'га');
+await ok(listings.POST(req('/api/listings', 'POST', { ...machine, imageUrl: await attrUpload('farmer'), attributes: { rate: 'неделя' } }, 'farmer')), 400, 'a rate outside the machinery list is refused');
+const bricks = (await (await ok(listings.POST(req('/api/listings', 'POST', { ...machine, title: 'LOCAL TEST Кирпич остатки', category: 'Остатки партий', type: 'Продам', unit: '/ шт.', imageUrl: await attrUpload('builder'), attributes: { quantity: 1200, unit: 'шт', condition: 'остатки', partialSale: true, withOperator: true } }, 'builder')), 201, 'materials')).json()).listing;
+assert.deepEqual(JSON.parse(sqlite.prepare('SELECT attributes FROM listings WHERE id = ?').get(bricks.id).attributes), { quantity: 1200, unit: 'шт', condition: 'остатки', partialSale: true });
+const plainSale = (await (await ok(listings.POST(req('/api/listings', 'POST', { ...machine, title: 'LOCAL TEST Ноутбук', category: 'Электроника', type: 'Продам', unit: '/ шт.', imageUrl: await attrUpload('builder'), attributes: { deposit: 5000 } }, 'builder')), 201, 'no group')).json()).listing;
+assert.equal(sqlite.prepare('SELECT attributes FROM listings WHERE id = ?').get(plainSale.id).attributes, '{}', 'a category without characteristics stores nothing');
+
 // --- retention: "show phone" records older than 12 months are purged ---
 const retention = compile('lib/server/retention.ts');
 sqlite.prepare("INSERT OR IGNORE INTO users (id, email, display_name, created_at, updated_at) VALUES ('oldviewer', 'old@qoldan.test', 'Old', 1, 1)").run();

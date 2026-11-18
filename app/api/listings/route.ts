@@ -14,6 +14,7 @@ import {
 } from '@/lib/server/marketplace-schemas';
 import { normalizeHousingSearch } from '@/lib/housing';
 import { AUCTION_MAX_ACTIVE_PER_SELLER } from '@/lib/auction';
+import { cleanAttributes } from '@/lib/listing-attributes';
 import { photoClaimGuardSql, photoReferenceSql, validateHousingPhotos } from '@/lib/server/housing-photos';
 import { deleteUnusedUpload } from '@/lib/server/upload-cleanup';
 
@@ -108,8 +109,8 @@ export async function POST(request: Request) {
          (id, owner_id, title, price, unit, location, region, category,
           offer_type, image_url, phone, show_phone, available, description, seller_type,
           delivery, livestock_type, livestock_quantity, livestock_price_mode,
-          livestock_breed, status, created_at, updated_at)
-         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?
+          livestock_breed, attributes, status, created_at, updated_at)
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?
          WHERE ${photoClaimGuardSql("''")}`,
       )
       .bind(
@@ -133,6 +134,7 @@ export async function POST(request: Request) {
         input.livestockQuantity || null,
         input.livestockPriceMode || null,
         input.livestockBreed || null,
+        JSON.stringify(cleanAttributes(input.category, input.type, input.attributes)),
         now,
         now,
         JSON.stringify(claimedPhotos),

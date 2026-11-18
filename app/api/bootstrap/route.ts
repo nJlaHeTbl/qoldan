@@ -11,6 +11,7 @@ import {
   savedSearchSelect,
   type SavedSearchRow,
 } from '@/lib/server/saved-searches';
+import { readAttributes } from '@/lib/listing-attributes';
 import {
   AUCTION_COLUMNS,
   settleDueAuctions,
@@ -162,7 +163,7 @@ export async function GET(request: Request) {
         .prepare(
           `SELECT listings.id, listings.title, listings.price, listings.unit,
                           listings.location, listings.region, listings.category,
-                          listings.offer_type, listings.image_url, listings.phone, listings.show_phone,
+                          listings.offer_type, listings.image_url, listings.phone, listings.show_phone, listings.attributes,
                           listings.available, listings.description,
                           listings.seller_type, listings.delivery, listings.owner_id,
                           listings.livestock_type, listings.livestock_quantity,
@@ -760,6 +761,7 @@ export async function GET(request: Request) {
         phone: row.owner_id === viewer.id ? row.phone : undefined,
         hasPhone: Boolean(row.show_phone) && Boolean(row.phone),
         auction: auctionByListing.get(String(row.id)),
+        attributes: readAttributes(row.attributes),
         available: row.available || undefined,
         description: row.description || undefined,
         sellerType: row.seller_type,

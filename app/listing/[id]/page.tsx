@@ -18,6 +18,7 @@ import { isHousingCategory, getHousingPhotos } from '@/lib/housing';
 import { HousingGallery } from '@/components/HousingGallery';
 import RevealPhone from '@/components/RevealPhone';
 import AuctionPanel from '@/components/AuctionPanel';
+import { describeAttributes, readAttributes } from '@/lib/listing-attributes';
 import { chatGPTSignInPath } from '../../chatgpt-auth';
 
 const SITE_ORIGIN = 'https://qoldan-zhetisu.nuc9i218.chatgpt.site';
@@ -33,6 +34,7 @@ type ListingDetailRow = {
   offer_type: 'Продам' | 'Сдам' | 'Окажу услугу';
   image_url: string;
   show_phone: number;
+  attributes: string | null;
   has_phone: number;
   available: string | null;
   description: string | null;
@@ -60,7 +62,7 @@ const getListing = cache(async (id: string) => {
               listings.location, listings.region, listings.category,
               listings.offer_type, listings.image_url, listings.show_phone,
               (listings.phone != '') AS has_phone,
-              listings.available, listings.description, listings.seller_type,
+              listings.available, listings.description, listings.seller_type, listings.attributes,
               listings.delivery, listings.created_at,
               users.display_name AS owner_name,
               verified_business.id AS verified_business_id,
@@ -205,6 +207,11 @@ export default async function ListingPage({ params }: ListingPageProps) {
                   <Construction /> Доставка или выезд доступны
                 </span>
               )}
+              {describeAttributes(readAttributes(listing.attributes)).map((fact) => (
+                <span key={fact}>
+                  <CheckCircle2 /> {fact}
+                </span>
+              ))}
             </div>
             <div className="listing-page-owner">
               <span>{listing.owner_name.slice(0, 2).toUpperCase()}</span>
