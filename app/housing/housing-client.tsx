@@ -12,6 +12,7 @@ import { MarketplaceMap } from '@/components/MarketplaceMap';
 
 type Filters = { region: string; kind: string; q: string; place: string[]; guests: string; maxPrice: string; view: string };
 type Photo = { id: string; preview: string; file?: File; url?: string };
+const FILTERS_KEY = 'qoldan-housing-filters-v1';
 const initialFilters: Filters = { region: 'Весь Казахстан', kind: 'all', q: '', place: [], guests: '0', maxPrice: '0', view: 'all' };
 async function api(url: string, body: unknown, method = 'POST') {
   const response = await fetch(url, { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
@@ -80,6 +81,26 @@ export default function HousingClient({ signedIn, signInPath }: { signedIn: bool
     return () => window.removeEventListener('beforeunload', warn);
   }, [showForm]);
   useEffect(() => () => { objectUrls.current.forEach(url => URL.revokeObjectURL(url)); }, []);
+  // Keep filters and page for this tab, so coming back from a listing page does not reset the search.
+  const restored = useRef(false);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        const saved = JSON.parse(window.sessionStorage.getItem(FILTERS_KEY) || 'null') as { filters?: Filters; page?: number } | null;
+        if (saved?.filters && typeof saved.filters.region === 'string' && Array.isArray(saved.filters.place)) {
+          const next = { ...initialFilters, ...saved.filters };
+          setFilters(next); setDraft(next); setPlaceText(next.place.join(', '));
+          if (typeof saved.page === 'number' && saved.page >= 1) setPage(Math.floor(saved.page));
+        }
+      } catch { /* Private mode or damaged value: start with default filters. */ }
+      restored.current = true;
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
+  useEffect(() => {
+    if (!restored.current) return;
+    try { window.sessionStorage.setItem(FILTERS_KEY, JSON.stringify({ filters, page })); } catch { /* Not saved, nothing breaks. */ }
+  }, [filters, page]);
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true); setError('');
