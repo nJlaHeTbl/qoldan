@@ -189,6 +189,11 @@ assert.ok(!xml.includes('/listing/' + listing.id), 'a hidden listing disappears 
 assert.ok(!xml.includes('+7') && !xml.includes('@qoldan.test'), 'no personal data in the sitemap');
 sqlite.prepare("UPDATE listings SET status = 'active' WHERE id = ?").run(listing.id);
 
+// --- health check ---
+const health = compile('app/api/health/route.ts');
+const healthBody = await (await ok(health.GET(), 200, 'health')).json();
+assert.equal(healthBody.status, 'ok');
+
 // --- local-admin shortcut must not be reachable by a spoofed id on a real host ---
 await ok(moderate('request', request.id, 'warn', 'local-qoldan-user'), 403, 'spoofed local id on a public host');
 await ok(moderate('request', request.id, 'warn', 'local-qoldan-user', 'http://localhost:3000'), 201, 'local dev moderator on localhost');

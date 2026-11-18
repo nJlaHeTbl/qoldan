@@ -81,6 +81,15 @@ try {
     assert.match(await response.text(), /не найдена/);
   });
 
+  await check('health check reports ok without data', async () => {
+    const response = await get('/api/health');
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.status, 'ok');
+    assert.equal(body.db, 'ok');
+    assert.deepEqual(Object.keys(body).sort(), ['db', 'ms', 'status']);
+  });
+
   await check('robots.txt and live sitemap', async () => {
     assert.match(await (await get('/robots.txt')).text(), /Sitemap:/);
     const sitemap = await get('/sitemap.xml');
