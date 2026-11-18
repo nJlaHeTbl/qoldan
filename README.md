@@ -32,6 +32,7 @@ node node_modules/vinext/dist/cli.js dev --port 3000
 
 ```bash
 node scripts/check.mjs            # добавьте --no-build, чтобы пропустить сборку
+node scripts/e2e-smoke.mjs        # сквозная проверка на живом локальном сервере (сам поднимает и гасит)
 ```
 
 По отдельности:
