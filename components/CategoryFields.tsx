@@ -10,10 +10,12 @@ import {
   type AttributeGroup,
   type ListingAttributes,
 } from '@/lib/listing-attributes';
+import { copyFor, valueLabel, type Lang } from '@/lib/ui-copy';
 
 // Extra characteristics that depend on the chosen category and deal type. Watches the form's
 // "category" and "type" fields; inputs are named attr_* and collected by readCategoryFields().
-export default function CategoryFields() {
+export default function CategoryFields({ lang = 'ru' }: { lang?: Lang }) {
+  const c = copyFor(lang).attrs;
   const anchor = useRef<HTMLFieldSetElement>(null);
   const [group, setGroup] = useState<AttributeGroup | null>(null);
 
@@ -34,82 +36,82 @@ export default function CategoryFields() {
     <fieldset ref={anchor} className="category-fields wide" style={group ? undefined : { display: 'none' }}>
       {group === 'machinery' && (
         <>
-          <legend>Условия работы техники</legend>
+          <legend>{c.machinery}</legend>
           <label>
-            Оператор
+            {c.operator}
             <select name="attr_withOperator" defaultValue="">
-              <option value="">Не указано</option>
-              <option value="yes">С оператором</option>
-              <option value="no">Без оператора</option>
+              <option value="">{c.notSet}</option>
+              <option value="yes">{c.withOperator}</option>
+              <option value="no">{c.withoutOperator}</option>
             </select>
           </label>
           <label>
-            Цена указана за
+            {c.rate}
             <select name="attr_rate" defaultValue="">
-              <option value="">Не указано</option>
+              <option value="">{c.notSet}</option>
               {MACHINERY_RATES.map((rate) => (
-                <option key={rate} value={rate}>{rate}</option>
+                <option key={rate} value={rate}>{valueLabel(lang, rate)}</option>
               ))}
             </select>
           </label>
           <label className="wide">
-            Район работ
-            <input name="attr_serviceArea" maxLength={120} placeholder="Например, Коксуский и Ескельдинский районы" />
+            {c.area}
+            <input name="attr_serviceArea" maxLength={120} placeholder={c.areaPlaceholder} />
           </label>
           <label className="check-line wide">
-            <input type="checkbox" name="attr_travel" /> Возможен выезд к заказчику
+            <input type="checkbox" name="attr_travel" /> {c.travel}
           </label>
         </>
       )}
       {group === 'materials' && (
         <>
-          <legend>Партия</legend>
+          <legend>{c.materials}</legend>
           <label>
-            Количество
+            {c.quantity}
             <input name="attr_quantity" type="number" inputMode="decimal" min="0" step="any" placeholder="1200" />
           </label>
           <label>
-            Единица
+            {c.unit}
             <select name="attr_unit" defaultValue="">
-              <option value="">Не указано</option>
+              <option value="">{c.notSet}</option>
               {MATERIAL_UNITS.map((unit) => (
-                <option key={unit} value={unit}>{unit}</option>
+                <option key={unit} value={unit}>{valueLabel(lang, unit)}</option>
               ))}
             </select>
           </label>
           <label>
-            Состояние
+            {c.condition}
             <select name="attr_condition" defaultValue="">
-              <option value="">Не указано</option>
+              <option value="">{c.notSet}</option>
               {MATERIAL_CONDITIONS.map((condition) => (
-                <option key={condition} value={condition}>{condition}</option>
+                <option key={condition} value={condition}>{valueLabel(lang, condition)}</option>
               ))}
             </select>
           </label>
           <label className="check-line wide">
-            <input type="checkbox" name="attr_partialSale" /> Можно купить часть партии
+            <input type="checkbox" name="attr_partialSale" /> {c.partial}
           </label>
         </>
       )}
       {group === 'rental' && (
         <>
-          <legend>Условия аренды</legend>
+          <legend>{c.rental}</legend>
           <label>
-            Цена указана за
+            {c.rate}
             <select name="attr_rate" defaultValue="">
-              <option value="">Не указано</option>
+              <option value="">{c.notSet}</option>
               {RENTAL_RATES.map((rate) => (
-                <option key={rate} value={rate}>{rate}</option>
+                <option key={rate} value={rate}>{valueLabel(lang, rate)}</option>
               ))}
             </select>
           </label>
           <label>
-            Залог, ₸ (0 — без залога)
+            {c.deposit}
             <input name="attr_deposit" type="number" inputMode="numeric" min="0" step="1" placeholder="10000" />
           </label>
           <label className="wide">
-            Минимальный срок
-            <input name="attr_minTerm" maxLength={120} placeholder="Например, 1 день" />
+            {c.minTerm}
+            <input name="attr_minTerm" maxLength={120} placeholder={c.minTermPlaceholder} />
           </label>
         </>
       )}

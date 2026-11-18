@@ -3,10 +3,12 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { AUCTION_DURATIONS_HOURS, isAuctionCategory } from '@/lib/auction';
+import { copyFor, type Lang } from '@/lib/ui-copy';
 
 // Sale-method switch inside the listing form. It watches the form's "type" and "category" fields
 // and shows itself only where auctions are allowed. The server enforces the same rules.
-export default function AuctionFields() {
+export default function AuctionFields({ lang = 'ru' }: { lang?: Lang }) {
+  const c = copyFor(lang).saleMode;
   const anchor = useRef<HTMLFieldSetElement>(null);
   const [eligible, setEligible] = useState(false);
   const [mode, setMode] = useState<'fixed' | 'auction'>('fixed');
@@ -33,52 +35,39 @@ export default function AuctionFields() {
     >
       {eligible && (
         <>
-          <legend>Способ продажи</legend>
-          <div className="auction-mode" role="radiogroup" aria-label="Способ продажи">
+          <legend>{c.legend}</legend>
+          <div className="auction-mode" role="radiogroup" aria-label={c.legend}>
             <label className={mode === 'fixed' ? 'active' : ''}>
-              <input
-                type="radio"
-                name="saleMode"
-                value="fixed"
-                checked={mode === 'fixed'}
-                onChange={() => setMode('fixed')}
-              />
-              Фиксированная цена
+              <input type="radio" name="saleMode" value="fixed" checked={mode === 'fixed'} onChange={() => setMode('fixed')} />
+              {c.fixed}
             </label>
             <label className={mode === 'auction' ? 'active' : ''}>
-              <input
-                type="radio"
-                name="saleMode"
-                value="auction"
-                checked={mode === 'auction'}
-                onChange={() => setMode('auction')}
-              />
-              Онлайн-торги
+              <input type="radio" name="saleMode" value="auction" checked={mode === 'auction'} onChange={() => setMode('auction')} />
+              {c.auction}
             </label>
           </div>
           {mode === 'auction' && (
             <div className="auction-terms">
               <p className="auction-hint">
-                Цена выше станет стартовой. После первой ставки условия изменить нельзя, а торги отменить
-                нельзя. Деньги через Qoldan не проходят.{' '}
+                {c.hint}{' '}
                 <Link href="/legal/auctions" target="_blank">
-                  Правила торгов
+                  {c.rules}
                 </Link>
               </p>
               <label>
-                Шаг ставки, ₸
+                {c.step}
                 <input name="auctionStep" type="number" inputMode="numeric" min="1" step="1" required placeholder="1000" />
               </label>
               <label>
-                Резервная цена, ₸ (необязательно)
-                <input name="auctionReserve" type="number" inputMode="numeric" min="1" step="1" placeholder="Скрыта от участников" />
+                {c.reserve}
+                <input name="auctionReserve" type="number" inputMode="numeric" min="1" step="1" placeholder={c.reservePlaceholder} />
               </label>
               <label>
-                Длительность
+                {c.duration}
                 <select name="auctionDuration" defaultValue="72">
                   {AUCTION_DURATIONS_HOURS.map((hours) => (
                     <option key={hours} value={hours}>
-                      {hours === 24 ? '1 сутки' : hours === 72 ? '3 суток' : '7 суток'}
+                      {c.durations[hours]}
                     </option>
                   ))}
                 </select>

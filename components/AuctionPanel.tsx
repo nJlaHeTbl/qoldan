@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AuctionSummary } from '@/lib/auction';
+import { copyFor, dateTime, money, type Lang } from '@/lib/ui-copy';
 
 type Bid = { amount: number; createdAt: number; bidder: string; mine: boolean };
 type ViewerState = { isSeller: boolean; youLead: boolean; youWon: boolean } | null;
@@ -13,35 +14,31 @@ type Payload = {
   bids: Bid[];
 };
 
-const money = (value: number) => `${value.toLocaleString('ru-RU')} ₸`;
-
-function formatLeft(ms: number) {
+function formatLeft(ms: number, lang: Lang) {
   if (ms <= 0) return '0:00';
   const total = Math.floor(ms / 1000);
   const days = Math.floor(total / 86400);
   const hours = Math.floor((total % 86400) / 3600);
   const minutes = Math.floor((total % 3600) / 60);
   const seconds = total % 60;
-  if (days > 0) return `${days} д ${hours} ч`;
-  if (hours > 0) return `${hours} ч ${String(minutes).padStart(2, '0')} мин`;
+  const unit = lang === 'en' ? { d: 'd', h: 'h', m: 'min' } : lang === 'kk' ? { d: 'к', h: 'сағ', m: 'мин' } : { d: 'д', h: 'ч', m: 'мин' };
+  if (days > 0) return `${days} ${unit.d} ${hours} ${unit.h}`;
+  if (hours > 0) return `${hours} ${unit.h} ${String(minutes).padStart(2, '0')} ${unit.m}`;
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
-
-const RESULT_TEXT: Record<string, string> = {
-  sold: 'Торги завершены: есть победитель',
-  reserve_not_met: 'Торги завершены: резервная цена не достигнута',
-  no_bids: 'Торги завершены без ставок',
-};
 
 // Live auction block. The server owns every number; the browser only shows them, counts down using
 // the server clock offset, and refreshes while the tab is visible.
 export default function AuctionPanel({
   listingId,
   signInPath,
+  lang = 'ru',
 }: {
   listingId: string;
   signInPath: string;
+  lang?: Lang;
 }) {
+  const c = copyFor(lang).auction;
   const [data, setData] = useState<Payload | null>(null);
   const [offset, setOffset] = useState(0);
   const [now, setNow] = useState(() => Date.now());
@@ -96,13 +93,15 @@ export default function AuctionPanel({
   const left = auction.endsAt - serverTime;
   const running = auction.phase === 'active' && left > 0;
   const price = auction.currentBid ?? auction.startPrice;
+  const result =
+    auction.result === 'sold' ? c.resultSold : auction.result === 'reserve_not_met' ? c.resultReserve : c.resultNone;
 
   const submit = async (event: { preventDefault(): void }) => {
     event.preventDefault();
     setMessage(null);
     const value = Number(amount);
     if (!Number.isInteger(value) || value < auction.nextMinimum) {
-      setMessage({ kind: 'error', text: `Ставка не меньше ${money(auction.nextMinimum)}` });
+      setMessage({ kind: 'error', text: c.tooLow(money(auction.nextMinimum, lang)) });
       return;
     }
     setBusy(true);
@@ -114,13 +113,13 @@ export default function AuctionPanel({
       });
       const body = (await response.json().catch(() => ({}))) as Partial<Payload> & { error?: string };
       if (!response.ok) {
-        setMessage({ kind: 'error', text: body.error || 'Не удалось сделать ставку' });
+        setMessage({ kind: 'error', text: body.error || c.failed });
         typedAmount.current = false;
         await load();
         return;
       }
       typedAmount.current = false;
-      setMessage({ kind: 'ok', text: `Ставка ${money(value)} принята. Вы лидируете` });
+      setMessage({ kind: 'ok', text: c.accepted(money(value, lang)) });
       await load();
     } finally {
       setBusy(false);
@@ -128,7 +127,7 @@ export default function AuctionPanel({
   };
 
   const cancelAuction = async () => {
-    if (!window.confirm('Отменить торги? Это возможно только пока нет ставок.')) return;
+    if (!window.confirm(c.cancelConfirm)) return;
     setBusy(true);
     try {
       const response = await fetch('/api/auctions/cancel', {
@@ -139,8 +138,8 @@ export default function AuctionPanel({
       const body = (await response.json().catch(() => ({}))) as { error?: string };
       setMessage(
         response.ok
-          ? { kind: 'ok', text: 'Торги отменены' }
-          : { kind: 'error', text: body.error || 'Не удалось отменить торги' },
+          ? { kind: 'ok', text: c.cancelled_ok }
+          : { kind: 'error', text: body.error || c.cancelFailed },
       );
       await load();
     } finally {
@@ -151,50 +150,50 @@ export default function AuctionPanel({
   const bids = showAll ? data.bids : data.bids.slice(0, 5);
   const chip =
     auction.phase === 'active' && running
-      ? 'Идут торги'
+      ? c.live
       : auction.phase === 'scheduled'
-        ? 'Скоро начнутся'
+        ? c.scheduled
         : auction.phase === 'cancelled'
-          ? 'Торги отменены'
-          : 'Торги завершены';
+          ? c.cancelled
+          : c.ended;
 
   return (
-    <section className={`auction-panel ${running ? 'live' : 'closed'}`} aria-label="Онлайн-торги">
+    <section className={`auction-panel ${running ? 'live' : 'closed'}`} aria-label={c.region}>
       <div className="auction-top">
         <span className="auction-chip">{chip}</span>
         {running && (
-          <span className={`auction-timer ${left < 120000 ? 'urgent' : ''}`} aria-label="Осталось времени">
-            {formatLeft(left)}
+          <span className={`auction-timer ${left < 120000 ? 'urgent' : ''}`} aria-label={c.timeLeft}>
+            {formatLeft(left, lang)}
           </span>
         )}
       </div>
 
       <div className="auction-price">
-        <small>{auction.currentBid === null ? 'Стартовая цена' : 'Текущая ставка'}</small>
-        <b>{money(price)}</b>
+        <small>{auction.currentBid === null ? c.startPrice : c.currentBid}</small>
+        <b>{money(price, lang)}</b>
         <span>
-          {auction.bidCount > 0 ? `Ставок: ${auction.bidCount}` : 'Ставок пока нет'}
-          {auction.hasReserve && auction.phase !== 'ended' ? ' · есть резервная цена' : ''}
+          {auction.bidCount > 0 ? c.bids(auction.bidCount) : c.noBids}
+          {auction.hasReserve && auction.phase !== 'ended' ? c.hasReserve : ''}
         </span>
       </div>
 
-      {viewer?.youLead && running && <p className="auction-note good">Ваша ставка лидирует</p>}
+      {viewer?.youLead && running && <p className="auction-note good">{c.youLead}</p>}
       {data.bids.some((bid) => bid.mine) && viewer && !viewer.youLead && running && (
-        <p className="auction-note warn">Вашу ставку перебили</p>
+        <p className="auction-note warn">{c.outbid}</p>
       )}
       {auction.phase === 'ended' && auction.result && (
         <p className="auction-note">
-          {viewer?.youWon ? 'Вы победили. Свяжитесь с продавцом через чат Qoldan' : RESULT_TEXT[auction.result]}
-          {viewer?.isSeller && auction.result === 'sold' ? '. Победитель напишет вам в чате' : ''}
+          {viewer?.youWon ? c.youWon : result}
+          {viewer?.isSeller && auction.result === 'sold' ? c.sellerSold : ''}
         </p>
       )}
 
       {running && viewer?.isSeller && (
         <div className="auction-seller">
-          <p>Это ваши торги. Делать ставки нельзя.</p>
+          <p>{c.yourAuction}</p>
           {auction.bidCount === 0 && (
             <button type="button" onClick={() => void cancelAuction()} disabled={busy}>
-              Отменить торги
+              {c.cancel}
             </button>
           )}
         </div>
@@ -204,7 +203,7 @@ export default function AuctionPanel({
         viewer ? (
           <form onSubmit={submit} className="auction-form">
             <label>
-              Ваша ставка, ₸
+              {c.yourBid}
               <input
                 type="number"
                 inputMode="numeric"
@@ -219,25 +218,25 @@ export default function AuctionPanel({
               />
             </label>
             <p className="auction-hint">
-              Не меньше {money(auction.nextMinimum)} (шаг {money(auction.minStep)})
+              {c.atLeast(money(auction.nextMinimum, lang), money(auction.minStep, lang))}
             </p>
             <label className="auction-rules">
               <input type="checkbox" checked={rules} onChange={(event) => setRules(event.target.checked)} required />
               <span>
-                Мне есть 18 лет, я принимаю{' '}
+                {c.rulesBefore}{' '}
                 <Link href="/legal/auctions" target="_blank">
-                  правила торгов
+                  {c.rulesLink}
                 </Link>
-                . Ставку нельзя отозвать.
+                {c.rulesAfter}
               </span>
             </label>
             <button type="submit" disabled={busy || viewer?.youLead}>
-              {busy ? 'Отправляем…' : viewer?.youLead ? 'Вы лидируете' : 'Сделать ставку'}
+              {busy ? c.sending : viewer?.youLead ? c.leading : c.placeBid}
             </button>
           </form>
         ) : (
           <a className="auction-signin" href={signInPath} target="_top">
-            Войдите, чтобы участвовать в торгах
+            {c.signIn}
           </a>
         )
       )}
@@ -250,33 +249,24 @@ export default function AuctionPanel({
 
       {data.bids.length > 0 && (
         <div className="auction-history">
-          <b>История ставок</b>
+          <b>{c.history}</b>
           <ol>
             {bids.map((bid) => (
               <li key={`${bid.amount}-${bid.createdAt}`} className={bid.mine ? 'mine' : ''}>
-                <span>{bid.mine ? 'Вы' : bid.bidder}</span>
-                <b>{money(bid.amount)}</b>
-                <time dateTime={new Date(bid.createdAt).toISOString()}>
-                  {new Date(bid.createdAt).toLocaleString('ru-RU', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </time>
+                <span>{bid.mine ? c.you : c.participant(bid.bidder)}</span>
+                <b>{money(bid.amount, lang)}</b>
+                <time dateTime={new Date(bid.createdAt).toISOString()}>{dateTime(bid.createdAt, lang)}</time>
               </li>
             ))}
           </ol>
           {data.bids.length > 5 && (
             <button type="button" className="auction-more" onClick={() => setShowAll((value) => !value)}>
-              {showAll ? 'Свернуть' : `Показать все (${data.bids.length})`}
+              {showAll ? c.collapse : c.showAll(data.bids.length)}
             </button>
           )}
         </div>
       )}
-      <p className="auction-footnote">
-        Деньги через Qoldan не проходят: после торгов победитель и продавец договариваются напрямую.
-      </p>
+      <p className="auction-footnote">{c.footnote}</p>
     </section>
   );
 }

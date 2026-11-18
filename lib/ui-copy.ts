@@ -1,0 +1,172 @@
+// Interface texts of the newer screens (auctions, characteristics, phone, profile data, request edit,
+// smart search) in Russian, Kazakh and English. Kazakh texts must be proof-read by a native speaker.
+// Server error messages stay in Russian for now; the client shows them as returned.
+
+export type Lang = 'ru' | 'kk' | 'en';
+
+const locale = { ru: 'ru-RU', kk: 'kk-KZ', en: 'en-US' } as const;
+// Kazakhstan groups digits with spaces in both Russian and Kazakh (45 000 ₸), so kk uses the ru format.
+export const money = (value: number, lang: Lang = 'ru') => `${value.toLocaleString(lang === 'en' ? 'en-US' : 'ru-RU')} ₸`;
+export const dateTime = (ms: number, lang: Lang = 'ru') =>
+  new Date(ms).toLocaleString(locale[lang], { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+
+export const COPY = {
+  ru: {
+    auction: {
+      region: 'Онлайн-торги', live: 'Идут торги', scheduled: 'Скоро начнутся', cancelled: 'Торги отменены', ended: 'Торги завершены',
+      timeLeft: 'Осталось времени', startPrice: 'Стартовая цена', currentBid: 'Текущая ставка',
+      bids: (n: number) => `Ставок: ${n}`, noBids: 'Ставок пока нет', hasReserve: ' · есть резервная цена',
+      youLead: 'Ваша ставка лидирует', outbid: 'Вашу ставку перебили',
+      youWon: 'Вы победили. Свяжитесь с продавцом через чат Qoldan', sellerSold: '. Победитель напишет вам в чате',
+      resultSold: 'Торги завершены: есть победитель', resultReserve: 'Торги завершены: резервная цена не достигнута', resultNone: 'Торги завершены без ставок',
+      yourAuction: 'Это ваши торги. Делать ставки нельзя.', cancel: 'Отменить торги',
+      cancelConfirm: 'Отменить торги? Это возможно только пока нет ставок.', cancelled_ok: 'Торги отменены', cancelFailed: 'Не удалось отменить торги',
+      yourBid: 'Ваша ставка, ₸', atLeast: (min: string, step: string) => `Не меньше ${min} (шаг ${step})`,
+      rulesBefore: 'Мне есть 18 лет, я принимаю', rulesLink: 'правила торгов', rulesAfter: '. Ставку нельзя отозвать.',
+      sending: 'Отправляем…', leading: 'Вы лидируете', placeBid: 'Сделать ставку', signIn: 'Войдите, чтобы участвовать в торгах',
+      tooLow: (min: string) => `Ставка не меньше ${min}`, failed: 'Не удалось сделать ставку', accepted: (v: string) => `Ставка ${v} принята. Вы лидируете`,
+      history: 'История ставок', you: 'Вы', participant: (n: string) => n, collapse: 'Свернуть', showAll: (n: number) => `Показать все (${n})`,
+      footnote: 'Деньги через Qoldan не проходят: после торгов победитель и продавец договариваются напрямую.',
+    },
+    myAuctions: {
+      title: 'Мои торги', kicker: 'ОНЛАЙН-ТОРГИ', lead: 'Ваши ставки и торги, которые вы ведёте. Данные обновляются сами.',
+      loadFailed: 'Не удалось загрузить торги. Попробуйте позже.', loading: 'Загружаем…',
+      emptyTitle: 'Торгов пока нет', emptyText: 'Выставьте товар на торги при публикации или сделайте ставку в чужих торгах.',
+      running: 'Идут сейчас', archive: 'Архив', start: (v: string) => `Старт ${v}`, bid: (v: string) => `Ставка ${v}`,
+      selling: 'вы продаёте', bidding: 'вы участвуете', outbid: 'Вашу ставку перебили · ', leading: 'Вы лидируете · ',
+      cancelled: 'Отменены', scheduled: 'Скоро начнутся', left: (d: number, h: number, m: number) => (d > 0 ? `Осталось ${d} д ${h} ч` : h > 0 ? `Осталось ${h} ч ${m} мин` : `Осталось ${m} мин`),
+      won: 'Вы победили', sold: 'Продано', ended: 'Завершены', reserve: 'Резервная цена не достигнута', none: 'Завершены без ставок',
+    },
+    saleMode: {
+      legend: 'Способ продажи', fixed: 'Фиксированная цена', auction: 'Онлайн-торги',
+      hint: 'Цена выше станет стартовой. После первой ставки условия изменить нельзя, а торги отменить нельзя. Деньги через Qoldan не проходят.',
+      rules: 'Правила торгов', step: 'Шаг ставки, ₸', reserve: 'Резервная цена, ₸ (необязательно)', reservePlaceholder: 'Скрыта от участников',
+      duration: 'Длительность', durations: { 24: '1 сутки', 72: '3 суток', 168: '7 суток' } as Record<number, string>,
+    },
+    attrs: {
+      machinery: 'Условия работы техники', operator: 'Оператор', notSet: 'Не указано', withOperator: 'С оператором', withoutOperator: 'Без оператора',
+      rate: 'Цена указана за', area: 'Район работ', areaPlaceholder: 'Например, Коксуский и Ескельдинский районы', travel: 'Возможен выезд к заказчику',
+      materials: 'Партия', quantity: 'Количество', unit: 'Единица', condition: 'Состояние', partial: 'Можно купить часть партии',
+      rental: 'Условия аренды', deposit: 'Залог, ₸ (0 — без залога)', minTerm: 'Минимальный срок', minTermPlaceholder: 'Например, 1 день',
+      values: {} as Record<string, string>,
+    },
+    phone: { show: 'Показать телефон', call: 'Позвонить', loading: 'Загрузка…', signIn: 'Войдите, чтобы увидеть номер', failed: 'Не удалось получить номер. Попробуйте позже.', offline: 'Нет связи. Попробуйте ещё раз.', hidden: 'Владелец не показывает номер. Напишите ему в чате Qoldan.', greeting: 'Здравствуйте! Пишу по объявлению Qoldan' },
+    home: { kicker: 'ОНЛАЙН-ТОРГИ', endingSoon: 'Скоро заканчиваются торги', bids: (n: number) => `ставок: ${n}`, noBids: 'ставок нет', until: 'До' },
+    profileData: {
+      title: 'Мои данные', text: 'Скачайте всё, что Qoldan хранит о вас, или удалите аккаунт вместе с объявлениями, заявками, откликами и сообщениями.',
+      download: 'Скачать мои данные', delete: 'Удалить аккаунт', deleting: 'Удаляем…', myAuctions: 'Мои торги',
+      confirm: 'Аккаунт, объявления, заявки, отклики, сообщения и фото будут удалены без возможности восстановления. Чтобы подтвердить, введите УДАЛИТЬ',
+      notConfirmed: 'Аккаунт не удалён: нужно ввести слово УДАЛИТЬ', deleted: 'Аккаунт и данные удалены', failed: 'Не удалось удалить аккаунт',
+    },
+    requestEdit: { edit: 'Изменить', hint: 'Изменить заявку можно, пока на неё никто не откликнулся.', what: 'Что нужно', where: 'Где', when: 'Когда', budget: 'Бюджет', save: 'Сохранить', saving: 'Сохраняем…', cancel: 'Отмена', saved: 'Заявка обновлена', failed: 'Не удалось сохранить заявку' },
+    response: { withdraw: 'Снять отклик', withdrawing: 'Снимаем…', confirm: 'Снять ваш отклик с заявки?', done: 'Отклик снят', failed: 'Не удалось снять отклик' },
+    search: { understood: 'Понял запрос', rent: 'аренда', sale: 'продажа', service: 'услуга', from: (v: string) => `от ${v}`, upTo: (v: string) => `до ${v}`, notFound: 'Не нашли? Создайте заявку', whatsapp: 'Отправить в WhatsApp' },
+  },
+  kk: {
+    auction: {
+      region: 'Онлайн-сауда', live: 'Сауда жүріп жатыр', scheduled: 'Жақында басталады', cancelled: 'Сауда тоқтатылды', ended: 'Сауда аяқталды',
+      timeLeft: 'Қалған уақыт', startPrice: 'Бастапқы баға', currentBid: 'Ағымдағы ұсыныс',
+      bids: (n: number) => `Ұсыныстар: ${n}`, noBids: 'Әзірге ұсыныс жоқ', hasReserve: ' · резервтік баға бар',
+      youLead: 'Сіздің ұсынысыңыз алда', outbid: 'Сіздің ұсынысыңызды асырып кетті',
+      youWon: 'Сіз жеңдіңіз. Сатушымен Qoldan чаты арқылы байланысыңыз', sellerSold: '. Жеңімпаз сізге чатта жазады',
+      resultSold: 'Сауда аяқталды: жеңімпаз бар', resultReserve: 'Сауда аяқталды: резервтік бағаға жетпеді', resultNone: 'Сауда ұсыныссыз аяқталды',
+      yourAuction: 'Бұл сіздің саудаңыз. Ұсыныс жасауға болмайды.', cancel: 'Сауданы тоқтату',
+      cancelConfirm: 'Сауданы тоқтатасыз ба? Бұл ұсыныс болмаған кезде ғана мүмкін.', cancelled_ok: 'Сауда тоқтатылды', cancelFailed: 'Сауданы тоқтату мүмкін болмады',
+      yourBid: 'Сіздің ұсынысыңыз, ₸', atLeast: (min: string, step: string) => `Кемінде ${min} (қадам ${step})`,
+      rulesBefore: 'Маған 18 жас толды, мен', rulesLink: 'сауда ережелерін', rulesAfter: ' қабылдаймын. Ұсынысты қайтарып алуға болмайды.',
+      sending: 'Жіберілуде…', leading: 'Сіз алдасыз', placeBid: 'Ұсыныс жасау', signIn: 'Саудаға қатысу үшін кіріңіз',
+      tooLow: (min: string) => `Ұсыныс кемінде ${min}`, failed: 'Ұсыныс жасау мүмкін болмады', accepted: (v: string) => `${v} ұсынысы қабылданды. Сіз алдасыз`,
+      history: 'Ұсыныстар тарихы', you: 'Сіз', participant: (n: string) => n.replace('Участник', 'Қатысушы'), collapse: 'Жию', showAll: (n: number) => `Барлығын көрсету (${n})`,
+      footnote: 'Ақша Qoldan арқылы өтпейді: саудадан кейін жеңімпаз бен сатушы тікелей келіседі.',
+    },
+    myAuctions: {
+      title: 'Менің саудаларым', kicker: 'ОНЛАЙН-САУДА', lead: 'Сіздің ұсыныстарыңыз және сіз жүргізетін саудалар. Деректер өздігінен жаңарады.',
+      loadFailed: 'Саудаларды жүктеу мүмкін болмады. Кейінірек көріңіз.', loading: 'Жүктелуде…',
+      emptyTitle: 'Әзірге сауда жоқ', emptyText: 'Жариялау кезінде тауарды саудаға қойыңыз немесе басқа саудада ұсыныс жасаңыз.',
+      running: 'Қазір жүріп жатыр', archive: 'Мұрағат', start: (v: string) => `Бастапқы ${v}`, bid: (v: string) => `Ұсыныс ${v}`,
+      selling: 'сіз сатасыз', bidding: 'сіз қатысасыз', outbid: 'Ұсынысыңызды асырып кетті · ', leading: 'Сіз алдасыз · ',
+      cancelled: 'Тоқтатылды', scheduled: 'Жақында басталады', left: (d: number, h: number, m: number) => (d > 0 ? `${d} к ${h} сағ қалды` : h > 0 ? `${h} сағ ${m} мин қалды` : `${m} мин қалды`),
+      won: 'Сіз жеңдіңіз', sold: 'Сатылды', ended: 'Аяқталды', reserve: 'Резервтік бағаға жетпеді', none: 'Ұсыныссыз аяқталды',
+    },
+    saleMode: {
+      legend: 'Сату тәсілі', fixed: 'Белгіленген баға', auction: 'Онлайн-сауда',
+      hint: 'Жоғарыдағы баға бастапқы болады. Алғашқы ұсыныстан кейін шарттарды өзгертуге де, сауданы тоқтатуға да болмайды. Ақша Qoldan арқылы өтпейді.',
+      rules: 'Сауда ережелері', step: 'Ұсыныс қадамы, ₸', reserve: 'Резервтік баға, ₸ (міндетті емес)', reservePlaceholder: 'Қатысушылардан жасырын',
+      duration: 'Ұзақтығы', durations: { 24: '1 тәулік', 72: '3 тәулік', 168: '7 тәулік' } as Record<number, string>,
+    },
+    attrs: {
+      machinery: 'Техника жұмысының шарттары', operator: 'Оператор', notSet: 'Көрсетілмеген', withOperator: 'Оператормен', withoutOperator: 'Операторсыз',
+      rate: 'Баға неге көрсетілген', area: 'Жұмыс ауданы', areaPlaceholder: 'Мысалы, Көксу және Ескелді аудандары', travel: 'Тапсырыс берушіге бару мүмкін',
+      materials: 'Партия', quantity: 'Саны', unit: 'Өлшем бірлігі', condition: 'Жағдайы', partial: 'Партияның бір бөлігін сатып алуға болады',
+      rental: 'Жалға беру шарттары', deposit: 'Кепіл, ₸ (0 — кепілсіз)', minTerm: 'Ең аз мерзім', minTermPlaceholder: 'Мысалы, 1 күн',
+      values: { 'час': 'сағат', 'га': 'га', 'смена': 'ауысым', 'день': 'күн', 'рейс': 'рейс', 'неделя': 'апта', 'месяц': 'ай', 'новое': 'жаңа', 'б/у': 'қолданылған', 'остатки': 'қалдықтар', 'шт': 'дана', 'поддон': 'поддон', 'мешок': 'қап' } as Record<string, string>,
+    },
+    phone: { show: 'Телефонды көрсету', call: 'Қоңырау шалу', loading: 'Жүктелуде…', signIn: 'Нөмірді көру үшін кіріңіз', failed: 'Нөмірді алу мүмкін болмады. Кейінірек көріңіз.', offline: 'Байланыс жоқ. Қайта көріңіз.', hidden: 'Иесі нөмірін көрсетпейді. Оған Qoldan чатында жазыңыз.', greeting: 'Сәлеметсіз бе! Qoldan хабарландыруы бойынша жазып тұрмын' },
+    home: { kicker: 'ОНЛАЙН-САУДА', endingSoon: 'Жақында аяқталатын саудалар', bids: (n: number) => `ұсыныс: ${n}`, noBids: 'ұсыныс жоқ', until: 'Дейін' },
+    profileData: {
+      title: 'Менің деректерім', text: 'Qoldan сіз туралы сақтайтынның бәрін жүктеп алыңыз немесе аккаунтты хабарландырулармен, өтінімдермен, жауаптармен және хабарламалармен бірге жойыңыз.',
+      download: 'Деректерімді жүктеу', delete: 'Аккаунтты жою', deleting: 'Жойылуда…', myAuctions: 'Менің саудаларым',
+      confirm: 'Аккаунт, хабарландырулар, өтінімдер, жауаптар, хабарламалар және фотолар қалпына келтіру мүмкіндігінсіз жойылады. Растау үшін УДАЛИТЬ сөзін енгізіңіз',
+      notConfirmed: 'Аккаунт жойылмады: УДАЛИТЬ сөзін енгізу керек', deleted: 'Аккаунт және деректер жойылды', failed: 'Аккаунтты жою мүмкін болмады',
+    },
+    requestEdit: { edit: 'Өзгерту', hint: 'Өтінімге ешкім жауап бермегенше оны өзгертуге болады.', what: 'Не керек', where: 'Қайда', when: 'Қашан', budget: 'Бюджет', save: 'Сақтау', saving: 'Сақталуда…', cancel: 'Бас тарту', saved: 'Өтінім жаңартылды', failed: 'Өтінімді сақтау мүмкін болмады' },
+    response: { withdraw: 'Жауапты қайтарып алу', withdrawing: 'Қайтарылуда…', confirm: 'Өтінімге берген жауабыңызды қайтарып аласыз ба?', done: 'Жауап қайтарылды', failed: 'Жауапты қайтару мүмкін болмады' },
+    search: { understood: 'Сұранысты түсіндім', rent: 'жалға алу', sale: 'сату', service: 'қызмет', from: (v: string) => `${v} бастап`, upTo: (v: string) => `${v} дейін`, notFound: 'Таппадыңыз ба? Өтінім жасаңыз', whatsapp: 'WhatsApp-қа жіберу' },
+  },
+  en: {
+    auction: {
+      region: 'Online auction', live: 'Auction is live', scheduled: 'Starts soon', cancelled: 'Auction cancelled', ended: 'Auction ended',
+      timeLeft: 'Time left', startPrice: 'Starting price', currentBid: 'Current bid',
+      bids: (n: number) => `Bids: ${n}`, noBids: 'No bids yet', hasReserve: ' · reserve price set',
+      youLead: 'Your bid is leading', outbid: 'You have been outbid',
+      youWon: 'You won. Contact the seller in the Qoldan chat', sellerSold: '. The winner will message you in the chat',
+      resultSold: 'Auction ended: there is a winner', resultReserve: 'Auction ended: reserve price not met', resultNone: 'Auction ended with no bids',
+      yourAuction: 'This is your auction. You cannot bid on it.', cancel: 'Cancel auction',
+      cancelConfirm: 'Cancel the auction? This is only possible while there are no bids.', cancelled_ok: 'Auction cancelled', cancelFailed: 'Could not cancel the auction',
+      yourBid: 'Your bid, ₸', atLeast: (min: string, step: string) => `At least ${min} (step ${step})`,
+      rulesBefore: 'I am 18 or older and accept the', rulesLink: 'auction rules', rulesAfter: '. A bid cannot be withdrawn.',
+      sending: 'Sending…', leading: 'You are leading', placeBid: 'Place bid', signIn: 'Sign in to take part in the auction',
+      tooLow: (min: string) => `Bid at least ${min}`, failed: 'Could not place the bid', accepted: (v: string) => `Bid of ${v} accepted. You are leading`,
+      history: 'Bid history', you: 'You', participant: (n: string) => n.replace('Участник', 'Bidder'), collapse: 'Collapse', showAll: (n: number) => `Show all (${n})`,
+      footnote: 'No money goes through Qoldan: after the auction the winner and the seller agree directly.',
+    },
+    myAuctions: {
+      title: 'My auctions', kicker: 'ONLINE AUCTIONS', lead: 'Your bids and the auctions you run. Updates automatically.',
+      loadFailed: 'Could not load auctions. Try again later.', loading: 'Loading…',
+      emptyTitle: 'No auctions yet', emptyText: 'Put an item up for auction when publishing, or bid on someone else’s auction.',
+      running: 'Running now', archive: 'Archive', start: (v: string) => `Start ${v}`, bid: (v: string) => `Bid ${v}`,
+      selling: 'you sell', bidding: 'you bid', outbid: 'You were outbid · ', leading: 'You are leading · ',
+      cancelled: 'Cancelled', scheduled: 'Starts soon', left: (d: number, h: number, m: number) => (d > 0 ? `${d} d ${h} h left` : h > 0 ? `${h} h ${m} min left` : `${m} min left`),
+      won: 'You won', sold: 'Sold', ended: 'Ended', reserve: 'Reserve price not met', none: 'Ended with no bids',
+    },
+    saleMode: {
+      legend: 'How to sell', fixed: 'Fixed price', auction: 'Online auction',
+      hint: 'The price above becomes the starting price. After the first bid the terms cannot be changed and the auction cannot be cancelled. No money goes through Qoldan.',
+      rules: 'Auction rules', step: 'Bid step, ₸', reserve: 'Reserve price, ₸ (optional)', reservePlaceholder: 'Hidden from bidders',
+      duration: 'Duration', durations: { 24: '1 day', 72: '3 days', 168: '7 days' } as Record<number, string>,
+    },
+    attrs: {
+      machinery: 'Machinery terms', operator: 'Operator', notSet: 'Not specified', withOperator: 'With operator', withoutOperator: 'Without operator',
+      rate: 'Price is per', area: 'Service area', areaPlaceholder: 'For example, Koksu and Eskeldi districts', travel: 'Can travel to the customer',
+      materials: 'Batch', quantity: 'Quantity', unit: 'Unit', condition: 'Condition', partial: 'Part of the batch can be bought',
+      rental: 'Rental terms', deposit: 'Deposit, ₸ (0 — no deposit)', minTerm: 'Minimum term', minTermPlaceholder: 'For example, 1 day',
+      values: { 'час': 'hour', 'га': 'ha', 'смена': 'shift', 'день': 'day', 'рейс': 'trip', 'неделя': 'week', 'месяц': 'month', 'новое': 'new', 'б/у': 'used', 'остатки': 'leftovers', 'шт': 'pcs', 'поддон': 'pallet', 'мешок': 'bag' } as Record<string, string>,
+    },
+    phone: { show: 'Show phone', call: 'Call', loading: 'Loading…', signIn: 'Sign in to see the number', failed: 'Could not get the number. Try again later.', offline: 'No connection. Try again.', hidden: 'The owner does not show the number. Message them in the Qoldan chat.', greeting: 'Hello! I am contacting you about a Qoldan listing' },
+    home: { kicker: 'ONLINE AUCTIONS', endingSoon: 'Auctions ending soon', bids: (n: number) => `bids: ${n}`, noBids: 'no bids', until: 'Until' },
+    profileData: {
+      title: 'My data', text: 'Download everything Qoldan stores about you, or delete your account with your listings, requests, responses and messages.',
+      download: 'Download my data', delete: 'Delete account', deleting: 'Deleting…', myAuctions: 'My auctions',
+      confirm: 'Your account, listings, requests, responses, messages and photos will be deleted permanently. To confirm, type УДАЛИТЬ',
+      notConfirmed: 'Account not deleted: type the word УДАЛИТЬ', deleted: 'Account and data deleted', failed: 'Could not delete the account',
+    },
+    requestEdit: { edit: 'Edit', hint: 'You can edit the request until someone responds.', what: 'What you need', where: 'Where', when: 'When', budget: 'Budget', save: 'Save', saving: 'Saving…', cancel: 'Cancel', saved: 'Request updated', failed: 'Could not save the request' },
+    response: { withdraw: 'Withdraw response', withdrawing: 'Withdrawing…', confirm: 'Withdraw your response to this request?', done: 'Response withdrawn', failed: 'Could not withdraw the response' },
+    search: { understood: 'Understood', rent: 'rental', sale: 'sale', service: 'service', from: (v: string) => `from ${v}`, upTo: (v: string) => `up to ${v}`, notFound: 'Nothing found? Post a request', whatsapp: 'Send to WhatsApp' },
+  },
+};
+
+export type UiCopy = (typeof COPY)['ru'];
+export const copyFor = (lang: Lang | undefined): UiCopy => COPY[lang ?? 'ru'] as UiCopy;
+/** Translates a stored Russian enum value (rate, unit, condition) for display. */
+export const valueLabel = (lang: Lang | undefined, value: string) => copyFor(lang).attrs.values[value] ?? value;

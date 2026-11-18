@@ -18,6 +18,7 @@ import AuctionPanel from '@/components/AuctionPanel';
 import MyAuctions from '@/components/MyAuctions';
 import type { AuctionSummary } from '@/lib/auction';
 import { matchesSmartQuery, parseSmartQuery } from '@/lib/smart-search';
+import { copyFor, money as uiMoney, dateTime as uiDateTime } from '@/lib/ui-copy';
 import ConsentNote from '@/components/ConsentNote';
 import {
   ArrowRight,
@@ -4734,20 +4735,19 @@ export default function QoldanClient({
         previous.map((item) => (item.id === selectedRequest.id ? { ...item, ...data.request } : item)),
       );
       setRequestEditing(false);
-      notify('Заявка обновлена');
+      notify(copyFor(appLang).requestEdit.saved);
     } catch (error) {
-      notify(error instanceof Error ? error.message : 'Не удалось сохранить заявку');
+      notify(error instanceof Error ? error.message : copyFor(appLang).requestEdit.failed);
     } finally {
       setSubmitting(null);
     }
   };
   const deleteMyAccount = async () => {
-    const typed = window.prompt(
-      'Аккаунт, объявления, заявки, отклики, сообщения и фото будут удалены без возможности восстановления. Чтобы подтвердить, введите УДАЛИТЬ',
-    );
+    const pd = copyFor(appLang).profileData;
+    const typed = window.prompt(pd.confirm);
     if (typed === null) return;
     if (typed.trim() !== 'УДАЛИТЬ') {
-      notify('Аккаунт не удалён: нужно ввести слово УДАЛИТЬ');
+      notify(pd.notConfirmed);
       return;
     }
     setSubmitting('account-delete');
@@ -4758,17 +4758,17 @@ export default function QoldanClient({
         body: JSON.stringify({ confirm: 'УДАЛИТЬ' }),
       });
       if (!response.ok) throw new Error(await apiError(response));
-      notify('Аккаунт и данные удалены');
+      notify(pd.deleted);
       window.setTimeout(() => window.location.assign(signOutPath), 1200);
     } catch (error) {
-      notify(error instanceof Error ? error.message : 'Не удалось удалить аккаунт');
+      notify(error instanceof Error ? error.message : pd.failed);
     } finally {
       setSubmitting(null);
     }
   };
   const withdrawResponse = async (responseId: string) => {
     if (!selectedRequest) return;
-    if (!window.confirm('Снять ваш отклик с заявки?')) return;
+    if (!window.confirm(copyFor(appLang).response.confirm)) return;
     setSubmitting('response-withdraw');
     try {
       const response = await fetch(
@@ -4786,10 +4786,10 @@ export default function QoldanClient({
             : item,
         ),
       );
-      notify('Отклик снят');
+      notify(copyFor(appLang).response.done);
     } catch (error) {
       notify(
-        error instanceof Error ? error.message : 'Не удалось снять отклик',
+        error instanceof Error ? error.message : copyFor(appLang).response.failed,
       );
     } finally {
       setSubmitting(null);
@@ -5437,7 +5437,13 @@ export default function QoldanClient({
           </div>
           {smartQuery.hints.length > 0 && (smartQuery.type || smartQuery.place || smartQuery.maxPrice !== undefined || smartQuery.minPrice !== undefined) && (
             <output className="smart-hint">
-              Понял запрос: {smartQuery.hints.join(' · ')}
+              {copyFor(appLang).search.understood}:{' '}
+              {[
+                smartQuery.type === 'Сдам' ? copyFor(appLang).search.rent : smartQuery.type === 'Продам' ? copyFor(appLang).search.sale : smartQuery.type ? copyFor(appLang).search.service : '',
+                smartQuery.minPrice !== undefined ? copyFor(appLang).search.from(uiMoney(smartQuery.minPrice, appLang)) : '',
+                smartQuery.maxPrice !== undefined ? copyFor(appLang).search.upTo(uiMoney(smartQuery.maxPrice, appLang)) : '',
+                smartQuery.place ?? '',
+              ].filter(Boolean).join(' · ')}
             </output>
           )}
           <div className="quick-search">
@@ -5495,11 +5501,11 @@ export default function QoldanClient({
       </section>
       <a className="housing-entry wrap" href="/housing"><span><b>{appLang === 'kk' ? 'Тәуліктік тұрғын үй' : appLang === 'en' ? 'Short stays' : 'Жильё на сутки'}</b><span>{appLang === 'kk' ? 'Қонақүйлер мен пәтерлер · жеке бөлім' : appLang === 'en' ? 'Hotels and apartments · separate section' : 'Гостиницы и квартиры · отдельный раздел'}</span></span><ArrowRight size={22} /></a>
       {endingSoonAuctions.length > 0 && (
-        <section className="auction-strip wrap" aria-label="Скоро заканчиваются торги">
+        <section className="auction-strip wrap" aria-label={copyFor(appLang).home.endingSoon}>
           <div className="section-head">
             <div>
-              <small>ОНЛАЙН-ТОРГИ</small>
-              <h2>Скоро заканчиваются торги</h2>
+              <small>{copyFor(appLang).home.kicker}</small>
+              <h2>{copyFor(appLang).home.endingSoon}</h2>
             </div>
           </div>
           <div className="auction-strip-grid">
@@ -5520,27 +5526,13 @@ export default function QoldanClient({
                 />
                 <b>{listing.title}</b>
                 <span>
-                  {(
-                    listing.auction?.currentBid ??
-                    listing.auction?.startPrice ??
-                    0
-                  ).toLocaleString('ru-RU')}{' '}
-                  ₸ ·{' '}
+                  {uiMoney(listing.auction?.currentBid ?? listing.auction?.startPrice ?? 0, appLang)} ·{' '}
                   {listing.auction && listing.auction.bidCount > 0
-                    ? `ставок: ${listing.auction.bidCount}`
-                    : 'ставок нет'}
+                    ? copyFor(appLang).home.bids(listing.auction.bidCount)
+                    : copyFor(appLang).home.noBids}
                 </span>
                 <small>
-                  До{' '}
-                  {new Date(listing.auction?.endsAt ?? 0).toLocaleString(
-                    'ru-RU',
-                    {
-                      day: '2-digit',
-                      month: '2-digit',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    },
-                  )}
+                  {copyFor(appLang).home.until} {uiDateTime(listing.auction?.endsAt ?? 0, appLang)}
                 </small>
               </button>
             ))}
@@ -6136,10 +6128,10 @@ export default function QoldanClient({
                     {item.auction && item.auction.phase !== 'cancelled' && (
                       <span className="auction-badge">
                         {item.auction.phase === 'ended'
-                          ? 'Торги завершены'
+                          ? copyFor(appLang).auction.ended
                           : item.auction.phase === 'scheduled'
-                            ? 'Скоро торги'
-                            : `Торги · ${(item.auction.currentBid ?? item.auction.startPrice).toLocaleString('ru-RU')} ₸`}
+                            ? copyFor(appLang).auction.scheduled
+                            : `${copyFor(appLang).auction.region} · ${uiMoney(item.auction.currentBid ?? item.auction.startPrice, appLang)}`}
                       </span>
                     )}
                     <div className="meta">
@@ -6204,7 +6196,7 @@ export default function QoldanClient({
                 Сбросить фильтры
               </button>
               <button type="button" onClick={() => openRequestForm(query)}>
-                Не нашли? Создайте заявку
+                {copyFor(appLang).search.notFound}
               </button>
             </div>
           )}
@@ -7028,8 +7020,8 @@ export default function QoldanClient({
                       </select>
                     </label>
                   )}
-                  {listingFlow === 'standard' && <CategoryFields />}
-                  {listingFlow === 'standard' && <AuctionFields />}
+                  {listingFlow === 'standard' && <CategoryFields lang={appLang} />}
+                  {listingFlow === 'standard' && <AuctionFields lang={appLang} />}
                   <LocationFields fieldName="location"
                     initialRegion={listingDraft?.fields.region || (selectedRegion === 'Весь Казахстан' ? 'Область Жетісу' : selectedRegion)}
                     initialPlace={listingDraft?.fields.location || ''}
@@ -7292,7 +7284,7 @@ export default function QoldanClient({
                       `${selectedRequest.title} — заявка Qoldan. ${selectedRequest.place} · ${selectedRequest.when} · ${selectedRequest.budget}. ${typeof window === 'undefined' ? '' : new URL(`/request/${encodeURIComponent(String(selectedRequest.id))}`, window.location.origin).toString()}`,
                     )}`}
                   >
-                    <MessageCircle /> Отправить в WhatsApp
+                    <MessageCircle /> {copyFor(appLang).search.whatsapp}
                   </a>
                 )}
                 {hasExactCoordinates(selectedRequest) && <a className="request-map-link" target="_blank" rel="noreferrer"
@@ -7565,37 +7557,37 @@ export default function QoldanClient({
                       selectedRequest.responses === 0 &&
                       !requestEditing && (
                         <button type="button" onClick={() => setRequestEditing(true)}>
-                          Изменить
+                          {copyFor(appLang).requestEdit.edit}
                         </button>
                       )}
                     {requestEditing && selectedRequest.responses === 0 && (
                       <form key={String(selectedRequest.id)} className="product-form request-edit-form" onSubmit={saveRequestEdit}>
                         <p className="request-edit-hint">
-                          Изменить заявку можно, пока на неё никто не откликнулся.
+                          {copyFor(appLang).requestEdit.hint}
                         </p>
                         <label className="wide">
-                          Что нужно
+                          {copyFor(appLang).requestEdit.what}
                           <input name="title" required minLength={4} maxLength={160} defaultValue={selectedRequest.title} />
                         </label>
                         <label>
-                          Где
+                          {copyFor(appLang).requestEdit.where}
                           <input name="place" required maxLength={160} defaultValue={selectedRequest.place} />
                         </label>
                         <label>
-                          Когда
+                          {copyFor(appLang).requestEdit.when}
                           <input name="when" required maxLength={160} defaultValue={selectedRequest.when} />
                         </label>
                         <label className="wide">
-                          Бюджет
+                          {copyFor(appLang).requestEdit.budget}
                           <input name="budget" required maxLength={80} defaultValue={selectedRequest.budget} />
                         </label>
                         <ConsentNote lang={appLang} />
                         <button className="submit-button" type="submit" disabled={submitting === 'request-edit'}>
-                          {submitting === 'request-edit' ? 'Сохраняем…' : 'Сохранить'}
+                          {submitting === 'request-edit' ? copyFor(appLang).requestEdit.saving : copyFor(appLang).requestEdit.save}
                         </button>
                         <div className="request-edit-actions wide">
                           <button type="button" onClick={() => setRequestEditing(false)}>
-                            Отмена
+                            {copyFor(appLang).requestEdit.cancel}
                           </button>
                         </div>
                       </form>
@@ -7624,8 +7616,8 @@ export default function QoldanClient({
                         }}
                       >
                         {submitting === 'response-withdraw'
-                          ? 'Снимаем…'
-                          : 'Снять отклик'}
+                          ? copyFor(appLang).response.withdrawing
+                          : copyFor(appLang).response.withdraw}
                       </button>
                     </div>
                   </div>
@@ -7740,6 +7732,7 @@ export default function QoldanClient({
                     <AuctionPanel
                       listingId={String(selectedListing.id)}
                       signInPath={signInPath}
+                      lang={appLang}
                     />
                   )}
                   <div className="detail-facts">
@@ -7768,7 +7761,7 @@ export default function QoldanClient({
                       <Clock3 />
                       {selectedListing.available || internal.detail.negotiable}
                     </span>
-                    {describeAttributes(selectedListing.attributes ?? {}).map((fact) => (
+                    {describeAttributes(selectedListing.attributes ?? {}, appLang).map((fact) => (
                       <span key={fact}>
                         <CheckCircle2 /> {fact}
                       </span>
@@ -7935,7 +7928,7 @@ export default function QoldanClient({
                             listingId={String(selectedListing.id)}
                             signInPath={signInPath}
                             title={selectedListing.title}
-                            showLabel="Показать телефон"
+                            lang={appLang}
                             callLabel={internal.detail.call}
                             buttonClass="call-button"
                             callClass="call-button"
@@ -7950,7 +7943,7 @@ export default function QoldanClient({
                           />
                         ) : (
                           <p className="phone-hidden-note">
-                            Владелец не показывает номер. Напишите ему в чате Qoldan.
+                            {copyFor(appLang).phone.hidden}
                           </p>
                         )
                       )}
@@ -8812,7 +8805,7 @@ export default function QoldanClient({
                     <b>{savedSearchNewCount || savedSearches.length}</b>
                   </button>
                   <button onClick={() => setModal('my-auctions')}>
-                    <Clock3 /> Мои торги
+                    <Clock3 /> {copyFor(appLang).myAuctions.title}
                   </button>
                   <button onClick={() => setModal('recent')}>
                     <History /> {internal.profile.recent}
@@ -8879,13 +8872,10 @@ export default function QoldanClient({
                     <UserRound /> {auth.signOut}
                   </a>
                   <div className="profile-data">
-                    <b>Мои данные</b>
-                    <p>
-                      Скачайте всё, что Qoldan хранит о вас, или удалите аккаунт вместе с объявлениями,
-                      заявками, откликами и сообщениями.
-                    </p>
+                    <b>{copyFor(appLang).profileData.title}</b>
+                    <p>{copyFor(appLang).profileData.text}</p>
                     <a href="/api/account/export" download>
-                      Скачать мои данные
+                      {copyFor(appLang).profileData.download}
                     </a>
                     <button
                       type="button"
@@ -8893,7 +8883,7 @@ export default function QoldanClient({
                       disabled={submitting === 'account-delete'}
                       onClick={() => void deleteMyAccount()}
                     >
-                      {submitting === 'account-delete' ? 'Удаляем…' : 'Удалить аккаунт'}
+                      {submitting === 'account-delete' ? copyFor(appLang).profileData.deleting : copyFor(appLang).profileData.delete}
                     </button>
                   </div>
                 </div>
@@ -8994,12 +8984,12 @@ export default function QoldanClient({
                     <Clock3 />
                   </span>
                   <div>
-                    <small>ОНЛАЙН-ТОРГИ</small>
-                    <h2>Мои торги</h2>
-                    <p>Ваши ставки и торги, которые вы ведёте. Данные обновляются сами.</p>
+                    <small>{copyFor(appLang).myAuctions.kicker}</small>
+                    <h2>{copyFor(appLang).myAuctions.title}</h2>
+                    <p>{copyFor(appLang).myAuctions.lead}</p>
                   </div>
                 </div>
-                <MyAuctions onClose={() => setModal(null)} />
+                <MyAuctions onClose={() => setModal(null)} lang={appLang} />
               </>
             )}
             {modal === 'saved-searches' && (

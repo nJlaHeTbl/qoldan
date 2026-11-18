@@ -84,21 +84,33 @@ export function readAttributes(json: unknown): ListingAttributes {
 }
 
 /** Short human-readable facts for cards and the listing page. */
-export function describeAttributes(attributes: ListingAttributes): string[] {
+const FACTS = {
+  ru: { with: 'С оператором', without: 'Без оператора', rate: (r: string) => `Цена за ${r}`, area: (a: string) => `Район работ: ${a}`, travel: 'Возможен выезд', qty: (q: string) => `Количество: ${q}`, cond: (c: string) => `Состояние: ${c}`, partial: 'Можно купить часть партии', deposit: (d: string) => `Залог ${d} ₸`, noDeposit: 'Без залога', term: (t: string) => `Минимальный срок: ${t}`, locale: 'ru-RU' },
+  kk: { with: 'Оператормен', without: 'Операторсыз', rate: (r: string) => `Баға: ${r} үшін`, area: (a: string) => `Жұмыс ауданы: ${a}`, travel: 'Баруға болады', qty: (q: string) => `Саны: ${q}`, cond: (c: string) => `Жағдайы: ${c}`, partial: 'Партияның бір бөлігін алуға болады', deposit: (d: string) => `Кепіл ${d} ₸`, noDeposit: 'Кепілсіз', term: (t: string) => `Ең аз мерзім: ${t}`, locale: 'ru-RU' },
+  en: { with: 'With operator', without: 'Without operator', rate: (r: string) => `Price per ${r}`, area: (a: string) => `Service area: ${a}`, travel: 'Can travel', qty: (q: string) => `Quantity: ${q}`, cond: (c: string) => `Condition: ${c}`, partial: 'Part of the batch available', deposit: (d: string) => `Deposit ${d} ₸`, noDeposit: 'No deposit', term: (t: string) => `Minimum term: ${t}`, locale: 'en-US' },
+} as const;
+const VALUE_LABELS: Record<'kk' | 'en', Record<string, string>> = {
+  kk: { 'час': 'сағат', 'смена': 'ауысым', 'день': 'күн', 'неделя': 'апта', 'месяц': 'ай', 'новое': 'жаңа', 'б/у': 'қолданылған', 'остатки': 'қалдықтар', 'шт': 'дана', 'мешок': 'қап' },
+  en: { 'час': 'hour', 'га': 'ha', 'смена': 'shift', 'день': 'day', 'рейс': 'trip', 'неделя': 'week', 'месяц': 'month', 'новое': 'new', 'б/у': 'used', 'остатки': 'leftovers', 'шт': 'pcs', 'поддон': 'pallet', 'мешок': 'bag' },
+};
+
+export function describeAttributes(attributes: ListingAttributes, lang: 'ru' | 'kk' | 'en' = 'ru'): string[] {
+  const t = FACTS[lang];
+  const label = (value: string) => (lang === 'ru' ? value : VALUE_LABELS[lang][value] ?? value);
   const facts: string[] = [];
-  if (attributes.withOperator === true) facts.push('С оператором');
-  if (attributes.withOperator === false) facts.push('Без оператора');
-  if (attributes.rate) facts.push(`Цена за ${attributes.rate}`);
-  if (attributes.serviceArea) facts.push(`Район работ: ${attributes.serviceArea}`);
-  if (attributes.travel) facts.push('Возможен выезд');
+  if (attributes.withOperator === true) facts.push(t.with);
+  if (attributes.withOperator === false) facts.push(t.without);
+  if (attributes.rate) facts.push(t.rate(label(attributes.rate)));
+  if (attributes.serviceArea) facts.push(t.area(attributes.serviceArea));
+  if (attributes.travel) facts.push(t.travel);
   if (attributes.quantity !== undefined) {
-    facts.push(`Количество: ${attributes.quantity.toLocaleString('ru-RU')}${attributes.unit ? ` ${attributes.unit}` : ''}`);
+    facts.push(t.qty(`${attributes.quantity.toLocaleString(t.locale)}${attributes.unit ? ` ${label(attributes.unit)}` : ''}`));
   }
-  if (attributes.condition) facts.push(`Состояние: ${attributes.condition}`);
-  if (attributes.partialSale) facts.push('Можно купить часть партии');
+  if (attributes.condition) facts.push(t.cond(label(attributes.condition)));
+  if (attributes.partialSale) facts.push(t.partial);
   if (attributes.deposit !== undefined) {
-    facts.push(attributes.deposit > 0 ? `Залог ${attributes.deposit.toLocaleString('ru-RU')} ₸` : 'Без залога');
+    facts.push(attributes.deposit > 0 ? t.deposit(attributes.deposit.toLocaleString(t.locale)) : t.noDeposit);
   }
-  if (attributes.minTerm) facts.push(`Минимальный срок: ${attributes.minTerm}`);
+  if (attributes.minTerm) facts.push(t.term(attributes.minTerm));
   return facts;
 }

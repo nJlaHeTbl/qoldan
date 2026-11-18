@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { AuctionSummary } from '@/lib/auction';
+import { copyFor, money, type Lang, type UiCopy } from '@/lib/ui-copy';
 
 type MyAuction = AuctionSummary & {
   title: string;
@@ -12,27 +13,24 @@ type MyAuction = AuctionSummary & {
   outbid: boolean;
 };
 
-const money = (value: number) => `${value.toLocaleString('ru-RU')} ₸`;
-
-function label(item: MyAuction, now: number) {
-  if (item.phase === 'cancelled') return 'Отменены';
-  if (item.phase === 'scheduled') return 'Скоро начнутся';
+function label(item: MyAuction, now: number, c: UiCopy['myAuctions']) {
+  if (item.phase === 'cancelled') return c.cancelled;
+  if (item.phase === 'scheduled') return c.scheduled;
   if (item.phase === 'active') {
     const minutes = Math.max(0, Math.floor((item.endsAt - now) / 60000));
-    const days = Math.floor(minutes / 1440);
-    const hours = Math.floor((minutes % 1440) / 60);
-    return days > 0 ? `Осталось ${days} д ${hours} ч` : hours > 0 ? `Осталось ${hours} ч ${minutes % 60} мин` : `Осталось ${minutes} мин`;
+    return c.left(Math.floor(minutes / 1440), Math.floor((minutes % 1440) / 60), minutes % 60);
   }
-  if (item.result === 'sold') return item.youWon ? 'Вы победили' : item.role === 'seller' ? 'Продано' : 'Завершены';
-  if (item.result === 'reserve_not_met') return 'Резервная цена не достигнута';
-  return 'Завершены без ставок';
+  if (item.result === 'sold') return item.youWon ? c.won : item.role === 'seller' ? c.sold : c.ended;
+  if (item.result === 'reserve_not_met') return c.reserve;
+  return c.none;
 }
 
 // "My auctions": running ones first (with a clear "outbid" mark), then the archive of finished ones.
-export default function MyAuctions({ onClose }: { onClose?: () => void }) {
+export default function MyAuctions({ onClose, lang = 'ru' }: { onClose?: () => void; lang?: Lang }) {
+  const c = copyFor(lang).myAuctions;
   const [items, setItems] = useState<MyAuction[] | null>(null);
   const [serverNow, setServerNow] = useState(0);
-  const [error, setError] = useState('');
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -44,10 +42,10 @@ export default function MyAuctions({ onClose }: { onClose?: () => void }) {
         if (alive) {
           setItems(data.auctions);
           setServerNow(data.serverNow);
-          setError('');
+          setFailed(false);
         }
       } catch {
-        if (alive) setError('Не удалось загрузить торги. Попробуйте позже.');
+        if (alive) setFailed(true);
       }
     };
     void load();
@@ -60,15 +58,15 @@ export default function MyAuctions({ onClose }: { onClose?: () => void }) {
     };
   }, []);
 
-  if (error) return <p className="auction-message error">{error}</p>;
-  if (!items) return <p className="auction-hint">Загружаем…</p>;
+  if (failed) return <p className="auction-message error">{c.loadFailed}</p>;
+  if (!items) return <p className="auction-hint">{c.loading}</p>;
   const active = items.filter((item) => item.phase === 'active' || item.phase === 'scheduled');
   const archive = items.filter((item) => item.phase !== 'active' && item.phase !== 'scheduled');
   if (items.length === 0) {
     return (
       <div className="notification-empty">
-        <b>Торгов пока нет</b>
-        <p>Выставьте товар на торги при публикации или сделайте ставку в чужих торгах.</p>
+        <b>{c.emptyTitle}</b>
+        <p>{c.emptyText}</p>
       </div>
     );
   }
@@ -79,12 +77,12 @@ export default function MyAuctions({ onClose }: { onClose?: () => void }) {
           <a href={`/listing/${item.listingId}`} onClick={onClose}>
             <b>{item.title}</b>
             <span>
-              {item.currentBid === null ? `Старт ${money(item.startPrice)}` : `Ставка ${money(item.currentBid)}`} ·{' '}
-              {item.role === 'seller' ? 'вы продаёте' : 'вы участвуете'}
+              {item.currentBid === null ? c.start(money(item.startPrice, lang)) : c.bid(money(item.currentBid, lang))} ·{' '}
+              {item.role === 'seller' ? c.selling : c.bidding}
             </span>
             <small className={item.outbid ? 'outbid' : item.youLead ? 'lead' : ''}>
-              {item.outbid ? 'Вашу ставку перебили · ' : item.youLead && item.phase === 'active' ? 'Вы лидируете · ' : ''}
-              {label(item, serverNow)}
+              {item.outbid ? c.outbid : item.youLead && item.phase === 'active' ? c.leading : ''}
+              {label(item, serverNow, c)}
             </small>
           </a>
         </li>
@@ -95,13 +93,13 @@ export default function MyAuctions({ onClose }: { onClose?: () => void }) {
     <div className="my-auctions">
       {active.length > 0 && (
         <>
-          <h3>Идут сейчас</h3>
+          <h3>{c.running}</h3>
           {renderList(active)}
         </>
       )}
       {archive.length > 0 && (
         <>
-          <h3>Архив</h3>
+          <h3>{c.archive}</h3>
           {renderList(archive)}
         </>
       )}

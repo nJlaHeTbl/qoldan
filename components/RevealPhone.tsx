@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { copyFor, type Lang } from '@/lib/ui-copy';
 
 type Props = {
   listingId: string;
@@ -13,6 +14,7 @@ type Props = {
   callClass?: string;
   whatsappClass?: string;
   whatsappText?: string;
+  lang?: Lang;
 };
 
 type State =
@@ -28,13 +30,15 @@ export default function RevealPhone({
   listingId,
   signInPath,
   title,
-  showLabel = 'Показать телефон',
-  callLabel = 'Позвонить',
+  showLabel,
+  callLabel,
   buttonClass,
   callClass,
   whatsappClass,
-  whatsappText = 'Здравствуйте! Пишу по объявлению Qoldan',
+  whatsappText,
+  lang = 'ru',
 }: Props) {
+  const c = copyFor(lang).phone;
   const [state, setState] = useState<State>({ step: 'idle' });
 
   const reveal = async () => {
@@ -56,13 +60,13 @@ export default function RevealPhone({
       if (!response.ok || !data.phone) {
         setState({
           step: 'error',
-          message: data.error || 'Не удалось получить номер. Попробуйте позже.',
+          message: data.error || c.failed,
         });
         return;
       }
       setState({ step: 'shown', phone: data.phone });
     } catch {
-      setState({ step: 'error', message: 'Нет связи. Попробуйте ещё раз.' });
+      setState({ step: 'error', message: c.offline });
     }
   };
 
@@ -71,13 +75,13 @@ export default function RevealPhone({
     return (
       <>
         <a className={callClass} href={`tel:${state.phone}`}>
-          {callLabel}: {state.phone}
+          {callLabel ?? c.call}: {state.phone}
         </a>
         <a
           className={whatsappClass}
           target="_blank"
           rel="noreferrer"
-          href={`https://wa.me/${digits}?text=${encodeURIComponent(`${whatsappText}: ${title}`)}`}
+          href={`https://wa.me/${digits}?text=${encodeURIComponent(`${whatsappText ?? c.greeting}: ${title}`)}`}
         >
           WhatsApp
         </a>
@@ -87,7 +91,7 @@ export default function RevealPhone({
   if (state.step === 'signin') {
     return (
       <a className={buttonClass} href={signInPath} target="_top">
-        Войдите, чтобы увидеть номер
+        {c.signIn}
       </a>
     );
   }
@@ -99,7 +103,7 @@ export default function RevealPhone({
         onClick={() => void reveal()}
         disabled={state.step === 'loading'}
       >
-        {state.step === 'loading' ? 'Загрузка…' : showLabel}
+        {state.step === 'loading' ? c.loading : showLabel ?? c.show}
       </button>
       {state.step === 'error' && (
         <span role="alert" className="reveal-phone-error">
