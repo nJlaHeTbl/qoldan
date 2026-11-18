@@ -543,6 +543,55 @@ export async function GET(request: Request) {
           null,
         ] as const);
 
+    // Auction events for the signed-in user: outbid, won, sold or ended, new bids on their auctions.
+    const auctionActivityResult = authenticatedViewer
+      ? await db
+          .prepare(
+            `SELECT auctions.id, auctions.seller_id, auctions.status, auctions.result, auctions.current_bid,
+                    auctions.bid_count, auctions.leader_id, auctions.winner_id, auctions.updated_at,
+                    auctions.settled_at, listings.title,
+                    EXISTS (SELECT 1 FROM bids WHERE bids.auction_id = auctions.id AND bids.bidder_id = ?1) AS i_bid
+             FROM auctions JOIN listings ON listings.id = auctions.listing_id
+             WHERE (auctions.seller_id = ?1
+                    OR EXISTS (SELECT 1 FROM bids WHERE bids.auction_id = auctions.id AND bids.bidder_id = ?1))
+               AND auctions.updated_at >= ?2
+             ORDER BY auctions.updated_at DESC LIMIT 40`,
+          )
+          .bind(viewer.id, Date.now() - 30 * 24 * 60 * 60 * 1000)
+          .all<Record<string, unknown>>()
+      : { results: [] as Record<string, unknown>[] };
+    const auctionActivities = auctionActivityResult.results.flatMap((row) => {
+      const amount = row.current_bid === null ? 0 : Number(row.current_bid);
+      const money = `${amount.toLocaleString('ru-RU')} ₸`;
+      const title = String(row.title);
+      const at = Number(row.settled_at || row.updated_at);
+      const base = { kind: 'response' as const, createdAt: at };
+      if (row.seller_id === viewer.id) {
+        if (row.status === 'active' && Number(row.bid_count) > 0) {
+          return [{ ...base, id: `auction-bid-${row.id}-${row.bid_count}`, title: 'Новая ставка в ваших торгах', description: `«${title}» · сейчас ${money}` }];
+        }
+        if (row.status === 'ended') {
+          return [{
+            ...base,
+            id: `auction-end-${row.id}`,
+            title: row.result === 'sold' ? 'Торги завершены: товар продан' : row.result === 'reserve_not_met' ? 'Торги завершены: резервная цена не достигнута' : 'Торги завершены без ставок',
+            description: row.result === 'sold' ? `«${title}» · ${money}. Победитель напишет вам в чате` : `«${title}»`,
+          }];
+        }
+        return [];
+      }
+      if (!row.i_bid) return [];
+      if (row.status === 'active' && row.leader_id !== viewer.id) {
+        return [{ ...base, id: `auction-outbid-${row.id}-${row.bid_count}`, title: 'Вашу ставку перебили', description: `«${title}» · сейчас ${money}` }];
+      }
+      if (row.status === 'ended' && row.winner_id === viewer.id) {
+        return [{ ...base, id: `auction-won-${row.id}`, title: 'Вы выиграли торги', description: `«${title}» · ${money}. Напишите продавцу в чате Qoldan` }];
+      }
+      if (row.status === 'ended') {
+        return [{ ...base, id: `auction-lost-${row.id}`, title: 'Торги завершены', description: `«${title}» · победила другая ставка` }];
+      }
+      return [];
+    });
     const activities = [
       ...savedSearchResult.results
         .filter((row) => Number(row.new_matches || 0) > 0)
@@ -666,6 +715,7 @@ export async function GET(request: Request) {
         description: `«${String(row.context_title)}» · ${String(row.body)}`,
         createdAt: Number(row.created_at),
       })),
+      ...auctionActivities,
     ]
       .sort((a, b) => b.createdAt - a.createdAt)
       .slice(0, 50);

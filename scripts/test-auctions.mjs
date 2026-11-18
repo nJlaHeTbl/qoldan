@@ -204,6 +204,17 @@ sqlite.prepare("INSERT OR IGNORE INTO users (id, email, display_name, created_at
 for (let i = 1; i <= 30; i++) sqlite.prepare('INSERT INTO bids (id, auction_id, bidder_id, amount, created_at) VALUES (?,?,?,?,?)').run(crypto.randomUUID(), donor, 'heavy', i, Date.now());
 await ok(bid(live, 100000, 'heavy'), 429, 'more than 30 bids per hour');
 
+// --- notifications derived from auction events ---
+for (const id of [sold, belowReserve]) sqlite.prepare('INSERT INTO bids (id, auction_id, bidder_id, amount, created_at) VALUES (?,?,?,?,?)').run(crypto.randomUUID(), id, 'bidA', 120000, Date.now()); // the directly inserted auctions had no bid rows
+const titlesFor = async who => (await (await ok(bootstrap.GET(req('/api/bootstrap', 'GET', undefined, who)), 200, 'bootstrap ' + who)).json()).activities.map(item => item.title);
+const bidderTitles = await titlesFor('bidA'), sellerTitles = await titlesFor('seller'), strangerTitles = await titlesFor('nobody');
+assert.ok(bidderTitles.includes('Вы выиграли торги'), 'the winner is told');
+assert.ok(bidderTitles.includes('Вашу ставку перебили'), 'an outbid bidder is told (main auction: bidB and later bids lead)');
+assert.ok(sellerTitles.includes('Новая ставка в ваших торгах'), 'the seller sees new bids');
+assert.ok(sellerTitles.includes('Торги завершены: товар продан'), 'the seller sees a sale');
+assert.ok(sellerTitles.includes('Торги завершены: резервная цена не достигнута'), 'the seller sees a missed reserve');
+assert.ok(!strangerTitles.some(title => title.includes('торг') || title.includes('ставк')), 'uninvolved users get no auction notices');
+
 // --- the catalogue payload carries the public summary, never the reserve ---
 const boot = await (await ok(bootstrap.GET(req('/api/bootstrap', 'GET', undefined, null)), 200, 'bootstrap')).json();
 const summary = boot.listings.find(item => item.id === listing.id).auction;
