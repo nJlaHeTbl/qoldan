@@ -7513,3 +7513,13 @@ footer {
 .auction-strip-card small{font-size:12px;color:var(--muted)}
 .auction-strip-card:focus-visible{outline:3px solid #b9dcc7;outline-offset:2px}
 @media(max-width:620px){.auction-strip-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}}
+
+/* ---- Touch targets: at least 40px on phones (WCAG 2.2 asks for 24px, comfortable thumbs need more) ---- */
+@media(max-width:620px){
+.header-language button,.language-switch button,.footer-languages button{min-height:40px;min-width:40px}
+.quick-search button,.data-source-switch button,.pills button,.request-filters button,.request-side button,.filter-actions button{min-height:40px}
+.sort-control select,.searchbox input{min-height:44px}
+.listing-image .heart{min-width:40px;min-height:40px}
+.section-head a,.brand{min-height:40px;display:inline-flex;align-items:center}
+.auction-more{min-height:40px}
+}
