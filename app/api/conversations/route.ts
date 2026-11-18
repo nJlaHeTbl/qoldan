@@ -1,3 +1,4 @@
+import { checkNewConversation } from '@/lib/server/chat-guard';
 import {
   ensureMarketplaceSchema,
   getMarketplaceDb,
@@ -152,6 +153,16 @@ export async function POST(request: Request) {
       );
     }
 
+    const existing = await db
+      .prepare(
+        'SELECT id FROM conversations WHERE context_type = ? AND context_id = ? AND participant_id = ?',
+      )
+      .bind(input.targetType, input.targetId, viewer.id)
+      .first<{ id: string }>();
+    if (!existing) {
+      const limited = await checkNewConversation(db, viewer.id);
+      if (limited) return limited;
+    }
     const id = crypto.randomUUID();
     const now = Date.now();
     const inserted = await db

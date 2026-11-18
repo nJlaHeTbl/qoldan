@@ -1,3 +1,4 @@
+import { checkOutgoingMessage } from '@/lib/server/chat-guard';
 import {
   ensureMarketplaceSchema,
   getMarketplaceDb,
@@ -132,6 +133,8 @@ export async function POST(request: Request, context: RouteContext) {
       'Слишком много сообщений подряд. Подождите немного и продолжайте.',
     );
     if (limited) return limited;
+    const blocked = await checkOutgoingMessage(db, viewer.id, conversation.id, input.body, now);
+    if (blocked) return blocked;
     await db.batch([
       db
         .prepare(
