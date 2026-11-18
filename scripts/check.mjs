@@ -18,6 +18,7 @@ const TESTS = [
   'test-portable',
   'test-server-messages',
   'test-auth',
+  'test-backup',
   'test-legal',
 ];
 
