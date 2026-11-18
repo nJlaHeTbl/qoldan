@@ -8,6 +8,7 @@ import {
   upsertViewer,
 } from '@/lib/server/marketplace-db';
 import { invalidInput, parseJson } from '@/lib/server/marketplace-schemas';
+import { maybePurge } from '@/lib/server/retention';
 
 const input = z.object({ listingId: z.uuid() }).strict();
 
@@ -128,6 +129,7 @@ export async function POST(request: Request) {
         }
       }
     }
+    await maybePurge(db);
     return Response.json(
       { phone: listing.phone },
       { headers: { 'cache-control': 'no-store' } },

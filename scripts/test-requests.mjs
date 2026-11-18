@@ -170,6 +170,16 @@ assert.deepEqual([outcomes.filter(code => code === 200).length, outcomes.filter(
 const parallel = await Promise.all(extra.map(id => reveal('scraper2', id)));
 assert.deepEqual([parallel.filter(r => r.status === 200).length, parallel.filter(r => r.status === 429).length], [15, 5], 'parallel requests must not slip past the hourly limit');
 
+// --- retention: "show phone" records older than 12 months are purged ---
+const retention = compile('lib/server/retention.ts');
+sqlite.prepare("INSERT OR IGNORE INTO users (id, email, display_name, created_at, updated_at) VALUES ('oldviewer', 'old@qoldan.test', 'Old', 1, 1)").run();
+sqlite.prepare('INSERT INTO phone_reveals (id, listing_id, viewer_id, created_at) VALUES (?, ?, ?, ?)').run('old-reveal', listing.id, 'oldviewer', Date.now() - 400 * 24 * 3600_000);
+const freshBefore = sqlite.prepare("SELECT COUNT(*) AS n FROM phone_reveals WHERE id != 'old-reveal'").get().n;
+assert.equal(await retention.maybePurge(db, 20, () => 0.99), 0, 'most requests skip the purge');
+assert.equal(await retention.maybePurge(db, 20, () => 0), 1, 'the purge removes the expired record');
+assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM phone_reveals WHERE id = 'old-reveal'").get().n, 0);
+assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM phone_reveals').get().n, freshBefore, 'recent records stay');
+
 // --- live sitemap: active listings and open requests only ---
 const sitemap = compile('app/sitemap.xml/route.ts');
 const sitemapXml = async () => (await ok(sitemap.GET(req('/sitemap.xml', 'GET', undefined, null)), 200, 'sitemap')).text();
