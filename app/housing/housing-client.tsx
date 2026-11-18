@@ -161,7 +161,7 @@ export default function HousingClient({ signedIn, signInPath }: { signedIn: bool
     } catch (e) { setFormError((e as Error).message + ' Ваши поля сохранены на этой странице.'); }
     finally { saveLock.current = false; setSaving(false); setUploadProgress(''); }
   }
-  return <main className="housing-page">
+  return <main id="main-content" tabIndex={-1} className="housing-page">
     <header className="housing-header">
       <a href="/" className="brand"><span className="brandmark">Q</span>Qoldan</a>
       <a href="/#catalog"><ArrowLeft size={17} /> Все направления</a>

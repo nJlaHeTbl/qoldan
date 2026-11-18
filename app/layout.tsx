@@ -31,6 +31,9 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <body className={manrope.variable}>
+        <a className="skip-link" href="#main-content">
+          К содержимому
+        </a>
         {children}
         <LegalFooter />
         <CookieNotice />

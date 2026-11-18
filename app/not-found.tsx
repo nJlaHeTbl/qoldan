@@ -8,7 +8,7 @@ export const metadata = {
 
 export default function NotFound() {
   return (
-    <main className="listing-page listing-page-missing">
+    <main id="main-content" tabIndex={-1} className="listing-page listing-page-missing">
       <section>
         <span>Q</span>
         <h1>Такой страницы нет</h1>

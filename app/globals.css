@@ -7523,3 +7523,8 @@ footer {
 .section-head a,.brand{min-height:40px;display:inline-flex;align-items:center}
 .auction-more{min-height:40px}
 }
+
+/* Keyboard users: the first Tab stop jumps over the header straight to the content */
+.skip-link{position:absolute;left:12px;top:-60px;z-index:100;padding:10px 16px;border-radius:10px;background:var(--ink);color:#fff;font-weight:700;transition:top .15s ease}
+.skip-link:focus{top:12px}
+a:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid #b9dcc7;outline-offset:2px}

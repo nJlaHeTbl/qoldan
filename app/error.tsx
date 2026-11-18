@@ -5,7 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 
 export default function ErrorPage({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
-    <main className="listing-page listing-page-missing">
+    <main id="main-content" tabIndex={-1} className="listing-page listing-page-missing">
       <section>
         <span>Q</span>
         <h1>Что-то пошло не так</h1>

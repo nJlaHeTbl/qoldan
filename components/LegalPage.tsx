@@ -47,7 +47,7 @@ export function DataTable({ head, rows }: { head: string[]; rows: ReactNode[][] 
 
 export default function LegalPage({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <main className="legal-page">
+    <main id="main-content" tabIndex={-1} className="legal-page">
       <style>{styles}</style>
       <header>
         <Link href="/">← Qoldan</Link>

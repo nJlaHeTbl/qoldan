@@ -126,7 +126,7 @@ export default async function RequestPage({ params }: RequestPageProps) {
 
   if (!item) {
     return (
-      <main className="listing-page listing-page-missing">
+      <main id="main-content" tabIndex={-1} className="listing-page listing-page-missing">
         <section>
           <span>Q</span>
           <h1>Заявка больше недоступна</h1>
@@ -147,7 +147,7 @@ export default async function RequestPage({ params }: RequestPageProps) {
   const responseLabel = formatResponseCount(item.response_count);
 
   return (
-    <main className="listing-page request-page">
+    <main id="main-content" tabIndex={-1} className="listing-page request-page">
       <RecentViewTracker kind="request" itemId={item.id} />
       <header className="listing-page-header">
         <Link className="listing-page-brand" href="/#top" aria-label="Qoldan">

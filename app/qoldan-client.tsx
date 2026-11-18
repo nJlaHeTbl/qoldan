@@ -5242,7 +5242,7 @@ export default function QoldanClient({
     }
   };
   return (
-    <main>
+    <main id="main-content" tabIndex={-1}>
       <header className="topbar">
         <a className="brand" href="#top">
           <span className="brandmark">
@@ -5351,6 +5351,7 @@ export default function QoldanClient({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={tr.searchPlaceholder}
+              aria-label={tr.searchPlaceholder}
             />
             <button className="location" onClick={() => setModal('regions')}>
               <MapPin size={17} /> {selectedRegionLabel}{' '}

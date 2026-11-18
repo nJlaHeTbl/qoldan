@@ -144,7 +144,7 @@ export default async function ListingPage({ params }: ListingPageProps) {
 
   if (!listing) {
     return (
-      <main className="listing-page listing-page-missing">
+      <main id="main-content" tabIndex={-1} className="listing-page listing-page-missing">
         <section>
           <span>Q</span>
           <h1>Объявление больше недоступно</h1>
@@ -159,7 +159,7 @@ export default async function ListingPage({ params }: ListingPageProps) {
 
 
   return (
-    <main className="listing-page">
+    <main id="main-content" tabIndex={-1} className="listing-page">
       <RecentViewTracker kind="listing" itemId={listing.id} />
       <header className="listing-page-header">
         <Link className="listing-page-brand" href="/#top" aria-label="Qoldan">
