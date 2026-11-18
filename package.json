@@ -11,6 +11,8 @@
     "start": "wrangler dev --config dist/server/wrangler.json",
     "db:generate": "drizzle-kit generate",
     "lint": "oxlint",
+    "check": "node scripts/check.mjs",
+    "test": "node scripts/check.mjs --no-build",
     "format": "oxfmt"
   },
   "dependencies": {

@@ -26,6 +26,14 @@ node node_modules/vinext/dist/cli.js dev --port 3000
 
 ## Проверки
 
+Все проверки одной командой (тесты, типы, линтер не выше базы 65, сборка; то же запускает CI в `.github/workflows/ci.yml`):
+
+```bash
+node scripts/check.mjs            # добавьте --no-build, чтобы пропустить сборку
+```
+
+По отдельности:
+
 ```bash
 node --experimental-strip-types scripts/test-requests.mjs          # заявки, отклики, выбор, модерация
 node --experimental-strip-types scripts/test-housing.mjs           # жильё, галереи, гонки за фото
