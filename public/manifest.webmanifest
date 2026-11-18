@@ -1,0 +1,15 @@
+{
+  "name": "Qoldan — ресурсы, аренда и услуги",
+  "short_name": "Qoldan",
+  "description": "Техника, аренда, материалы, заявки и онлайн-торги по Казахстану.",
+  "lang": "ru",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f7f2",
+  "theme_color": "#0d6b45",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

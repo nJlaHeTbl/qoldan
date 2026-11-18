@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Manrope } from 'next/font/google';
 import './globals.css';
 import CookieNotice from '@/components/CookieNotice';
@@ -12,7 +12,9 @@ export const metadata: Metadata = {
   title: 'Qoldan — ресурсы, аренда и услуги по Казахстану',
   description:
     'Найдите сельхозтехнику, арендуйте оборудование или купите стройматериалы рядом в любом регионе Казахстана.',
-  icons: { icon: '/favicon.svg' },
+  icons: { icon: '/icon.svg', apple: '/icon.svg' },
+  manifest: '/manifest.webmanifest',
+  appleWebApp: { capable: true, title: 'Qoldan', statusBarStyle: 'default' },
   openGraph: {
     title: 'Qoldan — всё нужное для дела рядом',
     description: 'Техника, аренда, материалы и заявки по всему Казахстану.',
@@ -25,6 +27,8 @@ export const metadata: Metadata = {
     images: ['/og.png'],
   },
 };
+export const viewport: Viewport = { themeColor: '#0d6b45' };
+
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
