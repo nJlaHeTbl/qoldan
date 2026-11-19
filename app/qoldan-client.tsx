@@ -2704,6 +2704,10 @@ export default function QoldanClient({
   const [requestOwnerOnly, setRequestOwnerOnly] = useState(false);
   const [requestEditing, setRequestEditing] = useState(false);
   const [listingEditing, setListingEditing] = useState(false);
+  // Edit form: a replacement photo (compressed in the browser, uploaded on save) and the map point.
+  const [listingEditPhoto, setListingEditPhoto] = useState<{ blob: Blob; preview: string } | null>(null);
+  const [listingEditCoords, setListingEditCoords] = useState<Coordinates | null>(null);
+  const [listingEditPhotoBusy, setListingEditPhotoBusy] = useState(false);
   const [requestContentModeChoice, setRequestContentMode] =
     useState<ContentMode | null>(null);
   const [visibleRequestCount, setVisibleRequestCount] =
@@ -4855,7 +4859,17 @@ export default function QoldanClient({
     if (!listing?.mine || listing.updatedAt === undefined) return;
     const f = new FormData(event.currentTarget);
     setSubmitting('listing-edit');
+    let pendingUploadUrl = '';
     try {
+      let imageUrl = listing.image;
+      if (listingEditPhoto) {
+        const uploadData = new FormData();
+        uploadData.set('image', listingEditPhoto.blob, 'qoldan-photo.jpg');
+        const uploadResponse = await fetch('/api/uploads', { method: 'POST', body: uploadData });
+        if (!uploadResponse.ok) throw new Error(await apiError(uploadResponse));
+        pendingUploadUrl = ((await uploadResponse.json()) as { url: string }).url;
+        imageUrl = pendingUploadUrl;
+      }
       const response = await fetch('/api/listings', {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
@@ -4871,11 +4885,13 @@ export default function QoldanClient({
             phone: fieldText(f, 'phone'),
             showPhone: f.get('showPhone') === 'on',
             delivery: f.get('delivery') === 'on',
-            location: listing.location,
-            region: listing.region,
+            location: fieldText(f, 'location'),
+            region: fieldText(f, 'region'),
+            latitude: listingEditCoords?.latitude,
+            longitude: listingEditCoords?.longitude,
             category: listing.category,
             type: listing.type,
-            imageUrl: listing.image,
+            imageUrl,
             sellerType: listing.sellerType ?? 'Частное лицо',
             livestockType: listing.livestockType,
             livestockQuantity: listing.livestockQuantity,
@@ -4893,11 +4909,55 @@ export default function QoldanClient({
         previous.map((item) => (String(item.id) === String(listing.id) ? { ...item, ...data.listing, id: item.id } : item)),
       );
       setListingEditing(false);
+      setListingEditPhoto(null);
       notify(copyFor(appLang).listingEdit.saved);
     } catch (error) {
+      if (pendingUploadUrl) {
+        await fetch('/api/uploads', {
+          method: 'DELETE',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ url: pendingUploadUrl }),
+        }).catch(() => null);
+      }
       notify(error instanceof Error ? error.message : copyFor(appLang).listingEdit.failed);
     } finally {
       setSubmitting(null);
+    }
+  };
+  const startListingEdit = () => {
+    if (!selectedListing) return;
+    setListingEditPhoto(null);
+    setListingEditCoords(
+      selectedListing.latitude !== undefined && selectedListing.longitude !== undefined
+        ? { latitude: selectedListing.latitude, longitude: selectedListing.longitude }
+        : null,
+    );
+    setListingEditing(true);
+  };
+  const pickListingEditPhoto = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    if (!file) return;
+    const c = copyFor(appLang).listingEdit;
+    if (!LISTING_IMAGE_TYPES.has(file.type)) {
+      input.value = '';
+      notify(c.photoType);
+      return;
+    }
+    if (file.size > MAX_LISTING_IMAGE_BYTES) {
+      input.value = '';
+      notify(c.photoTooBig);
+      return;
+    }
+    setListingEditPhotoBusy(true);
+    try {
+      const blob = await optimizeListingImage(file);
+      setListingEditPhoto({ blob, preview: URL.createObjectURL(blob) });
+    } catch (error) {
+      input.value = '';
+      notify(error instanceof Error ? error.message : c.failed);
+    } finally {
+      setListingEditPhotoBusy(false);
     }
   };
   const updateListingStatus = async () => {
@@ -7995,12 +8055,12 @@ export default function QoldanClient({
                       </button>
                       {isHousingCategory(selectedListing.category) ? (
                         <p className="request-edit-hint">{copyFor(appLang).listingEdit.housingHint}</p>
-                      ) : selectedListing.auction?.phase === 'active' ? (
+                      ) : selectedListing.auction && selectedListing.auction.phase !== 'cancelled' ? (
                         <p className="request-edit-hint">{copyFor(appLang).listingEdit.auctionLocked}</p>
                       ) : (
                         selectedListing.updatedAt !== undefined &&
                         !listingEditing && (
-                          <button type="button" onClick={() => setListingEditing(true)}>
+                          <button type="button" onClick={startListingEdit}>
                             {copyFor(appLang).listingEdit.edit}
                           </button>
                         )
@@ -8010,9 +8070,22 @@ export default function QoldanClient({
                   {selectedListing.mine &&
                     listingEditing &&
                         !isHousingCategory(selectedListing.category) &&
-                        selectedListing.auction?.phase !== 'active' && (
+                        (!selectedListing.auction || selectedListing.auction.phase === 'cancelled') && (
                           <form key={String(selectedListing.id)} className="product-form request-edit-form listing-edit-form" onSubmit={saveListingEdit}>
                             <p className="request-edit-hint">{copyFor(appLang).listingEdit.hint}</p>
+                            <div className="listing-edit-photo wide">
+                              <img
+                                src={listingEditPhoto?.preview ?? selectedListing.image}
+                                alt={copyFor(appLang).listingEdit.photo}
+                                width="120"
+                                height="90"
+                              />
+                              <label className="listing-edit-photo-pick">
+                                <span>{listingEditPhotoBusy ? copyFor(appLang).listingEdit.saving : copyFor(appLang).listingEdit.photoChange}</span>
+                                <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => void pickListingEditPhoto(e)} disabled={listingEditPhotoBusy} />
+                              </label>
+                              {listingEditPhoto && <small>{copyFor(appLang).listingEdit.photoNew}</small>}
+                            </div>
                             <label className="wide">
                               {copyFor(appLang).listingEdit.title}
                               <input name="title" required minLength={4} maxLength={160} defaultValue={selectedListing.title} />
@@ -8033,6 +8106,13 @@ export default function QoldanClient({
                               {copyFor(appLang).listingEdit.description}
                               <textarea name="description" rows={4} maxLength={1200} defaultValue={selectedListing.description ?? ''} />
                             </label>
+                            <LocationFields
+                              fieldName="location"
+                              initialRegion={selectedListing.region ?? 'Область Жетісу'}
+                              initialPlace={selectedListing.location}
+                              point={listingEditCoords}
+                              onPointChange={setListingEditCoords}
+                            />
                             <label>
                               {copyFor(appLang).listingEdit.phone}
                               <input name="phone" type="tel" required maxLength={32} autoComplete="tel" defaultValue={selectedListing.phone ?? ''} />
@@ -8046,7 +8126,7 @@ export default function QoldanClient({
                               <span>{copyFor(appLang).listingEdit.delivery}</span>
                             </label>
                             <ConsentNote lang={appLang} />
-                            <button className="submit-button" type="submit" disabled={submitting === 'listing-edit'}>
+                            <button className="submit-button" type="submit" disabled={submitting === 'listing-edit' || listingEditPhotoBusy}>
                               {submitting === 'listing-edit' ? copyFor(appLang).listingEdit.saving : copyFor(appLang).listingEdit.save}
                             </button>
                             <div className="request-edit-actions wide">

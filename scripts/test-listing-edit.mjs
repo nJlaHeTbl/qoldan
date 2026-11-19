@@ -78,15 +78,38 @@ const row = sqlite.prepare('SELECT title, price, description, delivery, show_pho
 assert.deepEqual({ ...row }, { title: 'Бетономешалка 180 л', price: '4000', description: 'Новое описание.', delivery: 1, show_phone: 0, updated_at: saved.listing.updatedAt });
 assert.ok(saved.listing.updatedAt > before.updatedAt);
 assert.equal(saved.listing.hasPhone, false);
+// Later edits start from the saved values, as the form does.
+Object.assign(data, { title: 'Бетономешалка 180 л', price: '4000', description: 'Новое описание.', delivery: true, showPhone: false });
 
 // A second tab with the old stamp is refused and changes nothing.
 await ok(edit(listing.id, before.updatedAt, { ...data, price: '1' }), 409, 'stale form');
 assert.equal(sqlite.prepare('SELECT price FROM listings WHERE id = ?').get(listing.id).price, '4000');
 
-// Category, type, photo and place stay as published.
+// Category and type stay as published.
 await ok(edit(listing.id, saved.listing.updatedAt, { ...data, category: 'Стройматериалы' }), 400, 'category change');
 await ok(edit(listing.id, saved.listing.updatedAt, { ...data, type: 'Сдам' }), 400, 'type change');
-await ok(edit(listing.id, saved.listing.updatedAt, { ...data, location: 'Текели' }), 400, 'place change');
+
+// The place can change; the map point follows it (a new point is saved, no point removes the old one).
+const moved = await (await ok(edit(listing.id, saved.listing.updatedAt, { ...data, location: 'Текели', latitude: 44.83, longitude: 78.82 }), 200, 'place with point')).json();
+assert.deepEqual({ ...sqlite.prepare('SELECT l.location, p.latitude, p.longitude FROM listings l JOIN listing_locations p ON p.listing_id = l.id WHERE l.id = ?').get(listing.id) }, { location: 'Текели', latitude: 44.83, longitude: 78.82 });
+const unpinned = await (await ok(edit(listing.id, moved.listing.updatedAt, { ...data, location: 'Талдыкорган' }), 200, 'place without point')).json();
+assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM listing_locations WHERE listing_id = ?').get(listing.id).n, 0);
+
+// The photo can change to the owner's own unused upload; the replaced upload is cleaned up.
+const upload = async (who) => (await (await ok(uploads.POST(req('/api/uploads', 'POST', png(), who)), 201, 'upload ' + who)).json()).url;
+const strangersPhoto = await upload('buyer');
+await ok(edit(listing.id, unpinned.listing.updatedAt, { ...data, imageUrl: strangersPhoto }), 400, "someone else's photo");
+const other = await publish('Другое объявление владельца');
+await ok(edit(listing.id, unpinned.listing.updatedAt, { ...data, imageUrl: other.data.imageUrl }), 409, 'photo of another listing');
+const oldKey = data.imageUrl.slice('/api/media/'.length);
+const newPhoto = await upload('owner');
+const rephotographed = await (await ok(edit(listing.id, unpinned.listing.updatedAt, { ...data, imageUrl: newPhoto }), 200, 'new photo')).json();
+assert.equal(rephotographed.listing.image, newPhoto);
+assert.equal(sqlite.prepare('SELECT image_url FROM listings WHERE id = ?').get(listing.id).image_url, newPhoto);
+assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM uploads WHERE key = ?').get(oldKey).n, 0, 'old photo record removed');
+assert.equal(blobs.has(oldKey), false, 'old photo file removed');
+data.imageUrl = newPhoto;
+saved.listing.updatedAt = rephotographed.listing.updatedAt;
 
 // The price drop reaches the buyer who saved the listing at 5000.
 const notices = (await boot('buyer')).activities.filter((item) => item.kind === 'price');
@@ -104,6 +127,13 @@ const auctioned = await publish('Тестовый лот на торгах', { p
 auctioned.data.price = '1000';
 await ok(edit(auctioned.listing.id, stamp(auctioned.listing.id), { ...auctioned.data, price: '1' }), 409, 'auction running');
 await ok(edit(auctioned.listing.id, stamp(auctioned.listing.id), { ...auctioned.data, auction: { startPrice: 1, minStep: 1, durationHours: 24 } }), 400, 'auction in payload');
+// A finished (sold) auction stays frozen too: the winner must see what they bid for. A cancelled one is editable.
+sqlite.prepare("UPDATE auctions SET status = 'ended', result = 'sold' WHERE listing_id = ?").run(auctioned.listing.id);
+await ok(edit(auctioned.listing.id, stamp(auctioned.listing.id), { ...auctioned.data, title: 'Совсем другой товар' }), 409, 'ended auction');
+const cancelled = await publish('Тестовый лот, торги отменены', { price: '1000', auction: { startPrice: 1000, minStep: 100, durationHours: 24 } });
+cancelled.data.price = '1000';
+sqlite.prepare("UPDATE auctions SET status = 'cancelled' WHERE listing_id = ?").run(cancelled.listing.id);
+await ok(edit(cancelled.listing.id, stamp(cancelled.listing.id), { ...cancelled.data, price: '900' }), 200, 'cancelled auction');
 
 // Housing has its own editor.
 const housingId = crypto.randomUUID();

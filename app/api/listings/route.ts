@@ -248,25 +248,25 @@ const editInput = z.object({
   data: listingInput,
 });
 
-// Owner edits the text, price, terms and contacts of a regular listing. Category, type, photo and place stay as
-// published (they drive search, attributes and the map); housing has its own editor; a running auction is frozen.
+// Owner edits a regular listing: text, price, terms, contacts, photo and place. Category and type stay as published
+// (they drive search and attributes); housing has its own editor; a listing with an auction is frozen.
 export async function PATCH(request: Request) {
   const viewer = await getViewer(request);
   if (!viewer) return unauthorized();
   try {
     const { listingId, expectedUpdatedAt, data } = await parseJson(request, editInput);
     if (data.auction || data.housing) {
-      return Response.json({ error: 'Категорию, тип и фото объявления пока изменить нельзя' }, { status: 400 });
+      return Response.json({ error: 'Категорию и тип объявления изменить нельзя' }, { status: 400 });
     }
     const db = getMarketplaceDb();
     const current = await db
       .prepare(
         `SELECT status, category, offer_type, image_url, location, region,
-                EXISTS (SELECT 1 FROM auctions WHERE auctions.listing_id = listings.id AND auctions.status = 'active') AS auction_running
+                EXISTS (SELECT 1 FROM auctions WHERE auctions.listing_id = listings.id AND auctions.status <> 'cancelled') AS has_auction
          FROM listings WHERE id = ? AND owner_id = ?`,
       )
       .bind(listingId, viewer.id)
-      .first<{ status: string; category: string; offer_type: string; image_url: string; location: string; region: string; auction_running: number }>();
+      .first<{ status: string; category: string; offer_type: string; image_url: string; location: string; region: string; has_auction: number }>();
     if (!current) {
       return Response.json({ error: 'Объявление не найдено или принадлежит другому пользователю' }, { status: 404 });
     }
@@ -276,27 +276,29 @@ export async function PATCH(request: Request) {
     if (!['active', 'paused'].includes(current.status)) {
       return Response.json({ error: 'Объявление ограничено модерацией. Сначала обратитесь в поддержку.' }, { status: 403 });
     }
-    if (Number(current.auction_running)) {
-      return Response.json({ error: 'Пока идут торги, объявление нельзя изменить' }, { status: 409 });
+    if (Number(current.has_auction)) {
+      return Response.json({ error: 'Объявление с торгами изменить нельзя' }, { status: 409 });
     }
-    if (
-      data.category !== current.category ||
-      data.type !== current.offer_type ||
-      data.imageUrl !== current.image_url ||
-      data.location !== current.location ||
-      data.region !== current.region
-    ) {
-      return Response.json({ error: 'Категорию, тип и фото объявления пока изменить нельзя' }, { status: 400 });
+    if (data.category !== current.category || data.type !== current.offer_type) {
+      return Response.json({ error: 'Категорию и тип объявления изменить нельзя' }, { status: 400 });
+    }
+    // A new photo must be the owner's own upload that no other listing uses (same rules as publishing).
+    const photoChanged = data.imageUrl !== current.image_url;
+    if (photoChanged) {
+      const photoError = await validateHousingPhotos(db, viewer.id, [data.imageUrl], listingId);
+      if (photoError) return photoError;
     }
     const updatedAt = Math.max(Date.now(), expectedUpdatedAt + 1);
     const attributes = cleanAttributes(data.category, data.type, data.attributes);
-    const result = await db
+    const listingUpdate = db
       .prepare(
         `UPDATE listings SET title = ?, price = ?, unit = ?, phone = ?, show_phone = ?, available = ?,
            description = ?, seller_type = ?, delivery = ?, livestock_type = ?, livestock_quantity = ?,
-           livestock_price_mode = ?, livestock_breed = ?, attributes = ?, updated_at = ?
+           livestock_price_mode = ?, livestock_breed = ?, attributes = ?, image_url = ?, location = ?, region = ?,
+           updated_at = ?
          WHERE id = ? AND owner_id = ? AND updated_at = ? AND status IN ('active', 'paused')
-           AND NOT EXISTS (SELECT 1 FROM auctions WHERE auctions.listing_id = listings.id AND auctions.status = 'active')`,
+           AND NOT EXISTS (SELECT 1 FROM auctions WHERE auctions.listing_id = listings.id AND auctions.status <> 'cancelled')
+           ${photoChanged ? `AND ${photoClaimGuardSql('listings.id')}` : ''}`,
       )
       .bind(
         data.title,
@@ -313,13 +315,35 @@ export async function PATCH(request: Request) {
         data.livestockPriceMode || null,
         data.livestockBreed || null,
         JSON.stringify(attributes),
+        data.imageUrl,
+        data.location,
+        data.region,
         updatedAt,
         listingId,
         viewer.id,
         expectedUpdatedAt,
-      )
-      .run();
+        ...(photoChanged ? [JSON.stringify([data.imageUrl]), viewer.id] : []),
+      );
+    // The map point follows the place: a new point is saved, no point removes the old one. Same atomic batch,
+    // and only when the listing row itself was written.
+    const locationStatement =
+      data.latitude !== undefined && data.longitude !== undefined
+        ? db
+            .prepare(
+              `INSERT INTO listing_locations (listing_id, latitude, longitude, updated_at)
+               SELECT ?, ?, ?, ? WHERE changes() = 1
+               ON CONFLICT(listing_id) DO UPDATE SET latitude = excluded.latitude,
+                 longitude = excluded.longitude, updated_at = excluded.updated_at`,
+            )
+            .bind(listingId, data.latitude, data.longitude, updatedAt)
+        : db.prepare('DELETE FROM listing_locations WHERE listing_id = ? AND changes() = 1').bind(listingId);
+    const [result] = await db.batch([listingUpdate, locationStatement]);
     if (!result.meta.changes) {
+      if (photoChanged) {
+        // The photo may have been claimed by another save meanwhile.
+        const lateError = await validateHousingPhotos(db, viewer.id, [data.imageUrl], listingId);
+        if (lateError) return lateError;
+      }
       return Response.json(
         {
           error:
@@ -327,6 +351,11 @@ export async function PATCH(request: Request) {
         },
         { status: 409 },
       );
+    }
+    if (photoChanged) {
+      // The replaced photo is removed only if nothing else references it.
+      const oldKey = listingImagePattern.exec(current.image_url)?.[1];
+      if (oldKey) await discardUnusedUpload(db, viewer.id, oldKey);
     }
     return Response.json(
       {
@@ -346,6 +375,11 @@ export async function PATCH(request: Request) {
           livestockPriceMode: data.livestockPriceMode,
           livestockBreed: data.livestockBreed || undefined,
           attributes,
+          image: data.imageUrl,
+          location: data.location,
+          region: data.region,
+          latitude: data.latitude,
+          longitude: data.longitude,
           updatedAt,
         },
       },
