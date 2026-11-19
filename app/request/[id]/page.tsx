@@ -84,6 +84,8 @@ export async function generateMetadata({
   return {
     title,
     description,
+    // Only open requests are shown at all; closed ones answer 404 with noindex.
+    alternates: { canonical: `https://qoldan-zhetisu.nuc9i218.chatgpt.site/request/${encodeURIComponent(id)}` },
     openGraph: {
       title,
       description,

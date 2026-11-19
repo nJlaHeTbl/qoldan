@@ -59,6 +59,7 @@ import {
   ShieldAlert,
   ScrollText,
   Scale,
+  ArrowLeftRight,
   Send,
   Share2,
   LifeBuoy,
@@ -2606,6 +2607,7 @@ export default function QoldanClient({
     | 'provider'
     | 'saved-searches'
     | 'my-auctions'
+    | 'compare'
     | 'recent'
     | 'verification'
     | 'notifications'
@@ -2654,6 +2656,29 @@ export default function QoldanClient({
   const [listingImageProcessing, setListingImageProcessing] = useState(false);
   const listingImageJob = useRef(0);
   const modalRef = useRef<HTMLDialogElement>(null);
+  // Listings picked for side-by-side comparison (max 3), remembered in this browser only.
+  const [compareIds, setCompareIds] = useState<string[]>([]);
+  const compareRestored = useRef(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        const saved = JSON.parse(window.localStorage.getItem('qoldan-compare-v1') || '[]') as unknown;
+        if (Array.isArray(saved)) setCompareIds(saved.filter((id): id is string => typeof id === 'string').slice(0, 3));
+      } catch {
+        // Storage unavailable: comparison simply starts empty.
+      }
+      compareRestored.current = true;
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+  useEffect(() => {
+    if (!compareRestored.current) return;
+    try {
+      window.localStorage.setItem('qoldan-compare-v1', JSON.stringify(compareIds));
+    } catch {
+      // Not saved; the list still works in this tab.
+    }
+  }, [compareIds]);
   const [listingFlow, setListingFlow] = useState<'standard' | 'livestock'>(
     'standard',
   );
@@ -3258,6 +3283,17 @@ export default function QoldanClient({
     setModal('signin');
     setMenuOpen(false);
     return false;
+  };
+  const toggleCompare = (id: Listing['id']) => {
+    const key = String(id);
+    setCompareIds((current) => {
+      if (current.includes(key)) return current.filter((item) => item !== key);
+      if (current.length >= 3) {
+        notify(copyFor(appLang).compare.max);
+        return current;
+      }
+      return [...current, key];
+    });
   };
   const toggleFavorite = async (id: Listing['id']) => {
     if (!requireSignIn()) return;
@@ -6054,6 +6090,19 @@ export default function QoldanClient({
                         }
                       />
                     </button>
+                    <button
+                      type="button"
+                      className={compareIds.includes(String(item.id)) ? 'compare-toggle active' : 'compare-toggle'}
+                      aria-pressed={compareIds.includes(String(item.id))}
+                      aria-label={compareIds.includes(String(item.id)) ? copyFor(appLang).compare.remove : copyFor(appLang).compare.add}
+                      title={compareIds.includes(String(item.id)) ? copyFor(appLang).compare.remove : copyFor(appLang).compare.add}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleCompare(item.id);
+                      }}
+                    >
+                      <ArrowLeftRight size={17} />
+                    </button>
                   </div>
                   <div className="listing-body">
                     <small>{item.category}</small>
@@ -6660,6 +6709,16 @@ export default function QoldanClient({
           <span>{isSignedIn ? tr.profile : auth.signIn}</span>
         </button>
       </nav>
+      {compareIds.length > 0 && modal !== 'compare' && (
+        <section className="compare-bar" aria-label={copyFor(appLang).compare.title}>
+          <button type="button" className="compare-open" onClick={() => setModal('compare')}>
+            <ArrowLeftRight size={17} /> {copyFor(appLang).compare.open(compareIds.length)}
+          </button>
+          <button type="button" className="compare-clear" onClick={() => setCompareIds([])}>
+            {copyFor(appLang).compare.clear}
+          </button>
+        </section>
+      )}
       {modal && (
         <div
           className="modal-backdrop"
@@ -8923,6 +8982,79 @@ export default function QoldanClient({
                 )}
               </>
             )}
+            {modal === 'compare' && (() => {
+              const cc = copyFor(appLang).compare;
+              const items = compareIds
+                .map((id) => allListings.find((listing) => String(listing.id) === id))
+                .filter((listing): listing is Listing => Boolean(listing));
+              const row = (label: string, render: (listing: Listing) => React.ReactNode) => (
+                <tr>
+                  <th scope="row">{label}</th>
+                  {items.map((listing) => (
+                    <td key={listing.id}>{render(listing)}</td>
+                  ))}
+                </tr>
+              );
+              return (
+                <>
+                  <div className="modal-title">
+                    <span>
+                      <ArrowLeftRight />
+                    </span>
+                    <div>
+                      <h2>{cc.title}</h2>
+                    </div>
+                  </div>
+                  {items.length === 0 ? (
+                    <p className="auction-hint">{cc.empty}</p>
+                  ) : (
+                    <div className="compare-table-wrap">
+                      <table className="compare-table">
+                        <thead>
+                          <tr>
+                            <th scope="col">
+                              <span className="sr-only">{cc.title}</span>
+                            </th>
+                            {items.map((listing) => (
+                              <th key={listing.id} scope="col">
+                                <button type="button" className="compare-title" onClick={() => openListing(listing)}>
+                                  <img src={listing.image} alt="" loading="lazy" width="160" height="100" />
+                                  <span>{listing.title}</span>
+                                </button>
+                                <button type="button" className="compare-remove" onClick={() => toggleCompare(listing.id)}>
+                                  {cc.remove}
+                                </button>
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {row(cc.price, (listing) => (
+                            <b>
+                              {formatPriceText(listing.price)} {listing.unit}
+                            </b>
+                          ))}
+                          {row(cc.category, (listing) => listing.category)}
+                          {row(cc.type, (listing) => listing.type)}
+                          {row(cc.place, (listing) => `${listing.location}${listing.region ? `, ${listing.region}` : ''}`)}
+                          {row(cc.seller, (listing) => listing.sellerType ?? cc.none)}
+                          {row(cc.delivery, (listing) => (listing.delivery ? cc.yes : cc.no))}
+                          {row(cc.details, (listing) => {
+                            const facts = describeAttributes(listing.attributes ?? {}, appLang);
+                            return facts.length ? facts.join(' · ') : cc.none;
+                          })}
+                          {row(cc.auction, (listing) =>
+                            listing.auction && listing.auction.phase === 'active'
+                              ? uiMoney(listing.auction.currentBid ?? listing.auction.startPrice, appLang)
+                              : cc.none,
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
             {modal === 'my-auctions' && (
               <>
                 <div className="modal-title">

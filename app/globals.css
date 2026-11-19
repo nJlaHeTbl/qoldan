@@ -7568,3 +7568,20 @@ a:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible,te
 .listing-similar-card span{font-size:14px;font-weight:700;color:var(--green)}
 .listing-similar-card small{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px}
 @media(max-width:620px){.listing-similar-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}}
+
+/* ---- Compare listings ---- */
+.compare-toggle{position:absolute;right:11px;top:53px;width:36px;height:36px;border:0;background:#fffe;border-radius:10px;display:grid;place-items:center;z-index:3;color:var(--ink);cursor:pointer}
+.compare-toggle.active{background:var(--green);color:#fff}
+.compare-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:20px;z-index:45;display:flex;gap:8px;padding:8px;border-radius:999px;background:var(--ink);box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.compare-bar button{min-height:44px;border:0;border-radius:999px;font:inherit;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:8px;padding:0 16px}
+.compare-open{background:var(--lime);color:var(--ink)}
+.compare-clear{background:transparent;color:#fff}
+.compare-table-wrap{overflow-x:auto;margin-top:8px}
+.compare-table{border-collapse:collapse;width:100%;min-width:480px;font-size:14px}
+.compare-table th,.compare-table td{border-bottom:1px solid var(--line);padding:10px 8px;text-align:left;vertical-align:top}
+.compare-table tbody th{color:var(--muted);font-weight:700;white-space:nowrap}
+.compare-title{display:grid;gap:6px;border:0;background:none;padding:0;text-align:left;font:inherit;font-weight:800;color:var(--ink);cursor:pointer}
+.compare-title img{width:100%;max-width:200px;aspect-ratio:8/5;object-fit:cover;border-radius:10px;background:#eef0ec}
+.compare-remove{margin-top:6px;border:0;background:none;padding:6px 0;min-height:40px;color:#b42318;font:inherit;font-size:13px;cursor:pointer}
+@media(max-width:620px){.compare-bar{bottom:calc(76px + env(safe-area-inset-bottom))}}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
