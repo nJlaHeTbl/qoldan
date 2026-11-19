@@ -569,7 +569,7 @@ const listings: Listing[] = [
     category: 'Сельхозуслуги',
     type: 'Окажу услугу',
     image:
-      'https://images.unsplash.com/photo-1592982537447-7440770cbfc9?auto=format&fit=crop&w=900&q=80',
+      '/demo/photo-1592982537447-7440770cbfc9.jpg',
     rating: '4.9',
     verified: true,
     owner: 'Руслан',
@@ -588,7 +588,7 @@ const listings: Listing[] = [
     category: 'Инструменты',
     type: 'Сдам',
     image:
-      'https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=900&q=80',
+      '/demo/photo-1504148455328-c376907d081c.jpg',
     rating: '4.8',
     owner: 'Арман',
     phone: '+7 701 884 13 02',
@@ -607,7 +607,7 @@ const listings: Listing[] = [
     category: 'Стройматериалы',
     type: 'Продам',
     image:
-      'https://images.unsplash.com/photo-1590069261209-f8e9b8642343?auto=format&fit=crop&w=900&q=80',
+      '/demo/photo-1590069261209-f8e9b8642343.jpg',
   },
   {
     id: 4,
@@ -619,7 +619,7 @@ const listings: Listing[] = [
     category: 'Спецтехника',
     type: 'Окажу услугу',
     image:
-      'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=900&q=80',
+      '/demo/photo-1504307651254-35680f356dfd.jpg',
     rating: '5.0',
     verified: true,
     owner: 'Даурен',
@@ -638,7 +638,7 @@ const listings: Listing[] = [
     category: 'Оборудование',
     type: 'Сдам',
     image:
-      'https://images.unsplash.com/photo-1580901369227-308f6f40bdeb?auto=format&fit=crop&w=900&q=80',
+      '/demo/photo-1580901369227-308f6f40bdeb.jpg',
     rating: '4.7',
     owner: 'Нуржан',
     phone: '+7 705 440 55 27',
@@ -656,7 +656,7 @@ const listings: Listing[] = [
     category: 'Стройматериалы',
     type: 'Продам',
     image:
-      'https://images.unsplash.com/photo-1531835551805-16d864c8d311?auto=format&fit=crop&w=900&q=80',
+      '/demo/photo-1531835551805-16d864c8d311.jpg',
   },
 ];
 const nationalListings: Listing[] = [
@@ -840,7 +840,7 @@ const nationalListings: Listing[] = [
     category: 'Скот и животные',
     type: 'Продам',
     image:
-      'https://images.unsplash.com/photo-1553284965-83fd3e82fa5a?auto=format&fit=crop&w=900&q=80',
+      '/demo/photo-1553284965-83fd3e82fa5a.jpg',
     owner: 'Демонстрация Qoldan',
     phone: '+7 700 000 00 00',
     sellerType: 'Частное лицо',
@@ -5385,7 +5385,7 @@ export default function QoldanClient({
         </div>
         <div className="hero-art">
           <img
-            src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1200&q=85"
+            src="/demo/photo-1500382017468-9049fed747ef.jpg"
             alt="Поля Казахстана"
             decoding="async"
             fetchPriority="high"
