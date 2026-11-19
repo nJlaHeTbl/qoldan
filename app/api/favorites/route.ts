@@ -23,11 +23,11 @@ export async function POST(request: Request) {
     if (input.active) {
       await db
         .prepare(
-          `INSERT INTO favorites (owner_id, listing_id, created_at)
-           VALUES (?, ?, ?)
+          `INSERT INTO favorites (owner_id, listing_id, created_at, price_at_save)
+           VALUES (?, ?, ?, (SELECT price FROM listings WHERE id = ?))
            ON CONFLICT(owner_id, listing_id) DO NOTHING`,
         )
-        .bind(viewer.id, input.listingId, Date.now())
+        .bind(viewer.id, input.listingId, Date.now(), input.listingId)
         .run();
     } else {
       await db

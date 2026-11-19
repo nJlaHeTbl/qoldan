@@ -7,3 +7,13 @@ export function formatPriceText(price: string): string {
   const grouped = Number(match[1]).toLocaleString('ru-RU');
   return `${grouped} ₸`;
 }
+
+// Numeric value of a free-text price for comparisons ("18 000 ₸" → 18000). Null when there is no
+// plain amount ("Договорная", "от 5 000", ranges), so a vague price never triggers a "dropped" notice.
+export function priceNumber(price: string | null | undefined): number | null {
+  const text = String(price ?? '').replace(/[\s\u00a0\u202f]/g, '').toLowerCase();
+  const match = /^(\d{1,12})(₸|тг|тенге|kzt)?$/.exec(text);
+  if (!match) return null;
+  const value = Number(match[1]);
+  return value > 0 ? value : null;
+}

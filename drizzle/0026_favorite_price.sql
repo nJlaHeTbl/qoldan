@@ -1,0 +1,1 @@
+ALTER TABLE `favorites` ADD `price_at_save` text;

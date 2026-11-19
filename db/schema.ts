@@ -252,6 +252,8 @@ export const favorites = sqliteTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     listingId: text('listing_id').notNull(),
     createdAt: integer('created_at').notNull(),
+    // Listing price when it was saved; a lower current price shows a "price dropped" notice.
+    priceAtSave: text('price_at_save'),
   },
   (table) => [primaryKey({ columns: [table.ownerId, table.listingId] })],
 );

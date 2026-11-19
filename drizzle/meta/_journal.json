@@ -183,6 +183,13 @@
       "when": 1795027410916,
       "tag": "0025_flowery_meteorite",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1795081900128,
+      "tag": "0026_favorite_price",
+      "breakpoints": true
     }
   ]
 }

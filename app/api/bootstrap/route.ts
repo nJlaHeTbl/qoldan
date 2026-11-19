@@ -12,6 +12,7 @@ import {
   type SavedSearchRow,
 } from '@/lib/server/saved-searches';
 import { readAttributes } from '@/lib/listing-attributes';
+import { priceNumber } from '@/lib/price';
 import {
   AUCTION_COLUMNS,
   settleDueAuctions,
@@ -273,10 +274,22 @@ export async function GET(request: Request) {
       ? await Promise.all([
           db
             .prepare(
-              'SELECT listing_id FROM favorites WHERE owner_id = ? ORDER BY created_at DESC',
+              `SELECT favorites.listing_id, favorites.price_at_save,
+                      listings.title, listings.price, listings.status, listings.updated_at
+               FROM favorites
+               LEFT JOIN listings ON listings.id = favorites.listing_id
+               WHERE favorites.owner_id = ?
+               ORDER BY favorites.created_at DESC`,
             )
             .bind(viewer.id)
-            .all<{ listing_id: string }>(),
+            .all<{
+              listing_id: string;
+              price_at_save: string | null;
+              title: string | null;
+              price: string | null;
+              status: string | null;
+              updated_at: number | null;
+            }>(),
           db
             .prepare(
               `${savedSearchSelect}
@@ -593,7 +606,25 @@ export async function GET(request: Request) {
       }
       return [];
     });
+    // Saved listings that became cheaper than when they were added to favourites.
+    const priceDropActivities = favoriteResult.results.flatMap((row) => {
+      if (row.status !== 'active' || !row.title) return [];
+      const before = priceNumber(row.price_at_save);
+      const now = priceNumber(row.price);
+      if (before === null || now === null || now >= before) return [];
+      return [
+        {
+          id: `price-drop-${row.listing_id}-${now}`,
+          kind: 'price',
+          title: 'Цена снизилась',
+          description: `«${row.title}» · было ${before.toLocaleString('ru-RU')} ₸, стало ${now.toLocaleString('ru-RU')} ₸`,
+          createdAt: Number(row.updated_at || Date.now()),
+          listingId: row.listing_id,
+        },
+      ];
+    });
     const activities = [
+      ...priceDropActivities,
       ...savedSearchResult.results
         .filter((row) => Number(row.new_matches || 0) > 0)
         .map((row) => ({

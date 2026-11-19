@@ -29,6 +29,7 @@ import {
   Beef,
   Bell,
   Bookmark,
+  TrendingDown,
   ChevronLeft,
   ChevronDown,
   Clock3,
@@ -235,7 +236,7 @@ type SavedSearchItem = {
 };
 type ActivityItem = {
   id: string;
-  kind: 'response' | 'booking' | 'moderation' | 'appeal' | 'message' | 'search';
+  kind: 'response' | 'booking' | 'moderation' | 'appeal' | 'message' | 'search' | 'price';
   title: string;
   description: string;
   createdAt: number;
@@ -244,6 +245,7 @@ type ActivityItem = {
   targetTitle?: string;
   appealId?: string | null;
   appealStatus?: AppealItem['status'] | null;
+  listingId?: string;
 };
 type ConversationSummary = {
   id: string;
@@ -10618,7 +10620,7 @@ export default function QoldanClient({
                   <div>
                     <small>УВЕДОМЛЕНИЯ</small>
                     <h2>Что нового</h2>
-                    <p>Реальные отклики и запросы по вашим публикациям.</p>
+                    <p>Отклики и запросы по вашим публикациям, снижение цен в избранном.</p>
                   </div>
                 </div>
                 {activities.length > 0 ? (
@@ -10634,6 +10636,8 @@ export default function QoldanClient({
                             <ShieldAlert />
                           ) : activity.kind === 'appeal' ? (
                             <Scale />
+                          ) : activity.kind === 'price' ? (
+                            <TrendingDown />
                           ) : (
                             <MessageCircle />
                           )}
@@ -10676,6 +10680,19 @@ export default function QoldanClient({
                               <MessageCircle /> Открыть сообщения
                             </button>
                           )}
+                          {activity.kind === 'price' &&
+                            allListings.some((item) => String(item.id) === activity.listingId) && (
+                              <button
+                                type="button"
+                                className="appeal-inline-button"
+                                onClick={() => {
+                                  const target = allListings.find((item) => String(item.id) === activity.listingId);
+                                  if (target) openListing(target);
+                                }}
+                              >
+                                <TrendingDown /> Открыть объявление
+                              </button>
+                            )}
                           {activity.kind === 'search' && (
                             <button
                               type="button"
