@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AuctionSummary } from '@/lib/auction';
 import { copyFor, dateTime, money, type Lang } from '@/lib/ui-copy';
-import { translateServerMessage } from '@/lib/server-messages';
+import { localizeError } from '@/lib/localize-error';
 
 type Bid = { amount: number; createdAt: number; bidder: string; mine: boolean };
 type ViewerState = { isSeller: boolean; youLead: boolean; youWon: boolean } | null;
@@ -114,7 +114,7 @@ export default function AuctionPanel({
       });
       const body = (await response.json().catch(() => ({}))) as Partial<Payload> & { error?: string };
       if (!response.ok) {
-        setMessage({ kind: 'error', text: body.error ? translateServerMessage(body.error, lang) : c.failed });
+        setMessage({ kind: 'error', text: body.error ? await localizeError(body.error, lang) : c.failed });
         typedAmount.current = false;
         await load();
         return;
@@ -140,7 +140,7 @@ export default function AuctionPanel({
       setMessage(
         response.ok
           ? { kind: 'ok', text: c.cancelled_ok }
-          : { kind: 'error', text: body.error ? translateServerMessage(body.error, lang) : c.cancelFailed },
+          : { kind: 'error', text: body.error ? await localizeError(body.error, lang) : c.cancelFailed },
       );
       await load();
     } finally {

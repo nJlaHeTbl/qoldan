@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { copyFor, type Lang } from '@/lib/ui-copy';
-import { translateServerMessage } from '@/lib/server-messages';
+import { localizeError } from '@/lib/localize-error';
 
 type Channel = 'phone' | 'email';
 const LANGUAGE_KEY = 'qoldan-ui-language-v1';
@@ -43,7 +43,7 @@ export default function SignInForm({ channels, returnTo }: { channels: Channel[]
       body: JSON.stringify(body),
     });
     const data = (await response.json().catch(() => ({}))) as { error?: string; destination?: string };
-    if (!response.ok) throw new Error(data.error ? translateServerMessage(data.error, lang) : c.failed);
+    if (!response.ok) throw new Error(data.error ? await localizeError(data.error, lang) : c.failed);
     return data;
   };
 
