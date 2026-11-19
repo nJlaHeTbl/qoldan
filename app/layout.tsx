@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   title: 'Qoldan — ресурсы, аренда и услуги по Казахстану',
   description:
     'Найдите сельхозтехнику, арендуйте оборудование или купите стройматериалы рядом в любом регионе Казахстана.',
-  icons: { icon: '/icon.svg', apple: '/icon.svg' },
+  icons: { icon: '/icon.svg', apple: '/apple-touch-icon.png' },
   manifest: '/manifest.webmanifest',
   appleWebApp: { capable: true, title: 'Qoldan', statusBarStyle: 'default' },
   openGraph: {
