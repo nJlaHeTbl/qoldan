@@ -3,6 +3,17 @@
 // Server error messages stay in Russian for now; the client shows them as returned.
 
 export type Lang = 'ru' | 'kk' | 'en';
+/** Functional cookie with the chosen interface language, so server-rendered pages can use it too. */
+export const LANG_COOKIE = 'qoldan-lang';
+export const parseLang = (value: unknown): Lang => (value === 'kk' || value === 'en' ? value : 'ru');
+/** Browser only: remember the language for server-rendered pages (one year, whole site). */
+export function storeLangCookie(lang: Lang) {
+  try {
+    document.cookie = `${LANG_COOKIE}=${lang}; Path=/; Max-Age=31536000; SameSite=Lax${location.protocol === 'https:' ? '; Secure' : ''}`;
+  } catch {
+    // Cookies blocked: server pages stay in Russian, the main page still follows the choice.
+  }
+}
 
 const locale = { ru: 'ru-RU', kk: 'kk-KZ', en: 'en-US' } as const;
 // Kazakhstan groups digits with spaces in both Russian and Kazakh (45 000 ₸), so kk uses the ru format.

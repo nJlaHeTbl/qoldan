@@ -21,6 +21,8 @@ import { formatPriceText } from '@/lib/price';
 import AuctionPanel from '@/components/AuctionPanel';
 import { describeAttributes, readAttributes } from '@/lib/listing-attributes';
 import { chatGPTSignInPath } from '../../chatgpt-auth';
+import { requestLang } from '@/lib/server/request-lang';
+import { listingPageCopy } from '@/lib/listing-page-copy';
 
 const SITE_ORIGIN = 'https://qoldan-zhetisu.nuc9i218.chatgpt.site';
 
@@ -151,8 +153,8 @@ export async function generateMetadata({
   };
 }
 
-const formatPublishedDate = (timestamp: number) =>
-  new Intl.DateTimeFormat('ru-RU', {
+const formatPublishedDate = (timestamp: number, locale: string) =>
+  new Intl.DateTimeFormat(locale, {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -161,16 +163,18 @@ const formatPublishedDate = (timestamp: number) =>
 export default async function ListingPage({ params }: ListingPageProps) {
   const { id } = await params;
   const listing = await getListing(id);
+  const lang = await requestLang();
+  const t = listingPageCopy(lang);
 
   if (!listing) {
     return (
-      <main id="main-content" tabIndex={-1} className="listing-page listing-page-missing">
+      <main id="main-content" tabIndex={-1} lang={lang} className="listing-page listing-page-missing">
         <section>
           <span>Q</span>
-          <h1>Объявление больше недоступно</h1>
-          <p>Возможно, владелец поставил его на паузу или снял с публикации.</p>
+          <h1>{t.missingTitle}</h1>
+          <p>{t.missingText}</p>
           <Link href="/#catalog">
-            <ArrowLeft /> Вернуться в каталог
+            <ArrowLeft /> {t.backCatalog}
           </Link>
         </section>
       </main>
@@ -201,7 +205,7 @@ export default async function ListingPage({ params }: ListingPageProps) {
 
 
   return (
-    <main id="main-content" tabIndex={-1} className="listing-page">
+    <main id="main-content" tabIndex={-1} lang={lang} className="listing-page">
       <RecentViewTracker kind="listing" itemId={listing.id} />
       <header className="listing-page-header">
         <Link className="listing-page-brand" href="/#top" aria-label="Qoldan">
@@ -209,33 +213,33 @@ export default async function ListingPage({ params }: ListingPageProps) {
           <b>Qoldan</b>
         </Link>
         <Link className="listing-page-back" href={isHousingCategory(listing.category) ? '/housing' : '/#catalog'}>
-          <ArrowLeft /> {isHousingCategory(listing.category) ? 'Всё жильё' : 'Все объявления'}
+          <ArrowLeft /> {isHousingCategory(listing.category) ? t.allHousing : t.allListings}
         </Link>
       </header>
       <section className="listing-page-shell">
         <article className="listing-page-card">
           {isHousingCategory(listing.category) ? <HousingGallery title={listing.title} photos={getHousingPhotos(listing.image_url, listing.photos)} /> : <div className="listing-page-photo">
             <img src={listing.image_url} alt={listing.title} />
-            <span className="listing-page-type">{listing.offer_type}</span>
+            <span className="listing-page-type">{t.offerLabel(listing.offer_type)}</span>
           </div>}
           <div className="listing-page-content">
             <small>
-              {listing.category} · {listing.region}
+              {t.categoryLabel(listing.category)} · {listing.region}
             </small>
             <h1>{listing.title}</h1>
             <div className="listing-page-price">
-              {formatPriceText(listing.price)}{isHousingCategory(listing.category) && !/^\d+$/.test(String(listing.price).trim()) ? ' ₸' : ''} <span>{listing.unit || ''}</span>
+              {formatPriceText(listing.price)}{isHousingCategory(listing.category) && !/^\d+$/.test(String(listing.price).trim()) ? ' ₸' : ''} <span>{listing.unit ? t.unitLabel(listing.unit) : ''}</span>
             </div>
-            <p style={{whiteSpace:'pre-line'}}>{listing.description || listingDescription(listing)}</p>
+            <p style={{whiteSpace:'pre-line'}}>{listing.description || `${t.offerLabel(listing.offer_type)}: ${listing.title} · ${listing.region}`}</p>
             <div className="listing-page-facts">
-              {listing.guests && <span>{listing.rooms} комн. · до {listing.guests} гостей{listing.available ? '' : ' · Свободные даты уточняйте у владельца'}</span>}
-              {listing.latitude != null && listing.longitude != null && <a href={`https://www.openstreetmap.org/?mlat=${listing.latitude}&mlon=${listing.longitude}#map=16/${listing.latitude}/${listing.longitude}`} target="_blank" rel="noreferrer"><MapPin /> Посмотреть указанную точку на карте</a>}
+              {listing.guests && <span>{t.rooms(Number(listing.rooms), listing.guests)}{listing.available ? '' : t.datesAsk}</span>}
+              {listing.latitude != null && listing.longitude != null && <a href={`https://www.openstreetmap.org/?mlat=${listing.latitude}&mlon=${listing.longitude}#map=16/${listing.latitude}/${listing.longitude}`} target="_blank" rel="noreferrer"><MapPin /> {t.mapPoint}</a>}
               <span>
                 <MapPin /> {listing.location}, {listing.region}
               </span>
               <span>
-                <CheckCircle2 /> Опубликовано{' '}
-                {formatPublishedDate(Number(listing.created_at))}
+                <CheckCircle2 /> {t.published}{' '}
+                {formatPublishedDate(Number(listing.created_at), t.locale)}
               </span>
               {listing.available && (
                 <span>
@@ -244,10 +248,10 @@ export default async function ListingPage({ params }: ListingPageProps) {
               )}
               {Boolean(listing.delivery) && (
                 <span>
-                  <Construction /> Доставка или выезд доступны
+                  <Construction /> {t.delivery}
                 </span>
               )}
-              {describeAttributes(readAttributes(listing.attributes)).map((fact) => (
+              {describeAttributes(readAttributes(listing.attributes), lang).map((fact) => (
                 <span key={fact}>
                   <CheckCircle2 /> {fact}
                 </span>
@@ -258,10 +262,8 @@ export default async function ListingPage({ params }: ListingPageProps) {
               <div>
                 <b>{listing.owner_name}</b>
                 <small>
-                  {listing.seller_type} ·{' '}
-                  {listing.verified_business_id
-                    ? 'бизнес подтверждён Qoldan'
-                    : 'участник площадки'}
+                  {t.sellerLabel(listing.seller_type)} ·{' '}
+                  {listing.verified_business_id ? t.verified : t.member}
                 </small>
               </div>
               {listing.verified_business_id && <ShieldCheck />}
@@ -269,6 +271,7 @@ export default async function ListingPage({ params }: ListingPageProps) {
             <AuctionPanel
               listingId={listing.id}
               signInPath={chatGPTSignInPath(`/listing/${listing.id}`)}
+              lang={lang}
             />
             <div className="listing-page-actions">
               {listing.show_phone && listing.has_phone ? (
@@ -277,21 +280,19 @@ export default async function ListingPage({ params }: ListingPageProps) {
                   signInPath={chatGPTSignInPath(`/listing/${listing.id}`)}
                   title={listing.title}
                   whatsappClass="whatsapp"
+                  lang={lang}
                 />
               ) : (
-                <span>Владелец не показывает номер. Напишите ему в чате Qoldan.</span>
+                <span>{t.noPhone}</span>
               )}
             </div>
-            <p className="listing-page-safety">
-              Qoldan не принимает оплату. Уточните состояние, условия и личность
-              второй стороны до передачи денег.
-            </p>
+            <p className="listing-page-safety">{t.safety}</p>
           </div>
         </article>
       </section>
       {similar.length > 0 && (
         <section className="listing-similar" aria-labelledby="similar-title">
-          <h2 id="similar-title">Похожие объявления</h2>
+          <h2 id="similar-title">{t.similar}</h2>
           <div className="listing-similar-grid">
             {similar.map((item) => (
               <Link key={item.id} href={`/listing/${item.id}`} className="listing-similar-card">
@@ -299,7 +300,7 @@ export default async function ListingPage({ params }: ListingPageProps) {
                 <b>{item.title}</b>
                 <span>
                   {formatPriceText(item.price)}
-                  {item.unit ? ` ${item.unit}` : ''}
+                  {item.unit ? ` ${t.unitLabel(item.unit)}` : ''}
                 </span>
                 <small>
                   <MapPin size={13} /> {item.location}

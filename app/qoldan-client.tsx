@@ -21,7 +21,7 @@ import { matchesSmartQuery, parseSmartQuery } from '@/lib/smart-search';
 import { formatPriceText } from '@/lib/price';
 import { LISTING_IMAGE_TYPES, optimizeListingImage } from '@/lib/image-optimize';
 import { localizeError } from '@/lib/localize-error';
-import { copyFor, money as uiMoney, dateTime as uiDateTime } from '@/lib/ui-copy';
+import { copyFor, money as uiMoney, dateTime as uiDateTime, storeLangCookie } from '@/lib/ui-copy';
 import ConsentNote from '@/components/ConsentNote';
 import {
   ArrowRight,
@@ -2887,6 +2887,7 @@ export default function QoldanClient({
   const chooseLanguage = (language: AppLanguage) => {
     setAppLang(language);
     document.documentElement.lang = language;
+    storeLangCookie(language);
     try {
       window.localStorage.setItem(UI_LANGUAGE_KEY, language);
     } catch {
@@ -2899,6 +2900,7 @@ export default function QoldanClient({
       if (stored === 'ru' || stored === 'kk' || stored === 'en') {
         setAppLang(stored);
         document.documentElement.lang = stored;
+        storeLangCookie(stored);
       }
     } catch {
       // По умолчанию интерфейс остаётся на русском языке.
