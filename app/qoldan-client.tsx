@@ -2653,6 +2653,7 @@ export default function QoldanClient({
   const [listingImageSize, setListingImageSize] = useState(0);
   const [listingImageProcessing, setListingImageProcessing] = useState(false);
   const listingImageJob = useRef(0);
+  const modalRef = useRef<HTMLDialogElement>(null);
   const [listingFlow, setListingFlow] = useState<'standard' | 'livestock'>(
     'standard',
   );
@@ -2986,14 +2987,45 @@ export default function QoldanClient({
   useEffect(() => {
     if (!modal) return;
     const previousOverflow = document.body.style.overflow;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setModal(null);
+    // Keyboard and screen-reader users: focus moves into the window, Tab stays inside it,
+    // and on close focus returns to the button that opened it.
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusables = () =>
+      [...(modalRef.current?.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ) ?? [])].filter((element) => element.offsetParent !== null);
+    const focusTimer = window.setTimeout(() => {
+      const dialog = modalRef.current;
+      if (dialog && !dialog.contains(document.activeElement)) {
+        const items = focusables();
+        (items.find((element) => !element.classList.contains('modal-close')) ?? items[0] ?? dialog).focus();
+      }
+    }, 0);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setModal(null);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const items = focusables();
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     document.body.style.overflow = 'hidden';
-    document.addEventListener('keydown', closeOnEscape);
+    document.addEventListener('keydown', onKeyDown);
     return () => {
+      window.clearTimeout(focusTimer);
       document.body.style.overflow = previousOverflow;
-      document.removeEventListener('keydown', closeOnEscape);
+      document.removeEventListener('keydown', onKeyDown);
+      if (opener && document.contains(opener)) opener.focus();
     };
   }, [modal]);
   useEffect(() => {
@@ -6638,6 +6670,9 @@ export default function QoldanClient({
         >
           <dialog
             open
+            ref={modalRef}
+            tabIndex={-1}
+            aria-modal="true"
             className={`app-modal ${modal === 'detail' ? 'detail-modal' : ''} ${modal === 'provider' ? 'provider-modal' : ''} ${modal === 'moderation' ? 'moderation-modal' : ''} ${modal === 'messages' ? 'messages-modal' : ''} ${modal === 'info' ? 'info-modal' : ''}`}
             aria-label="Окно Qoldan"
           >
