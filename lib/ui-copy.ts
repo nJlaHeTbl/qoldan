@@ -231,4 +231,8 @@ export const COPY = {
 export type UiCopy = (typeof COPY)['ru'];
 export const copyFor = (lang: Lang | undefined): UiCopy => COPY[lang ?? 'ru'] as UiCopy;
 /** Translates a stored Russian enum value (rate, unit, condition) for display. */
-export const valueLabel = (lang: Lang | undefined, value: string) => copyFor(lang).attrs.values[value] ?? value;
+export const valueLabel = (lang: Lang | undefined, value: string) => {
+  const values: Record<string, string> = copyFor(lang).attrs.values;
+  // Own keys only, so a stored value like "toString" is shown as text, not looked up on Object.prototype.
+  return Object.hasOwn(values, value) && typeof values[value] === 'string' ? values[value] : value;
+};

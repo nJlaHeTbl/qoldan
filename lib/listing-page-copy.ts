@@ -130,7 +130,9 @@ const COPIES: Record<Lang, Copy> = { ru: RU, kk: KK, en: EN };
 export function listingPageCopy(lang: Lang) {
   const copy = COPIES[lang];
   // Stored values are Russian; unknown ones are shown as written.
-  const label = (table: Record<string, string>, value: string) => table[value] ?? value;
+  // Own keys only: user-typed values such as "constructor" must never reach Object.prototype.
+  const label = (table: Record<string, string>, value: string) =>
+    Object.hasOwn(table, value) && typeof table[value] === 'string' ? table[value] : value;
   return {
     ...copy,
     offerLabel: (value: string) => label(copy.offer, value),

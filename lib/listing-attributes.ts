@@ -96,7 +96,11 @@ const VALUE_LABELS: Record<'kk' | 'en', Record<string, string>> = {
 
 export function describeAttributes(attributes: ListingAttributes, lang: 'ru' | 'kk' | 'en' = 'ru'): string[] {
   const t = FACTS[lang];
-  const label = (value: string) => (lang === 'ru' ? value : VALUE_LABELS[lang][value] ?? value);
+  const label = (value: string) => {
+    if (lang === 'ru') return value;
+    const table = VALUE_LABELS[lang];
+    return Object.hasOwn(table, value) ? table[value] : value; // own keys only
+  };
   const facts: string[] = [];
   if (attributes.withOperator === true) facts.push(t.with);
   if (attributes.withOperator === false) facts.push(t.without);

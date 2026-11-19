@@ -18,6 +18,8 @@ import {
   getMarketplaceDb,
 } from '@/lib/server/marketplace-db';
 import { RecentViewTracker } from '@/components/RecentViewTracker';
+import { requestLang } from '@/lib/server/request-lang';
+import { requestPageCopy } from '@/lib/request-page-copy';
 
 type RequestDetailRow = {
   id: string;
@@ -36,11 +38,11 @@ type RequestPageProps = {
   params: Promise<{ id: string }>;
 };
 
-const requestKinds = {
-  agro: { label: 'Сельхозработы', Icon: Tractor },
-  rent: { label: 'Аренда оборудования', Icon: Wrench },
-  build: { label: 'Стройка и материалы', Icon: Construction },
-  recycle: { label: 'Вторсырьё', Icon: PackageOpen },
+const requestIcons = {
+  agro: Tractor,
+  rent: Wrench,
+  build: Construction,
+  recycle: PackageOpen,
 } as const;
 
 const getRequest = cache(async (id: string) => {
@@ -101,55 +103,40 @@ export async function generateMetadata({
   };
 }
 
-const formatPublishedDate = (timestamp: number) =>
-  new Intl.DateTimeFormat('ru-RU', {
+const formatPublishedDate = (timestamp: number, locale: string) =>
+  new Intl.DateTimeFormat(locale, {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
   }).format(new Date(timestamp));
 
-const formatResponseCount = (count: number) => {
-  const mod100 = count % 100;
-  const mod10 = count % 10;
-  const word =
-    mod100 >= 11 && mod100 <= 14
-      ? 'откликов'
-      : mod10 === 1
-        ? 'отклик'
-        : mod10 >= 2 && mod10 <= 4
-          ? 'отклика'
-          : 'откликов';
-  return `${count} ${word}`;
-};
-
 export default async function RequestPage({ params }: RequestPageProps) {
   const { id } = await params;
   const item = await getRequest(id);
+  const lang = await requestLang();
+  const t = requestPageCopy(lang);
 
   if (!item) {
     return (
-      <main id="main-content" tabIndex={-1} className="listing-page listing-page-missing">
+      <main id="main-content" tabIndex={-1} lang={lang} className="listing-page listing-page-missing">
         <section>
           <span>Q</span>
-          <h1>Заявка больше недоступна</h1>
-          <p>
-            Возможно, заказчик уже выбрал исполнителя, закрыл заявку или она
-            была снята с публикации.
-          </p>
+          <h1>{t.missingTitle}</h1>
+          <p>{t.missingText}</p>
           <Link href="/#requests">
-            <ArrowLeft /> Смотреть актуальные заявки
+            <ArrowLeft /> {t.missingLink}
           </Link>
         </section>
       </main>
     );
   }
 
-  const kind = requestKinds[item.kind] || requestKinds.agro;
-  const DirectionIcon = kind.Icon;
-  const responseLabel = formatResponseCount(item.response_count);
+  const kind = Object.hasOwn(requestIcons, item.kind) ? item.kind : 'agro';
+  const DirectionIcon = requestIcons[kind];
+  const responseLabel = t.responses(Number(item.response_count));
 
   return (
-    <main id="main-content" tabIndex={-1} className="listing-page request-page">
+    <main id="main-content" tabIndex={-1} lang={lang} className="listing-page request-page">
       <RecentViewTracker kind="request" itemId={item.id} />
       <header className="listing-page-header">
         <Link className="listing-page-brand" href="/#top" aria-label="Qoldan">
@@ -157,7 +144,7 @@ export default async function RequestPage({ params }: RequestPageProps) {
           <b>Qoldan</b>
         </Link>
         <Link className="listing-page-back" href="/#requests">
-          <ArrowLeft /> Все заявки
+          <ArrowLeft /> {t.allRequests}
         </Link>
       </header>
       <section className="listing-page-shell request-page-shell">
@@ -166,20 +153,17 @@ export default async function RequestPage({ params }: RequestPageProps) {
             <span>
               <DirectionIcon />
             </span>
-            <small>МНЕ НУЖНО · {kind.label}</small>
+            <small>{t.eyebrow} · {t.kinds[kind]}</small>
             <b>{responseLabel}</b>
-            <p>
-              Исполнители предлагают цену сами. Qoldan не принимает оплату и не
-              удерживает комиссию за отклик.
-            </p>
+            <p>{t.directionNote}</p>
           </aside>
           <div className="request-page-content">
-            <small>ЗАЯВКА #{item.id}</small>
+            <small>{t.requestNo(item.id)}</small>
             <h1>{item.title}</h1>
             <div className="request-page-budget">
               <CircleDollarSign />
               <span>
-                Бюджет <b>{item.budget}</b>
+                {t.budget} <b>{item.budget}</b>
               </span>
             </div>
             <div className="listing-page-facts request-page-facts">
@@ -190,30 +174,26 @@ export default async function RequestPage({ params }: RequestPageProps) {
                 <CalendarDays /> {item.when_text}
               </span>
               <span>
-                <CheckCircle2 /> Опубликовано{' '}
-                {formatPublishedDate(Number(item.created_at))}
+                <CheckCircle2 /> {t.published}{' '}
+                {formatPublishedDate(Number(item.created_at), t.locale)}
               </span>
             </div>
             <div className="listing-page-owner request-page-owner">
               <span>{item.owner_name.slice(0, 2).toUpperCase()}</span>
               <div>
                 <b>{item.owner_name}</b>
-                <small>Заказчик на Qoldan</small>
+                <small>{t.customer}</small>
               </div>
             </div>
             <div className="request-page-actions">
               <Link href={`/?request=${encodeURIComponent(item.id)}#requests`}>
-                <MessageCircle /> Откликнуться в Qoldan
+                <MessageCircle /> {t.respond}
               </Link>
               <Link className="secondary" href="/#requests">
-                Посмотреть другие заявки
+                {t.others}
               </Link>
             </div>
-            <p className="listing-page-safety">
-              До начала работы уточните объём, сроки, итоговую цену и условия
-              выезда. Не переводите предоплату незнакомому человеку без
-              проверки.
-            </p>
+            <p className="listing-page-safety">{t.safety}</p>
           </div>
         </article>
       </section>

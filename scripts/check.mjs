@@ -22,6 +22,7 @@ const TESTS = [
   'test-legal',
   'test-favorites',
   'test-listing-edit',
+  'test-page-copy',
 ];
 
 const node = process.execPath;
