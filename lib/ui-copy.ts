@@ -27,6 +27,8 @@ export const COPY = {
       tooLow: (min: string) => `Ставка не меньше ${min}`, failed: 'Не удалось сделать ставку', accepted: (v: string) => `Ставка ${v} принята. Вы лидируете`,
       history: 'История ставок', you: 'Вы', participant: (n: string) => n, collapse: 'Свернуть', showAll: (n: number) => `Показать все (${n})`,
       footnote: 'Деньги через Qoldan не проходят: после торгов победитель и продавец договариваются напрямую.',
+      newBid: (v: string) => `Новая ставка: ${v}`,
+      extended: 'Ставка в последние минуты — торги продлены',
     },
     myAuctions: {
       title: 'Мои торги', kicker: 'ОНЛАЙН-ТОРГИ', lead: 'Ваши ставки и торги, которые вы ведёте. Данные обновляются сами.',
@@ -93,6 +95,8 @@ export const COPY = {
       tooLow: (min: string) => `Ұсыныс кемінде ${min}`, failed: 'Ұсыныс жасау мүмкін болмады', accepted: (v: string) => `${v} ұсынысы қабылданды. Сіз алдасыз`,
       history: 'Ұсыныстар тарихы', you: 'Сіз', participant: (n: string) => n.replace('Участник', 'Қатысушы'), collapse: 'Жию', showAll: (n: number) => `Барлығын көрсету (${n})`,
       footnote: 'Ақша Qoldan арқылы өтпейді: саудадан кейін жеңімпаз бен сатушы тікелей келіседі.',
+      newBid: (v: string) => `Жаңа ставка: ${v}`,
+      extended: 'Соңғы минуттардағы ставка — сауда ұзартылды',
     },
     myAuctions: {
       title: 'Менің саудаларым', kicker: 'ОНЛАЙН-САУДА', lead: 'Сіздің ұсыныстарыңыз және сіз жүргізетін саудалар. Деректер өздігінен жаңарады.',
@@ -159,6 +163,8 @@ export const COPY = {
       tooLow: (min: string) => `Bid at least ${min}`, failed: 'Could not place the bid', accepted: (v: string) => `Bid of ${v} accepted. You are leading`,
       history: 'Bid history', you: 'You', participant: (n: string) => n.replace('Участник', 'Bidder'), collapse: 'Collapse', showAll: (n: number) => `Show all (${n})`,
       footnote: 'No money goes through Qoldan: after the auction the winner and the seller agree directly.',
+      newBid: (v: string) => `New bid: ${v}`,
+      extended: 'A last-minute bid extended the auction',
     },
     myAuctions: {
       title: 'My auctions', kicker: 'ONLINE AUCTIONS', lead: 'Your bids and the auctions you run. Updates automatically.',

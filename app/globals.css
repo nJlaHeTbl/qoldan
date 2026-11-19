@@ -7526,6 +7526,17 @@ footer {
 .auction-terms{display:grid;gap:10px}
 .auction-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:800;padding:4px 9px;border-radius:999px;background:#fff1e6;color:#b4440f}
 @media(prefers-reduced-motion:no-preference){.auction-panel{transition:border-color .2s ease}}
+.auction-note.extended{background:#fff4e5;color:#8a4b00}
+.auction-history li.fresh{background:#eaf6ee}
+@media(prefers-reduced-motion:no-preference){
+  .auction-price b.bumped{display:inline-block;transform-origin:left center;animation:auction-bump .9s ease-out}
+  .auction-history li.fresh{animation:auction-fresh 2.4s ease-out forwards}
+  .auction-timer.urgent{animation:auction-urgent 1s ease-in-out infinite}
+  .auction-note.extended{animation:auction-fresh 1.2s ease-out}
+}
+@keyframes auction-bump{0%{transform:scale(1);color:var(--green)}30%{transform:scale(1.12);color:var(--green)}100%{transform:scale(1)}}
+@keyframes auction-fresh{0%{background:#c9ebd4}100%{background:transparent}}
+@keyframes auction-urgent{0%,100%{opacity:1}50%{opacity:.55}}
 @media(max-width:620px){.auction-panel{padding:14px;border-radius:14px}.auction-price b{font-size:26px}.auction-mode{grid-template-columns:1fr}}
 .my-auctions h3{margin:14px 0 6px;font-size:15px}
 .my-auctions-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}

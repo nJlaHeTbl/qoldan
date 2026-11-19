@@ -49,9 +49,22 @@ export default function AuctionPanel({
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   const [showAll, setShowAll] = useState(false);
   const typedAmount = useRef(false);
+  // Live feedback: `bump` grows with every new bid seen on refresh (restarts the price/row animation),
+  // `extendedAt` marks when a last-minute bid pushed the end time.
+  const [bump, setBump] = useState(0);
+  const [extendedAt, setExtendedAt] = useState(0);
+  const seenBids = useRef<number | null>(null);
+  const seenEnd = useRef<number | null>(null);
 
   const apply = useCallback((payload: Payload) => {
     setData(payload);
+    const next = payload.auction;
+    if (next) {
+      if (seenBids.current !== null && next.bidCount > seenBids.current) setBump((value) => value + 1);
+      if (seenEnd.current !== null && next.endsAt > seenEnd.current && next.phase === 'active') setExtendedAt(Date.now());
+      seenBids.current = next.bidCount;
+      seenEnd.current = next.endsAt;
+    }
     if (payload.serverNow) setOffset(payload.serverNow - Date.now());
     if (payload.auction && !typedAmount.current) {
       setAmount(String(payload.auction.nextMinimum));
@@ -171,13 +184,21 @@ export default function AuctionPanel({
 
       <div className="auction-price">
         <small>{auction.currentBid === null ? c.startPrice : c.currentBid}</small>
-        <b>{money(price, lang)}</b>
+        <b key={bump} className={bump > 0 ? 'bumped' : undefined}>
+          {money(price, lang)}
+        </b>
         <span>
           {auction.bidCount > 0 ? c.bids(auction.bidCount) : c.noBids}
           {auction.hasReserve && auction.phase !== 'ended' ? c.hasReserve : ''}
         </span>
       </div>
 
+      <output className="sr-only" aria-live="polite">
+        {bump > 0 && auction.currentBid !== null ? c.newBid(money(auction.currentBid, lang)) : ''}
+      </output>
+      {running && extendedAt > 0 && now - extendedAt < 10_000 && (
+        <p className="auction-note extended">{c.extended}</p>
+      )}
       {viewer?.youLead && running && <p className="auction-note good">{c.youLead}</p>}
       {data.bids.some((bid) => bid.mine) && viewer && !viewer.youLead && running && (
         <p className="auction-note warn">{c.outbid}</p>
@@ -252,8 +273,11 @@ export default function AuctionPanel({
         <div className="auction-history">
           <b>{c.history}</b>
           <ol>
-            {bids.map((bid) => (
-              <li key={`${bid.amount}-${bid.createdAt}`} className={bid.mine ? 'mine' : ''}>
+            {bids.map((bid, index) => (
+              <li
+                key={`${bid.amount}-${bid.createdAt}`}
+                className={[bid.mine ? 'mine' : '', index === 0 && bump > 0 ? 'fresh' : ''].join(' ').trim() || undefined}
+              >
                 <span>{bid.mine ? c.you : c.participant(bid.bidder)}</span>
                 <b>{money(bid.amount, lang)}</b>
                 <time dateTime={new Date(bid.createdAt).toISOString()}>{dateTime(bid.createdAt, lang)}</time>
