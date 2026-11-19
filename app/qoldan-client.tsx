@@ -131,6 +131,8 @@ type Listing = {
   livestockPriceMode?: LivestockPriceMode;
   livestockBreed?: string;
   createdAt?: number;
+  /** Owner only: sent back with an edit to detect a stale form. */
+  updatedAt?: number;
   mine?: boolean;
 };
 type RequestItem = {
@@ -2701,6 +2703,7 @@ export default function QoldanClient({
   );
   const [requestOwnerOnly, setRequestOwnerOnly] = useState(false);
   const [requestEditing, setRequestEditing] = useState(false);
+  const [listingEditing, setListingEditing] = useState(false);
   const [requestContentModeChoice, setRequestContentMode] =
     useState<ContentMode | null>(null);
   const [visibleRequestCount, setVisibleRequestCount] =
@@ -3746,6 +3749,7 @@ export default function QoldanClient({
   const openListing = (item: Listing) => {
     if (!isDemoListing(item.id)) rememberRecentView('listing', item.id);
     setSelectedListing(item);
+    setListingEditing(false);
     setModal('detail');
   };
   const openRequest = (item: RequestItem) => {
@@ -4841,6 +4845,57 @@ export default function QoldanClient({
           ? error.message
           : 'Не удалось изменить выбор исполнителя',
       );
+    } finally {
+      setSubmitting(null);
+    }
+  };
+  const saveListingEdit = async (event: SubmitFormEvent) => {
+    event.preventDefault();
+    const listing = selectedListing;
+    if (!listing?.mine || listing.updatedAt === undefined) return;
+    const f = new FormData(event.currentTarget);
+    setSubmitting('listing-edit');
+    try {
+      const response = await fetch('/api/listings', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          listingId: String(listing.id),
+          expectedUpdatedAt: listing.updatedAt,
+          data: {
+            title: fieldText(f, 'title'),
+            price: fieldText(f, 'price'),
+            unit: fieldText(f, 'unit'),
+            available: fieldText(f, 'available'),
+            description: fieldText(f, 'description'),
+            phone: fieldText(f, 'phone'),
+            showPhone: f.get('showPhone') === 'on',
+            delivery: f.get('delivery') === 'on',
+            location: listing.location,
+            region: listing.region,
+            category: listing.category,
+            type: listing.type,
+            imageUrl: listing.image,
+            sellerType: listing.sellerType ?? 'Частное лицо',
+            livestockType: listing.livestockType,
+            livestockQuantity: listing.livestockQuantity,
+            livestockPriceMode: listing.livestockPriceMode,
+            livestockBreed: listing.livestockBreed ?? '',
+            attributes: listing.attributes ?? {},
+          },
+        }),
+      });
+      if (!response.ok) throw new Error(await apiError(response));
+      const data = (await response.json()) as { listing: Partial<Listing> };
+      const merged = { ...listing, ...data.listing, id: listing.id };
+      setSelectedListing(merged);
+      setAllListings((previous) =>
+        previous.map((item) => (String(item.id) === String(listing.id) ? { ...item, ...data.listing, id: item.id } : item)),
+      );
+      setListingEditing(false);
+      notify(copyFor(appLang).listingEdit.saved);
+    } catch (error) {
+      notify(error instanceof Error ? error.message : copyFor(appLang).listingEdit.failed);
     } finally {
       setSubmitting(null);
     }
@@ -7938,8 +7993,69 @@ export default function QoldanClient({
                             ? internal.detail.resume
                             : internal.detail.pause}
                       </button>
+                      {isHousingCategory(selectedListing.category) ? (
+                        <p className="request-edit-hint">{copyFor(appLang).listingEdit.housingHint}</p>
+                      ) : selectedListing.auction?.phase === 'active' ? (
+                        <p className="request-edit-hint">{copyFor(appLang).listingEdit.auctionLocked}</p>
+                      ) : (
+                        selectedListing.updatedAt !== undefined &&
+                        !listingEditing && (
+                          <button type="button" onClick={() => setListingEditing(true)}>
+                            {copyFor(appLang).listingEdit.edit}
+                          </button>
+                        )
+                      )}
                     </div>
                   )}
+                  {selectedListing.mine &&
+                    listingEditing &&
+                        !isHousingCategory(selectedListing.category) &&
+                        selectedListing.auction?.phase !== 'active' && (
+                          <form key={String(selectedListing.id)} className="product-form request-edit-form listing-edit-form" onSubmit={saveListingEdit}>
+                            <p className="request-edit-hint">{copyFor(appLang).listingEdit.hint}</p>
+                            <label className="wide">
+                              {copyFor(appLang).listingEdit.title}
+                              <input name="title" required minLength={4} maxLength={160} defaultValue={selectedListing.title} />
+                            </label>
+                            <label>
+                              {copyFor(appLang).listingEdit.price}
+                              <input name="price" required maxLength={40} defaultValue={selectedListing.price} />
+                            </label>
+                            <label>
+                              {copyFor(appLang).listingEdit.unit}
+                              <input name="unit" maxLength={30} placeholder={copyFor(appLang).listingEdit.unitHint} defaultValue={selectedListing.unit ?? ''} />
+                            </label>
+                            <label className="wide">
+                              {copyFor(appLang).listingEdit.available}
+                              <input name="available" maxLength={160} defaultValue={selectedListing.available ?? ''} />
+                            </label>
+                            <label className="wide">
+                              {copyFor(appLang).listingEdit.description}
+                              <textarea name="description" rows={4} maxLength={1200} defaultValue={selectedListing.description ?? ''} />
+                            </label>
+                            <label>
+                              {copyFor(appLang).listingEdit.phone}
+                              <input name="phone" type="tel" required maxLength={32} autoComplete="tel" defaultValue={selectedListing.phone ?? ''} />
+                            </label>
+                            <label className="check-line">
+                              <input name="showPhone" type="checkbox" defaultChecked={selectedListing.hasPhone !== false} />
+                              <span>{copyFor(appLang).listingEdit.showPhone}</span>
+                            </label>
+                            <label className="check-line wide">
+                              <input name="delivery" type="checkbox" defaultChecked={Boolean(selectedListing.delivery)} />
+                              <span>{copyFor(appLang).listingEdit.delivery}</span>
+                            </label>
+                            <ConsentNote lang={appLang} />
+                            <button className="submit-button" type="submit" disabled={submitting === 'listing-edit'}>
+                              {submitting === 'listing-edit' ? copyFor(appLang).listingEdit.saving : copyFor(appLang).listingEdit.save}
+                            </button>
+                            <div className="request-edit-actions wide">
+                              <button type="button" onClick={() => setListingEditing(false)}>
+                                {copyFor(appLang).listingEdit.cancel}
+                              </button>
+                            </div>
+                          </form>
+                        )}
                   {!selectedListing.mine && (
                     <div className="contact-actions">
                       {isDemoListing(selectedListing.id) ? (

@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import {
   ensureMarketplaceSchema,
   getMarketplaceDb,
@@ -12,7 +13,7 @@ import {
   listingInput,
   parseJson,
 } from '@/lib/server/marketplace-schemas';
-import { normalizeHousingSearch } from '@/lib/housing';
+import { isHousingCategory, normalizeHousingSearch } from '@/lib/housing';
 import { AUCTION_MAX_ACTIVE_PER_SELLER } from '@/lib/auction';
 import { cleanAttributes } from '@/lib/listing-attributes';
 import { photoClaimGuardSql, photoReferenceSql, validateHousingPhotos } from '@/lib/server/housing-photos';
@@ -231,6 +232,124 @@ export async function POST(request: Request) {
         },
       },
       { status: 201 },
+    );
+  } catch (error) {
+    try {
+      return invalidInput(error);
+    } catch {
+      return serverError(error);
+    }
+  }
+}
+
+const editInput = z.object({
+  listingId: z.uuid(),
+  expectedUpdatedAt: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER - 1),
+  data: listingInput,
+});
+
+// Owner edits the text, price, terms and contacts of a regular listing. Category, type, photo and place stay as
+// published (they drive search, attributes and the map); housing has its own editor; a running auction is frozen.
+export async function PATCH(request: Request) {
+  const viewer = await getViewer(request);
+  if (!viewer) return unauthorized();
+  try {
+    const { listingId, expectedUpdatedAt, data } = await parseJson(request, editInput);
+    if (data.auction || data.housing) {
+      return Response.json({ error: 'Категорию, тип и фото объявления пока изменить нельзя' }, { status: 400 });
+    }
+    const db = getMarketplaceDb();
+    const current = await db
+      .prepare(
+        `SELECT status, category, offer_type, image_url, location, region,
+                EXISTS (SELECT 1 FROM auctions WHERE auctions.listing_id = listings.id AND auctions.status = 'active') AS auction_running
+         FROM listings WHERE id = ? AND owner_id = ?`,
+      )
+      .bind(listingId, viewer.id)
+      .first<{ status: string; category: string; offer_type: string; image_url: string; location: string; region: string; auction_running: number }>();
+    if (!current) {
+      return Response.json({ error: 'Объявление не найдено или принадлежит другому пользователю' }, { status: 404 });
+    }
+    if (isHousingCategory(current.category)) {
+      return Response.json({ error: 'Жильё изменяется в разделе «Жильё»' }, { status: 400 });
+    }
+    if (!['active', 'paused'].includes(current.status)) {
+      return Response.json({ error: 'Объявление ограничено модерацией. Сначала обратитесь в поддержку.' }, { status: 403 });
+    }
+    if (Number(current.auction_running)) {
+      return Response.json({ error: 'Пока идут торги, объявление нельзя изменить' }, { status: 409 });
+    }
+    if (
+      data.category !== current.category ||
+      data.type !== current.offer_type ||
+      data.imageUrl !== current.image_url ||
+      data.location !== current.location ||
+      data.region !== current.region
+    ) {
+      return Response.json({ error: 'Категорию, тип и фото объявления пока изменить нельзя' }, { status: 400 });
+    }
+    const updatedAt = Math.max(Date.now(), expectedUpdatedAt + 1);
+    const attributes = cleanAttributes(data.category, data.type, data.attributes);
+    const result = await db
+      .prepare(
+        `UPDATE listings SET title = ?, price = ?, unit = ?, phone = ?, show_phone = ?, available = ?,
+           description = ?, seller_type = ?, delivery = ?, livestock_type = ?, livestock_quantity = ?,
+           livestock_price_mode = ?, livestock_breed = ?, attributes = ?, updated_at = ?
+         WHERE id = ? AND owner_id = ? AND updated_at = ? AND status IN ('active', 'paused')
+           AND NOT EXISTS (SELECT 1 FROM auctions WHERE auctions.listing_id = listings.id AND auctions.status = 'active')`,
+      )
+      .bind(
+        data.title,
+        data.price,
+        data.unit || null,
+        data.phone,
+        data.showPhone ? 1 : 0,
+        data.available || null,
+        data.description || null,
+        data.sellerType,
+        data.delivery ? 1 : 0,
+        data.livestockType || null,
+        data.livestockQuantity || null,
+        data.livestockPriceMode || null,
+        data.livestockBreed || null,
+        JSON.stringify(attributes),
+        updatedAt,
+        listingId,
+        viewer.id,
+        expectedUpdatedAt,
+      )
+      .run();
+    if (!result.meta.changes) {
+      return Response.json(
+        {
+          error:
+            'Объявление уже изменилось в другой вкладке. Закройте форму, обновите список и откройте редактирование заново. Ваши правки не записаны.',
+        },
+        { status: 409 },
+      );
+    }
+    return Response.json(
+      {
+        listing: {
+          id: listingId,
+          title: data.title,
+          price: data.price,
+          unit: data.unit || undefined,
+          phone: data.phone,
+          hasPhone: data.showPhone && Boolean(data.phone),
+          available: data.available || undefined,
+          description: data.description || undefined,
+          sellerType: data.sellerType,
+          delivery: data.delivery,
+          livestockType: data.livestockType,
+          livestockQuantity: data.livestockQuantity,
+          livestockPriceMode: data.livestockPriceMode,
+          livestockBreed: data.livestockBreed || undefined,
+          attributes,
+          updatedAt,
+        },
+      },
+      { headers: { 'cache-control': 'no-store' } },
     );
   } catch (error) {
     try {

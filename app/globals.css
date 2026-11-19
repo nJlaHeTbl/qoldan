@@ -7570,6 +7570,12 @@ a:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible,te
 .request-edit-hint{grid-column:1/-1;margin:0;font-size:13px;color:var(--muted)}
 .request-edit-actions{display:flex;gap:10px;flex-wrap:wrap}
 .request-edit-actions button{min-height:44px}
+.owner-management{flex-wrap:wrap}
+.owner-management .request-edit-hint{flex-basis:100%}
+.listing-edit-form{margin:0 0 14px}
+.listing-edit-form .check-line{display:flex;align-items:flex-start;gap:8px;font-weight:500}
+.listing-edit-form .check-line input{width:auto;min-height:0;margin-top:3px}
+.listing-edit-form textarea{resize:vertical}
 .smart-hint{display:block;margin:8px 4px 0;font-size:13px;font-weight:600;color:var(--green)}
 .category-fields{border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:0;min-width:0}
 .category-fields legend{font-weight:800;font-size:14px;padding:0 6px}
