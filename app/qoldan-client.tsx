@@ -3208,6 +3208,9 @@ export default function QoldanClient({
     ],
   );
   const visibleListings = filtered.slice(0, visibleListingCount);
+  // Which empty catalog screen to show: own listings, empty favourites, or "nothing matches".
+  const emptyCatalogKind =
+    myOnly && !query.trim() ? 'mine' : favoriteOnly && favorites.length === 0 ? 'favorites' : 'search';
   const remainingListingCount = Math.max(
     filtered.length - visibleListings.length,
     0,
@@ -6153,18 +6156,52 @@ export default function QoldanClient({
               ))}
             </div>
           )}
-          {!mapOpen && filtered.length === 0 && (
+          {!mapOpen && filtered.length === 0 && emptyCatalogKind === 'mine' && (
             <div className="empty">
-              <Search />
-              <h3>Ничего не нашли</h3>
-              <p>
-                {myOnly
-                  ? 'Ваши новые объявления появятся здесь после публикации.'
-                  : favoriteOnly
-                    ? 'Добавляйте объявления сердечком — они появятся здесь.'
-                    : 'Попробуйте другой регион или сбросьте фильтры.'}
-              </p>
+              <span className="empty-icon">
+                <PackageOpen />
+              </span>
+              <h3>{copyFor(appLang).empty.mineTitle}</h3>
+              <p>{copyFor(appLang).empty.mine}</p>
+              <div className="empty-actions">
+                <button type="button" onClick={openAddListing}>
+                  <Plus size={17} /> {copyFor(appLang).empty.addListing}
+                </button>
+                <button type="button" className="secondary" onClick={() => setMyOnly(false)}>
+                  {copyFor(appLang).empty.browseAll}
+                </button>
+              </div>
+            </div>
+          )}
+          {!mapOpen && filtered.length === 0 && emptyCatalogKind === 'favorites' && (
+            <div className="empty">
+              <span className="empty-icon">
+                <Heart />
+              </span>
+              <h3>{copyFor(appLang).empty.favoritesTitle}</h3>
+              <p>{copyFor(appLang).empty.favorites}</p>
+              <div className="empty-actions">
+                <button type="button" onClick={() => setFavoriteOnly(false)}>
+                  {copyFor(appLang).empty.browseAll}
+                </button>
+              </div>
+            </div>
+          )}
+          {!mapOpen && filtered.length === 0 && emptyCatalogKind === 'search' && (
+            <div className="empty">
+              <span className="empty-icon">
+                <Search />
+              </span>
+              <h3>
+                {query.trim()
+                  ? copyFor(appLang).empty.titleQuery(query.trim().slice(0, 60))
+                  : copyFor(appLang).empty.title}
+              </h3>
+              <p>{copyFor(appLang).empty.filters}</p>
+              <div className="empty-actions">
               <button
+                type="button"
+                className="secondary"
                 onClick={() => {
                   setQuery('');
                   setSettlementFilter('');
@@ -6185,11 +6222,12 @@ export default function QoldanClient({
                   setListingSort('recommended');
                 }}
               >
-                Сбросить фильтры
+                {copyFor(appLang).empty.reset}
               </button>
               <button type="button" onClick={() => openRequestForm(query)}>
                 {copyFor(appLang).search.notFound}
               </button>
+              </div>
             </div>
           )}
           {!mapOpen && filtered.length > 0 && (
