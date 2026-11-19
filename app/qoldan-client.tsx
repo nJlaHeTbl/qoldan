@@ -9065,6 +9065,11 @@ export default function QoldanClient({
                     <Heart /> {internal.profile.favorites}{' '}
                     <b>{favorites.length}</b>
                   </button>
+                  {/* The header bell is hidden on phones; this is the way to notifications there. */}
+                  <button onClick={() => setModal('notifications')}>
+                    <Bell /> {tr.notifications}
+                    <b>{activities.length}</b>
+                  </button>
                   <button onClick={() => void openMessages()}>
                     <MessageCircle /> {internal.profile.messages}
                     <b>{messagingUnreadCount}</b>
