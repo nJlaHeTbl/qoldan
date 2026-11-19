@@ -34,7 +34,7 @@ box-shadow:0 8px 28px rgba(0,0,0,.18);font-size:.9rem;line-height:1.45}
 .cookie-notice a{color:inherit;text-decoration:underline;text-underline-offset:3px}
 .cookie-notice button{cursor:pointer;font:inherit;font-weight:600;padding:8px 16px;border-radius:8px;
 border:1px solid currentColor;background:transparent;color:inherit}
-@media(max-width:620px){.cookie-notice{left:8px;right:8px;bottom:calc(72px + env(safe-area-inset-bottom));padding:10px 12px;font-size:.82rem;gap:8px 12px}.cookie-notice p{flex-basis:100%}.cookie-notice div{width:100%;justify-content:space-between}}
+@media(max-width:620px){.cookie-notice{left:8px;right:8px;bottom:calc(72px + env(safe-area-inset-bottom));padding:10px 12px;font-size:.82rem;gap:8px 12px}.cookie-notice p{flex-basis:100%}.cookie-notice div{width:100%;justify-content:space-between}.cookie-notice a,.cookie-notice button{min-height:40px;display:inline-flex;align-items:center}}
 `;
 
 const CHANGE_EVENT = 'qoldan-cookie-notice-change';

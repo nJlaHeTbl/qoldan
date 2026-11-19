@@ -7522,6 +7522,8 @@ footer {
 .listing-image .heart{min-width:40px;min-height:40px}
 .section-head a,.brand{min-height:40px;display:inline-flex;align-items:center}
 .auction-more{min-height:40px}
+.direction-columns button,.auction-bids button{min-height:40px}
+.footer-grid a,.footer-grid button{display:inline-flex;align-items:center;min-height:40px}
 }
 
 /* Keyboard users: the first Tab stop jumps over the header straight to the content */
