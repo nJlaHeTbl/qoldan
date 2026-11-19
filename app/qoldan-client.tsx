@@ -19,6 +19,7 @@ import MyAuctions from '@/components/MyAuctions';
 import type { AuctionSummary } from '@/lib/auction';
 import { matchesSmartQuery, parseSmartQuery } from '@/lib/smart-search';
 import { formatPriceText } from '@/lib/price';
+import { LISTING_IMAGE_TYPES, optimizeListingImage } from '@/lib/image-optimize';
 import { localizeError } from '@/lib/localize-error';
 import { copyFor, money as uiMoney, dateTime as uiDateTime } from '@/lib/ui-copy';
 import ConsentNote from '@/components/ConsentNote';
@@ -858,98 +859,6 @@ const defaultListings = [
 const LISTINGS_PAGE_SIZE = 9;
 const REQUESTS_PAGE_SIZE = 8;
 const MAX_LISTING_IMAGE_BYTES = 5_000_000;
-const TARGET_LISTING_IMAGE_BYTES = 1_200_000;
-const MAX_LISTING_IMAGE_SIDE = 1_280;
-const LISTING_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
-
-type DecodedListingImage = {
-  source: CanvasImageSource;
-  width: number;
-  height: number;
-  dispose: () => void;
-};
-
-const decodeListingImage = async (file: File): Promise<DecodedListingImage> => {
-  if (typeof createImageBitmap === 'function') {
-    try {
-      const bitmap = await createImageBitmap(file, {
-        imageOrientation: 'from-image',
-      });
-      return {
-        source: bitmap,
-        width: bitmap.width,
-        height: bitmap.height,
-        dispose: () => bitmap.close(),
-      };
-    } catch {
-      // Older mobile browsers fall back to an image element below.
-    }
-  }
-
-  const sourceUrl = URL.createObjectURL(file);
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.decoding = 'async';
-    image.onload = () =>
-      resolve({
-        source: image,
-        width: image.naturalWidth,
-        height: image.naturalHeight,
-        dispose: () => URL.revokeObjectURL(sourceUrl),
-      });
-    image.onerror = () => {
-      URL.revokeObjectURL(sourceUrl);
-      reject(new Error('Не удалось открыть фотографию'));
-    };
-    image.src = sourceUrl;
-  });
-};
-
-const canvasToJpeg = (canvas: HTMLCanvasElement, quality: number) =>
-  new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (blob) =>
-        blob
-          ? resolve(blob)
-          : reject(new Error('Не удалось обработать фотографию')),
-      'image/jpeg',
-      quality,
-    );
-  });
-
-const optimizeListingImage = async (file: File) => {
-  const decoded = await decodeListingImage(file);
-  try {
-    if (decoded.width < 1 || decoded.height < 1) {
-      throw new Error('Фотография повреждена');
-    }
-
-    const scale = Math.min(
-      1,
-      MAX_LISTING_IMAGE_SIDE / Math.max(decoded.width, decoded.height),
-    );
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, Math.round(decoded.width * scale));
-    canvas.height = Math.max(1, Math.round(decoded.height * scale));
-    const context = canvas.getContext('2d', { alpha: false });
-    if (!context) throw new Error('Не удалось обработать фотографию');
-
-    context.fillStyle = '#ffffff';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.imageSmoothingEnabled = true;
-    context.imageSmoothingQuality = 'high';
-    context.drawImage(decoded.source, 0, 0, canvas.width, canvas.height);
-
-    let optimized = await canvasToJpeg(canvas, 0.82);
-    for (const quality of [0.74, 0.66, 0.58, 0.5]) {
-      if (optimized.size <= TARGET_LISTING_IMAGE_BYTES) break;
-      optimized = await canvasToJpeg(canvas, quality);
-    }
-    return optimized;
-  } finally {
-    decoded.dispose();
-  }
-};
 const initialRequests: RequestItem[] = [
   {
     id: 1428,

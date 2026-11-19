@@ -8,6 +8,7 @@ import { LocationFields } from '@/components/LocationFields';
 import { SettlementSearch } from '@/components/SettlementSearch';
 import ConsentNote from '@/components/ConsentNote';
 import RevealPhone from '@/components/RevealPhone';
+import { optimizeListingImage } from '@/lib/image-optimize';
 import { MarketplaceMap } from '@/components/MarketplaceMap';
 
 type Filters = { region: string; kind: string; q: string; place: string[]; guests: string; maxPrice: string; view: string };
@@ -152,7 +153,8 @@ export default function HousingClient({ signedIn, signInPath }: { signedIn: bool
         let url = photo.url || uploadedPhotos.current.get(photo.id);
         if (!url && photo.file) {
           setUploadProgress(`Загружаем фотографию ${index + 1} из ${photos.length}…`);
-          const upload = new FormData(); upload.append('image', photo.file);
+          const optimized = await optimizeListingImage(photo.file);
+          const upload = new FormData(); upload.append('image', new File([optimized], 'photo.jpg', { type: 'image/jpeg' }));
           const response = await fetch('/api/uploads', { method: 'POST', body: upload });
           const data = await response.json() as { url: string; error?: string };
           if (!response.ok) throw new Error(data.error || 'Не удалось загрузить фотографию');
@@ -214,10 +216,10 @@ export default function HousingClient({ signedIn, signInPath }: { signedIn: bool
               onPointChange={() => { dirtyForm.current = true; }} fieldName="location" /></div>
             <label className="housing-wide">Свободные даты и время заезда<input name="available" defaultValue={editing?.available || ''} maxLength={160} placeholder="Например, с 20 сентября, заезд с 14:00. Уточняйте по телефону." /></label>
             <label className="housing-wide">Описание и условия<textarea name="description" defaultValue={editing?.description || ''} required minLength={20} maxLength={1200} rows={5} placeholder="Спальные места, удобства, адрес или ориентир, залог, правила проживания. Для гостиницы описывайте конкретный тип номера." /></label>
-            <label className="housing-wide">Добавить фотографии — {photos.length} из 5. JPG, PNG или WebP до 5 МБ каждая<input type="file" multiple accept="image/jpeg,image/png,image/webp" disabled={photos.length >= 5} onChange={e => {
+            <label className="housing-wide">Добавить фотографии — {photos.length} из 5. JPG, PNG или WebP; большие фото уменьшаются автоматически<input type="file" multiple accept="image/jpeg,image/png,image/webp" disabled={photos.length >= 5} onChange={e => {
               const files = Array.from(e.target.files || []); e.target.value = '';
               if (photos.length + files.length > 5) { setFormError('Можно добавить до пяти фотографий. Удалите лишние или выберите меньше файлов.'); return; }
-              if (files.some(file => file.size > 5000000 || !['image/jpeg','image/png','image/webp'].includes(file.type))) { setFormError('Каждая фотография должна быть JPG, PNG или WebP до 5 МБ.'); return; }
+              if (files.some(file => file.size > 40000000 || !['image/jpeg','image/png','image/webp'].includes(file.type))) { setFormError('Каждая фотография должна быть JPG, PNG или WebP до 40 МБ — перед загрузкой она уменьшится автоматически.'); return; }
               const added = files.map(file => { const preview = URL.createObjectURL(file); objectUrls.current.add(preview); return { id: crypto.randomUUID(), file, preview }; });
               setPhotos(current => [...current, ...added]); setFormError('');
             }} /></label>
