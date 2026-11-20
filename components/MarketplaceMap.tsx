@@ -3,6 +3,8 @@
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef } from 'react';
 import type { Map as LeafletMap } from 'leaflet';
+import type { Lang } from '@/lib/ui-copy';
+import { locationCopy } from '@/lib/location-copy';
 
 export type MarketplaceMapMarker = {
   id: string;
@@ -21,6 +23,7 @@ type Props = {
   onSelect: (id: string) => void;
   overview?: boolean;
   focusCoordinates?: { latitude: number; longitude: number } | null;
+  lang?: Lang;
 };
 
 const markerColors: Record<MarketplaceMapMarker['type'], string> = {
@@ -49,7 +52,9 @@ export function MarketplaceMap({
   onSelect,
   overview = false,
   focusCoordinates,
+  lang = 'ru',
 }: Props) {
+  const t = locationCopy(lang);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const onSelectRef = useRef(onSelect);
@@ -88,7 +93,7 @@ export function MarketplaceMap({
           fillOpacity: 1,
         }).addTo(map);
         point.bindTooltip(
-          `<div><b>${escapeHtml(marker.title)}</b><span>${escapeHtml(marker.price)}${marker.approximate ? ' · Примерное место, точка не указана' : ''}</span></div>`,
+          `<div><b>${escapeHtml(marker.title)}</b><span>${escapeHtml(marker.price)}${marker.approximate ? ` · ${t.approximate}` : ''}</span></div>`,
           { direction: 'top', offset: [0, -9] },
         );
         point.on('click', () => onSelectRef.current(marker.id));
@@ -106,7 +111,7 @@ export function MarketplaceMap({
             fillOpacity: 1,
           },
         ).addTo(map);
-        userPoint.bindTooltip('<div><b>Вы здесь</b></div>', {
+        userPoint.bindTooltip(`<div><b>${escapeHtml(t.you)}</b></div>`, {
           direction: 'top',
           offset: [0, -8],
         });
@@ -115,7 +120,7 @@ export function MarketplaceMap({
 
       const pointCount = markers.length + (userCoordinates ? 1 : 0);
       if (focusCoordinates) {
-        L.circleMarker([focusCoordinates.latitude, focusCoordinates.longitude], {radius:6,color:'#6c52b5'}).addTo(map).bindTooltip('Центр выбранного населённого пункта');
+        L.circleMarker([focusCoordinates.latitude, focusCoordinates.longitude], {radius:6,color:'#6c52b5'}).addTo(map).bindTooltip(t.centreTooltip);
         map.setView([focusCoordinates.latitude, focusCoordinates.longitude], 12);
       } else if (overview) {
         map.fitBounds([[40.5,46.4],[55.5,87.4]]);
@@ -141,24 +146,25 @@ export function MarketplaceMap({
     userCoordinates,
     overview,
     focusCoordinates,
+    t,
   ]);
 
   return (
     <div className="real-map-shell">
-      <button type="button" onClick={()=>mapRef.current?.fitBounds([[40.5,46.4],[55.5,87.4]])}>Весь Казахстан</button>
+      <button type="button" onClick={()=>mapRef.current?.fitBounds([[40.5,46.4],[55.5,87.4]])}>{t.wholeCountry}</button>
       <div
         ref={containerRef}
         className="real-map"
-        aria-label="Карта объявлений"
+        aria-label={t.listingsMap}
       />
-      <div className="map-legend" aria-label="Легенда карты">
-        <span className="sale">Продам</span>
-        <span className="rent">Сдам</span>
-        <span className="service">Услуга</span>
-        {userCoordinates && <span className="you">Вы здесь</span>}
+      <div className="map-legend" aria-label={t.legend}>
+        <span className="sale">{t.sale}</span>
+        <span className="rent">{t.rent}</span>
+        <span className="service">{t.service}</span>
+        {userCoordinates && <span className="you">{t.you}</span>}
       </div>
       <small className="map-hint">
-        Нажмите на точку, чтобы открыть объявление
+        {t.mapHint}
       </small>
     </div>
   );

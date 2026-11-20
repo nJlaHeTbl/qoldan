@@ -6143,13 +6143,13 @@ export default function QoldanClient({
             </div>
           )}
           <div className="catalog-settlement">
-            <SettlementSearch region={selectedRegion} value={settlementFilter}
+            <SettlementSearch region={selectedRegion} value={settlementFilter} lang={appLang}
               onChange={value=>{setSettlementFilter(value);setSettlementCenter(null);setUserCoords(null);}}
               onSelect={place=>{setSettlementFilter(place.name);setSettlementAliases(place.aliases);setSettlementCenter({latitude:place.latitude,longitude:place.longitude});setUserCoords(null);}} />
             {settlementFilter && <button type="button" onClick={()=>{setSettlementFilter('');setSettlementCenter(null);}}>Все населённые пункты региона</button>}
           </div>
           {mapOpen ? (
-            <MarketplaceMap
+            <MarketplaceMap lang={appLang}
               markers={mapMarkers}
               fallbackCenter={userCoords || getRegionCenter(selectedRegion)}
               userCoordinates={userCoords}
@@ -6453,7 +6453,7 @@ export default function QoldanClient({
           </div>
           <div className="catalog-settlement">
             <button type="button" onClick={()=>setModal('regions')}>Регион: {selectedRegionLabel}</button>
-            <SettlementSearch region={selectedRegion} value={settlementFilter}
+            <SettlementSearch region={selectedRegion} value={settlementFilter} lang={appLang}
               onChange={value=>{setSettlementFilter(value);setSettlementCenter(null);}}
               onSelect={place=>{setSettlementFilter(place.name);setSettlementAliases(place.aliases);setSettlementCenter({latitude:place.latitude,longitude:place.longitude});}} />
             {settlementFilter && <button type="button" onClick={()=>{setSettlementFilter('');setSettlementCenter(null);}}>Все населённые пункты</button>}
@@ -7184,7 +7184,7 @@ export default function QoldanClient({
                   )}
                   {listingFlow === 'standard' && <CategoryFields lang={appLang} />}
                   {listingFlow === 'standard' && <AuctionFields lang={appLang} />}
-                  <LocationFields fieldName="location"
+                  <LocationFields fieldName="location" lang={appLang}
                     initialRegion={listingDraft?.fields.region || (selectedRegion === 'Весь Казахстан' ? 'Область Жетісу' : selectedRegion)}
                     initialPlace={listingDraft?.fields.location || ''}
                     point={listingCoords} onPointChange={setListingCoords} />
@@ -7384,7 +7384,7 @@ export default function QoldanClient({
                       placeholder={internal.requestForm.needPlaceholder}
                     />
                   </label>
-                  <LocationFields fieldName="place"
+                  <LocationFields fieldName="place" lang={appLang}
                     initialRegion={(!requestSeed && requestDraft?.fields.region) || (selectedRegion === 'Весь Казахстан' ? 'Область Жетісу' : selectedRegion)}
                     initialPlace={(!requestSeed && requestDraft?.fields.place) || ''} />
                   <label>
@@ -8108,7 +8108,7 @@ export default function QoldanClient({
                               {copyFor(appLang).listingEdit.description}
                               <textarea name="description" rows={4} maxLength={1200} defaultValue={selectedListing.description ?? ''} />
                             </label>
-                            <LocationFields
+                            <LocationFields lang={appLang}
                               fieldName="location"
                               initialRegion={selectedListing.region ?? 'Область Жетісу'}
                               initialPlace={selectedListing.location}

@@ -218,7 +218,7 @@ export default async function ListingPage({ params }: ListingPageProps) {
       </header>
       <section className="listing-page-shell">
         <article className="listing-page-card">
-          {isHousingCategory(listing.category) ? <HousingGallery title={listing.title} photos={getHousingPhotos(listing.image_url, listing.photos)} /> : <div className="listing-page-photo">
+          {isHousingCategory(listing.category) ? <HousingGallery lang={lang} title={listing.title} photos={getHousingPhotos(listing.image_url, listing.photos)} /> : <div className="listing-page-photo">
             <img src={listing.image_url} alt={listing.title} />
             <span className="listing-page-type">{t.offerLabel(listing.offer_type)}</span>
           </div>}

@@ -31,7 +31,7 @@ for (const table of tables) {
 const submitButtons = [...client.matchAll(/className="submit-button"/g)].length;
 const noteBeforeButton = [...client.matchAll(/<ConsentNote lang=\{appLang\} \/>\s*<button\s+className="submit-button"/g)].length;
 assert.equal(noteBeforeButton, submitButtons, `${submitButtons - noteBeforeButton} form(s) lack the consent note`);
-assert.ok(housingClient.includes('<ConsentNote />'), 'Housing form lacks the consent note');
+assert.ok(/<ConsentNote (lang=\{lang\} )?\/>/.test(housingClient), 'Housing form lacks the consent note');
 
 // 3. Sensitive business verification needs explicit, server-checked consent.
 assert.ok(client.includes('name="consent" required'), 'Verification form lacks the required consent checkbox');

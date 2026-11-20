@@ -59,7 +59,8 @@ function readStorage(key: string) {
 
 const getAcknowledged = () => (readStorage(COOKIE_NOTICE_KEY) ? 'yes' : 'no');
 const getLang = (): Lang => {
-  const stored = readStorage('qoldan-ui-language-v1');
+  // The language cookie also covers visits that start on a server page (listing, request, housing).
+  const stored = readStorage('qoldan-ui-language-v1') ?? /(?:^|;\s*)qoldan-lang=(kk|en|ru)/.exec(document.cookie)?.[1];
   return stored === 'kk' || stored === 'en' ? stored : 'ru';
 };
 
