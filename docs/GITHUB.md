@@ -5,9 +5,9 @@
 
 ## 1. Что есть сейчас
 
-- **20 ноября 2026 переезд выполнен** (по «да» владельца): приватный репозиторий `https://github.com/nJlaHeTbl/qoldan`,
+- **20 ноября 2026 переезд выполнен** (по «да» владельца): репозиторий `https://github.com/nJlaHeTbl/qoldan` (с 20 ноября — общедоступный),
   отправлена только ветка `main` (164 коммита), `origin` настроен в рабочей копии владельца. GitHub Actions в
-  репозитории пока выключены — CI заработает, когда владелец включит Actions (Settings → Actions → General).
+  репозитории работают: CI прошёл на `da491fb`.
 - Рабочая копия владельца: `C:\Users\ASUS\Documents\Codex\2026-08-29\referenced-chatgpt-conversation-this-is-an\work\marketplace`
   (ветка `main`). Claude работает в отдельной рабочей копии на ветке `claude/launch-readiness` и после каждого этапа
   переносит `main` вперёд без слияний (`merge --ff-only`).
