@@ -52,6 +52,8 @@
 внешние ключи, триггеры) и файловое хранилище фото, совместимое с R2. На этом адаптере уже идут все тесты маршрутов
 (заявки, торги, аккаунт, чат) — то есть SQL проекта работает на обычном SQLite без правок. Тест: `scripts/test-portable.mjs`.
 
+Запуск на старом Android-телефоне (Termux) для закрытого теста — [ANDROID.md](ANDROID.md), папку собирает `node scripts/pack-phone.mjs`.
+
 vinext умеет собирать самостоятельный Node-сервер: `output: "standalone"` в `next.config.ts` →
 `node dist/standalone/server.js` (адрес задаётся переменной `HOST`).
 
