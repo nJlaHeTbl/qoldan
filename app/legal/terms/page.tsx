@@ -1,13 +1,18 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import LegalPage, { Op } from '@/components/LegalPage';
+import { requestLang } from '@/lib/server/request-lang';
+import { TermsKk, TermsEn } from './translations';
 
 export const metadata: Metadata = {
   title: 'Публичная оферта (пользовательское соглашение) | Qoldan',
   description: 'Правила пользования Qoldan: роль площадки, правила размещения, модерация и ответственность.',
 };
 
-export default function TermsPage() {
+export default async function TermsPage() {
+  const lang = await requestLang();
+  if (lang === 'kk') return <TermsKk />;
+  if (lang === 'en') return <TermsEn />;
   return (
     <LegalPage title="Публичная оферта (пользовательское соглашение)">
       <h2>1. Термины</h2>

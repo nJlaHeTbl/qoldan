@@ -1,13 +1,18 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import LegalPage, { DataTable } from '@/components/LegalPage';
+import { requestLang } from '@/lib/server/request-lang';
+import { CookiesKk, CookiesEn } from './translations';
 
 export const metadata: Metadata = {
   title: 'Политика cookie и локального хранилища | Qoldan',
   description: 'Что Qoldan сохраняет в вашем браузере и какие внешние ресурсы загружает.',
 };
 
-export default function CookiesPage() {
+export default async function CookiesPage() {
+  const lang = await requestLang();
+  if (lang === 'kk') return <CookiesKk />;
+  if (lang === 'en') return <CookiesEn />;
   return (
     <LegalPage title="Политика cookie и локального хранилища">
       <h2>1. Что это</h2>

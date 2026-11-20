@@ -1,13 +1,18 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import LegalPage, { Op } from '@/components/LegalPage';
+import { requestLang } from '@/lib/server/request-lang';
+import { ReturnsKk, ReturnsEn } from './translations';
 
 export const metadata: Metadata = {
   title: 'Условия возврата, отмены и споров | Qoldan',
   description: 'Как работают возвраты, залог, отмена брони и споры, если Qoldan не принимает оплату.',
 };
 
-export default function ReturnsPage() {
+export default async function ReturnsPage() {
+  const lang = await requestLang();
+  if (lang === 'kk') return <ReturnsKk />;
+  if (lang === 'en') return <ReturnsEn />;
   return (
     <LegalPage title="Условия возврата, отмены и споров">
       <h2>1. Коротко</h2>

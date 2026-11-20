@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import LegalPage, { Op } from '@/components/LegalPage';
+import { requestLang } from '@/lib/server/request-lang';
+import { AuctionsKk, AuctionsEn } from './translations';
 
 export const metadata: Metadata = {
   title: 'Правила онлайн-торгов | Qoldan',
@@ -7,7 +9,10 @@ export const metadata: Metadata = {
     'Как проходят онлайн-торги на Qoldan: ставки, шаг, продление, резервная цена, победитель и споры.',
 };
 
-export default function AuctionRulesPage() {
+export default async function AuctionRulesPage() {
+  const lang = await requestLang();
+  if (lang === 'kk') return <AuctionsKk />;
+  if (lang === 'en') return <AuctionsEn />;
   return (
     <LegalPage title="Правила онлайн-торгов">
       <p>

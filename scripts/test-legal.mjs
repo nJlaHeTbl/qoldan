@@ -46,5 +46,20 @@ const legal = read('lib/legal.ts');
 const unfilled = [...legal.matchAll(/(\w+): '(\[[^']+\])'/g)].map(match => `${match[1]} = ${match[2]}`);
 const inPages = fs.readdirSync('app/legal', { recursive: true }).filter(name => String(name).endsWith('page.tsx'))
   .flatMap(name => [...read('app/legal/' + name).matchAll(/<Todo>(\[[^<]+\])<\/Todo>/g)].map(match => `${name}: ${match[1]}`));
+// 6. Kazakh and English versions keep the structure of the Russian text (same sections, list items, table rows),
+//    so an edit of the Russian document cannot silently leave a translation behind.
+const shape = text => ({
+  sections: (text.match(/<h2>/g) || []).length,
+  items: (text.match(/<li>/g) || []).length,
+  rows: (text.match(/^\s*\['/gm) || []).length,
+});
+for (const page of ['privacy', 'terms', 'auctions', 'returns', 'cookies']) {
+  const russian = shape(read(`app/legal/${page}/page.tsx`));
+  const versions = read(`app/legal/${page}/translations.tsx`).split(/^export function /m).slice(1);
+  assert.equal(versions.length, 2, `${page}: expected Kazakh and English versions`);
+  for (const version of versions) {
+    assert.deepEqual(shape(version), russian, `${page}/${version.slice(0, version.indexOf('('))} differs from the Russian text`);
+  }
+}
 console.log(`PASS legal: ${tables.size} tables covered, ${submitButtons} forms + housing form show consent, verification consent enforced.`);
 if (unfilled.length || inPages.length) console.log('TODO before launch -> ' + [...unfilled, ...inPages].join('; '));

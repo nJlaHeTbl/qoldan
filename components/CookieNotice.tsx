@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState, useSyncExternalStore } from 'react';
 import { COOKIE_NOTICE_KEY } from '@/lib/legal';
+import { readClientLang, subscribeClientLang } from '@/lib/ui-copy';
 
 type Lang = 'ru' | 'kk' | 'en';
 
@@ -58,16 +59,10 @@ function readStorage(key: string) {
 }
 
 const getAcknowledged = () => (readStorage(COOKIE_NOTICE_KEY) ? 'yes' : 'no');
-const getLang = (): Lang => {
-  // The language cookie also covers visits that start on a server page (listing, request, housing).
-  const stored = readStorage('qoldan-ui-language-v1') ?? /(?:^|;\s*)qoldan-lang=(kk|en|ru)/.exec(document.cookie)?.[1];
-  return stored === 'kk' || stored === 'en' ? stored : 'ru';
-};
-
 export default function CookieNotice() {
   // Server snapshot is "yes" so the notice is never rendered on the server (no hydration mismatch).
   const acknowledged = useSyncExternalStore(subscribe, getAcknowledged, () => 'yes');
-  const lang = useSyncExternalStore(subscribe, getLang, () => 'ru' as Lang);
+  const lang = useSyncExternalStore(subscribeClientLang, readClientLang, () => 'ru' as Lang);
   const [dismissed, setDismissed] = useState(false);
 
   if (acknowledged === 'yes' || dismissed) return null;

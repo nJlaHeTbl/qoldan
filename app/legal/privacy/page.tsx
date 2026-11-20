@@ -1,13 +1,18 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import LegalPage, { DataTable, Op } from '@/components/LegalPage';
+import { requestLang } from '@/lib/server/request-lang';
+import { PrivacyKk, PrivacyEn } from './translations';
 
 export const metadata: Metadata = {
   title: 'Политика защиты персональных данных | Qoldan',
   description: 'Какие данные обрабатывает Qoldan, зачем, как они защищены и какие права есть у пользователя.',
 };
 
-export default function PrivacyPage() {
+export default async function PrivacyPage() {
+  const lang = await requestLang();
+  if (lang === 'kk') return <PrivacyKk />;
+  if (lang === 'en') return <PrivacyEn />;
   return (
     <LegalPage title="Политика защиты персональных данных">
       <h2>1. Общие положения</h2>

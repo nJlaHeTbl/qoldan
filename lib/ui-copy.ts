@@ -5,11 +5,14 @@
 export type Lang = 'ru' | 'kk' | 'en';
 /** Functional cookie with the chosen interface language, so server-rendered pages can use it too. */
 export const LANG_COOKIE = 'qoldan-lang';
+export const LANG_CHANGE_EVENT = 'qoldan-lang-change';
 export const parseLang = (value: unknown): Lang => (value === 'kk' || value === 'en' ? value : 'ru');
 /** Browser only: remember the language for server-rendered pages (one year, whole site). */
 export function storeLangCookie(lang: Lang) {
   try {
     document.cookie = `${LANG_COOKIE}=${lang}; Path=/; Max-Age=31536000; SameSite=Lax${location.protocol === 'https:' ? '; Secure' : ''}`;
+    // Lets always-mounted parts (footer, cookie notice) follow a language switch without a reload.
+    window.dispatchEvent(new Event(LANG_CHANGE_EVENT));
   } catch {
     // Cookies blocked: server pages stay in Russian, the main page still follows the choice.
   }
@@ -236,3 +239,21 @@ export const valueLabel = (lang: Lang | undefined, value: string) => {
   // Own keys only, so a stored value like "toString" is shown as text, not looked up on Object.prototype.
   return Object.hasOwn(values, value) && typeof values[value] === 'string' ? values[value] : value;
 };
+
+/** Browser only: the language chosen on this device (cookie first, it is written first on a switch). */
+export const readClientLang = (): Lang => {
+  try {
+    const cookie = /(?:^|;\s*)qoldan-lang=(ru|kk|en)/.exec(document.cookie)?.[1];
+    return parseLang(cookie ?? window.localStorage.getItem('qoldan-ui-language-v1'));
+  } catch {
+    return 'ru';
+  }
+};
+export function subscribeClientLang(onChange: () => void) {
+  window.addEventListener(LANG_CHANGE_EVENT, onChange);
+  window.addEventListener('storage', onChange);
+  return () => {
+    window.removeEventListener(LANG_CHANGE_EVENT, onChange);
+    window.removeEventListener('storage', onChange);
+  };
+}
