@@ -6,6 +6,7 @@ type Pair = readonly [kk: string, en: string];
 
 export const SERVER_MESSAGES: Record<string, Pair> = {
   'Акт доступен только для подтверждённой аренды': ['Акт тек расталған жалға беру үшін қолжетімді', 'The handover record is only available for a confirmed rental'],
+  'Запрос с другого сайта отклонён': ['Басқа сайттан келген сұрау қабылданбады', 'Request from another site rejected'],
   'Апелляция не найдена': ['Апелляция табылмады', 'Appeal not found'],
   'Апелляция по этому решению уже отправлена': ['Бұл шешім бойынша апелляция жіберілген', 'An appeal against this decision has already been sent'],
   'Аренда не найдена или принадлежит другому владельцу': ['Жалға беру табылмады немесе басқа иесіне тиесілі', 'Rental not found or belongs to another owner'],

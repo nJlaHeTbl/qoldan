@@ -5721,7 +5721,6 @@ export default function QoldanClient({
                     {c[4] as string} <ArrowRight size={16} />
                   </b>
                 </div>
-                <span className="cat-number">0{i + 1}</span>
               </button>
             );
           })}
@@ -6142,12 +6141,13 @@ export default function QoldanClient({
               </button>
             </div>
           )}
-          <div className="catalog-settlement">
+          {/* A settlement only makes sense inside one region; for the whole country the block is hidden. */}
+          {selectedRegion !== 'Весь Казахстан' && <div className="catalog-settlement">
             <SettlementSearch region={selectedRegion} value={settlementFilter} lang={appLang}
               onChange={value=>{setSettlementFilter(value);setSettlementCenter(null);setUserCoords(null);}}
               onSelect={place=>{setSettlementFilter(place.name);setSettlementAliases(place.aliases);setSettlementCenter({latitude:place.latitude,longitude:place.longitude});setUserCoords(null);}} />
-            {settlementFilter && <button type="button" onClick={()=>{setSettlementFilter('');setSettlementCenter(null);}}>Все населённые пункты региона</button>}
-          </div>
+            {settlementFilter && <button type="button" onClick={()=>{setSettlementFilter('');setSettlementCenter(null);}}>{appLang === 'kk' ? 'Өңірдің барлық елді мекендері' : appLang === 'en' ? 'All settlements in the region' : 'Все населённые пункты региона'}</button>}
+          </div>}
           {mapOpen ? (
             <MarketplaceMap lang={appLang}
               markers={mapMarkers}
@@ -6172,6 +6172,7 @@ export default function QoldanClient({
                       alt={item.title}
                       loading="lazy"
                       decoding="async"
+                      onError={(event) => { event.currentTarget.dataset.failed = 'true'; }}
                     />
                     <span
                       className={`type ${item.type === 'Продам' ? 'sale' : item.type === 'Сдам' ? 'rent' : 'service'}`}
@@ -6452,11 +6453,11 @@ export default function QoldanClient({
             ))}
           </div>
           <div className="catalog-settlement">
-            <button type="button" onClick={()=>setModal('regions')}>Регион: {selectedRegionLabel}</button>
-            <SettlementSearch region={selectedRegion} value={settlementFilter} lang={appLang}
+            <button type="button" onClick={()=>setModal('regions')}>{appLang === 'kk' ? 'Өңір' : appLang === 'en' ? 'Region' : 'Регион'}: {selectedRegionLabel}</button>
+            {selectedRegion !== 'Весь Казахстан' && <SettlementSearch region={selectedRegion} value={settlementFilter} lang={appLang}
               onChange={value=>{setSettlementFilter(value);setSettlementCenter(null);}}
-              onSelect={place=>{setSettlementFilter(place.name);setSettlementAliases(place.aliases);setSettlementCenter({latitude:place.latitude,longitude:place.longitude});}} />
-            {settlementFilter && <button type="button" onClick={()=>{setSettlementFilter('');setSettlementCenter(null);}}>Все населённые пункты</button>}
+              onSelect={place=>{setSettlementFilter(place.name);setSettlementAliases(place.aliases);setSettlementCenter({latitude:place.latitude,longitude:place.longitude});}} />}
+            {settlementFilter && <button type="button" onClick={()=>{setSettlementFilter('');setSettlementCenter(null);}}>{appLang === 'kk' ? 'Барлық елді мекендер' : appLang === 'en' ? 'All settlements' : 'Все населённые пункты'}</button>}
           </div>
           {visibleRequests.map((r) => {
             const Icon =
@@ -6474,7 +6475,7 @@ export default function QoldanClient({
                 </span>
                 <div className="request-main">
                   <span>
-                    {tr.request} #{r.id}
+                    {tr.request} #{String(r.id).slice(0, 8)}
                     <em
                       className={`request-source-badge ${isDemoRequest(r.id) ? 'demo' : 'real'}`}
                     >
@@ -7420,7 +7421,7 @@ export default function QoldanClient({
                   </span>
                   <div>
                     <small>
-                      {internal.requestDetail.miniTender} #{selectedRequest.id}
+                      {internal.requestDetail.miniTender} #{String(selectedRequest.id).slice(0, 8)}
                     </small>
                     <h2>{selectedRequest.title}</h2>
                     <p>

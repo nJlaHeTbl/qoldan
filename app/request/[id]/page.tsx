@@ -158,7 +158,7 @@ export default async function RequestPage({ params }: RequestPageProps) {
             <p>{t.directionNote}</p>
           </aside>
           <div className="request-page-content">
-            <small>{t.requestNo(item.id)}</small>
+            <small>{t.requestNo(item.id.slice(0, 8))}</small>
             <h1>{item.title}</h1>
             <div className="request-page-budget">
               <CircleDollarSign />

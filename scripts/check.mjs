@@ -23,6 +23,7 @@ const TESTS = [
   'test-favorites',
   'test-listing-edit',
   'test-page-copy',
+  'test-request-guard',
 ];
 
 const node = process.execPath;
