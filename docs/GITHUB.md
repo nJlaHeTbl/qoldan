@@ -5,7 +5,9 @@
 
 ## 1. Что есть сейчас
 
-- Удалённого репозитория нет: `git remote -v` пуст, ничего никуда не отправлялось.
+- **20 ноября 2026 переезд выполнен** (по «да» владельца): приватный репозиторий `https://github.com/nJlaHeTbl/qoldan`,
+  отправлена только ветка `main` (164 коммита), `origin` настроен в рабочей копии владельца. GitHub Actions в
+  репозитории пока выключены — CI заработает, когда владелец включит Actions (Settings → Actions → General).
 - Рабочая копия владельца: `C:\Users\ASUS\Documents\Codex\2026-08-29\referenced-chatgpt-conversation-this-is-an\work\marketplace`
   (ветка `main`). Claude работает в отдельной рабочей копии на ветке `claude/launch-readiness` и после каждого этапа
   переносит `main` вперёд без слияний (`merge --ff-only`).
