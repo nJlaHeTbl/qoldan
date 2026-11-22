@@ -40,6 +40,8 @@ export default defineConfig(async () => {
   // Node stand-in (SQLite file + file storage). Without the variable the build is exactly the platform build.
   if (process.env.QOLDAN_TARGET === 'node') {
     return {
+      // Keep the namespace expected by Vinext's dynamic navigation imports.
+      environments: { client: { build: { rolldownOptions: { preserveEntrySignatures: 'strict' as const } } } },
       css: { postcss: { plugins: [tailwindcss()] } },
       plugins: [vinext()],
       resolve: {
@@ -60,6 +62,8 @@ export default defineConfig(async () => {
   const { cloudflare } = await import('@cloudflare/vite-plugin');
 
   return {
+    // Keep the namespace expected by Vinext's dynamic navigation imports.
+    environments: { client: { build: { rolldownOptions: { preserveEntrySignatures: 'strict' as const } } } },
     css: { postcss: { plugins: [tailwindcss()] } },
     server: isCodexSeatbeltSandbox
       ? { watch: { useFsEvents: false, usePolling: true } }
