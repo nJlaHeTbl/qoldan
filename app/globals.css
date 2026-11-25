@@ -1342,6 +1342,15 @@ footer {
   font-size: 11px;
   color: var(--muted);
 }
+.footer-legal {
+  margin-top: 36px;
+  border-top: 1px solid var(--line);
+  padding-top: 17px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
 .foot-bottom {
   margin-top: 42px;
   border-top: 1px solid var(--line);
@@ -1555,11 +1564,6 @@ footer {
   align-items: center;
   position: relative;
   z-index: 1;
-}
-.about-detail-top > span:last-child {
-  font-size: 54px;
-  font-weight: 900;
-  color: #17231b0b;
 }
 .about-big-icon {
   width: 54px;

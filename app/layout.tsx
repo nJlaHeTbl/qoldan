@@ -3,6 +3,7 @@ import { Manrope } from 'next/font/google';
 import './globals.css';
 import CookieNotice from '@/components/CookieNotice';
 import LegalFooter from '@/components/LegalFooter';
+import SkipLink from '@/components/SkipLink';
 const manrope = Manrope({
   variable: '--font-manrope',
   subsets: ['latin', 'cyrillic'],
@@ -35,9 +36,7 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <body className={manrope.variable}>
-        <a className="skip-link" href="#main-content">
-          К содержимому
-        </a>
+        <SkipLink />
         {children}
         <LegalFooter />
         <CookieNotice />
