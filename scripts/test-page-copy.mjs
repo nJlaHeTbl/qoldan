@@ -45,3 +45,28 @@ const shellKeys = Object.keys(copyFor('ru').shell).sort();
 for (const lang of ['kk', 'en']) assert.deepEqual(Object.keys(copyFor(lang).shell).sort(), shellKeys, `shell keys ${lang}`);
 for (const [key, value] of Object.entries(copyFor('en').shell)) assert.ok(!cyrillic.test(value), `English shell ${key} has Cyrillic`);
 console.log('page copy tests passed');
+
+// Regions, directions menu and demo examples: every language is complete and English has no Cyrillic.
+import { COPY } from '../lib/ui-copy.ts';
+import { KAZAKHSTAN_REGIONS, regionLabel } from '../lib/regions.ts';
+import { demoRequestText } from '../lib/demo-copy.ts';
+// attrs.values is a lookup table (stored Russian value -> label), so Russian may legitimately have fewer entries.
+const withoutLookup = (copy) => ({ ...copy, attrs: { ...copy.attrs, values: {} } });
+const shape = (value) => (value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, shape(v)]).sort(([a], [b]) => (a < b ? -1 : 1))) : typeof value);
+assert.deepEqual(shape(withoutLookup(COPY.kk)), shape(withoutLookup(COPY.ru)), 'COPY kk structure matches ru');
+assert.deepEqual(shape(withoutLookup(COPY.en)), shape(withoutLookup(COPY.ru)), 'COPY en structure matches ru');
+for (const { name } of KAZAKHSTAN_REGIONS) {
+  assert.ok(!cyrillic.test(regionLabel('en', name)), `English region ${name}`);
+  assert.notEqual(regionLabel('kk', name), '', `Kazakh region ${name}`);
+}
+assert.equal(regionLabel('en', 'Алматы'), 'Almaty');
+assert.equal(regionLabel('en', 'constructor'), 'constructor');
+for (const [id, byLang] of Object.entries(demoRequestText)) {
+  for (const [field, value] of Object.entries(byLang.en)) assert.ok(!cyrillic.test(value), `English demo ${id} ${field}`);
+  assert.deepEqual(Object.keys(byLang.kk).sort(), Object.keys(byLang.en).sort());
+}
+for (const category of ['Техника', 'Услуги', 'Корма и сено', 'Зерно', 'Пастбища', 'Скот и животные', 'Перевозка скота', 'Стройматериалы', 'Остатки партий', 'Инструменты', 'Аренда техники', 'Рабочие услуги', 'Доставка', 'Спецтехника', 'Электроника', 'Оборудование', 'Для мероприятий', 'Генераторы']) {
+  assert.ok(!cyrillic.test(listingPageCopy('en').categoryLabel(category)), `English category ${category}`);
+  assert.ok(listingPageCopy('kk').categoryLabel(category).length > 0, `Kazakh category ${category}`);
+}
+console.log('regions and demo copy tests passed');

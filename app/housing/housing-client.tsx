@@ -7,6 +7,7 @@ import { getRegionCenter } from '@/lib/geo';
 import { LocationFields } from '@/components/LocationFields';
 import { SettlementSearch } from '@/components/SettlementSearch';
 import ConsentNote from '@/components/ConsentNote';
+import { LegalLinks } from '@/components/LegalFooter';
 import RevealPhone from '@/components/RevealPhone';
 import { optimizeListingImage } from '@/lib/image-optimize';
 import { MarketplaceMap } from '@/components/MarketplaceMap';
@@ -285,6 +286,6 @@ export default function HousingClient({ signedIn, signInPath, lang = 'ru' }: { s
       </article>)}</div>
       {!error && (page > 1 || hasMore) && <nav className="housing-pagination" aria-label={t.pages}><button disabled={page === 1} onClick={() => setPage(value => value - 1)}>{t.back}</button><span>{t.page(page)}</span><button disabled={!hasMore} onClick={() => setPage(value => value + 1)}>{t.next}</button></nav>}
     </>}
-    <footer><a href="/">{t.footerHome}</a><a href="/map-editor">{t.fixPlace}</a></footer>
+    <footer><a href="/">{t.footerHome}</a><a href="/map-editor">{t.fixPlace}</a><div style={{ flexBasis: '100%', textAlign: 'center', fontSize: 12, lineHeight: 1.6, opacity: 0.8 }}><LegalLinks /></div></footer>
   </main>;
 }

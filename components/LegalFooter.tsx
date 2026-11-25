@@ -29,8 +29,8 @@ export function LegalLinks() {
 
 export default function LegalFooter() {
   const pathname = usePathname();
-  // The home page carries these links inside its own footer, so a second footer would be a duplicate.
-  if (pathname === '/') return null;
+  // These pages carry the links inside their own footer, so a second footer would be a duplicate.
+  if (pathname === '/' || pathname === '/housing') return null;
   return (
     <footer style={{ padding: '24px 16px 104px', textAlign: 'center', fontSize: '.85rem', lineHeight: 1.6, opacity: 0.8 }}>
       <LegalLinks />

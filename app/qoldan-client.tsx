@@ -11,6 +11,8 @@ import {
 } from 'react';
 import { type DateRange } from 'react-day-picker';
 import RevealPhone from '@/components/RevealPhone';
+import { listingPageCopy } from '@/lib/listing-page-copy';
+import { demoRequestText } from '@/lib/demo-copy';
 import { LegalLinks } from '@/components/LegalFooter';
 import AuctionFields from '@/components/AuctionFields';
 import CategoryFields, { readCategoryFields } from '@/components/CategoryFields';
@@ -85,6 +87,7 @@ import {
 } from '@/lib/geo';
 import {
   KAZAKHSTAN_REGIONS,
+  regionLabel,
 } from '@/lib/regions';
 
 const BookingCalendar = lazy(() => import('@/components/BookingCalendar'));
@@ -907,6 +910,11 @@ const initialRequests: RequestItem[] = [
     region: 'Алматы',
   },
 ];
+const localizeDemoRequest = (item: RequestItem, lang: 'ru' | 'kk' | 'en'): RequestItem => {
+  const key = Number(item.id);
+  const text = lang === 'ru' ? undefined : Object.hasOwn(demoRequestText, key) ? demoRequestText[key]?.[lang] : undefined;
+  return text && initialRequests.some((demo) => demo.id === item.id) ? { ...item, ...text } : item;
+};
 const recyclePrices = [
   { name: 'Картон', price: '55 ₸/кг', trend: '+4%', icon: '📦' },
   { name: 'PET-пластик', price: '90 ₸/кг', trend: '+7%', icon: '♻️' },
@@ -952,7 +960,7 @@ const aboutContent = {
         example:
           'Покупатель экономит относительно магазина, а владелец освобождает место и возвращает часть денег.',
         benefit:
-          'Позже подключим магазины и склады с остатками партий и товарами со скидкой.',
+          'Остатки можно выставить на продажу или найти рядом с собой — без посредников и комиссии.',
       },
     ],
   },
@@ -988,7 +996,7 @@ const aboutContent = {
         example:
           'Сатып алушы дүкеннен арзанырақ алады, ал сатушы орнын босатып, қаражатының бір бөлігін қайтарады.',
         benefit:
-          'Кейін жеңілдік тауарлары мен партия қалдықтары бар дүкендер мен қоймаларды қосамыз.',
+          'Қалдықтарды сатуға қоюға немесе жақыннан табуға болады — делдалсыз және комиссиясыз.',
       },
     ],
   },
@@ -1025,7 +1033,7 @@ const aboutContent = {
         example:
           'Buyers save compared with stores while sellers clear space and recover part of their costs.',
         benefit:
-          'Later, stores and warehouses can offer surplus batches and discounted stock.',
+          'You can list surplus for sale or find it nearby — no middlemen and no commission.',
       },
     ],
   },
@@ -2729,7 +2737,7 @@ export default function QoldanClient({
   const renderRegionOptions = () => (
     <>
       {KAZAKHSTAN_REGIONS.map(({ code, name }) => (
-        <option key={code} value={name}>{code} — {name}</option>
+        <option key={code} value={name}>{code} — {regionLabel(appLang, name)}</option>
       ))}
     </>
   );
@@ -2760,7 +2768,7 @@ export default function QoldanClient({
       closed: internal.support.statusClosed,
     })[status];
   const selectedRegionLabel =
-    selectedRegion === 'Весь Казахстан' ? tr.allKazakhstan : selectedRegion;
+    selectedRegion === 'Весь Казахстан' ? tr.allKazakhstan : regionLabel(appLang, selectedRegion);
   const aboutIcons = [Tractor, Wrench, PackageOpen];
   const visibleViewerName = isSignedIn ? viewerName : auth.guest;
   const viewerInitials = visibleViewerName
@@ -5763,7 +5771,7 @@ export default function QoldanClient({
                     ?.scrollIntoView({ behavior: 'smooth' });
                 }}
               >
-                {code} — {r}
+                {code} — {regionLabel(appLang, r)}
               </button>
             ))}
             <button onClick={() => setModal('regions')}>
@@ -5776,7 +5784,7 @@ export default function QoldanClient({
                 <span>
                   <Tractor />
                 </span>
-                <b>Сельское хозяйство</b>
+                <b>{homeCopy.dirAgro}</b>
               </div>
               {[
                 'Техника',
@@ -5788,7 +5796,7 @@ export default function QoldanClient({
                 'Перевозка скота',
               ].map((x) => (
                 <button key={x} onClick={() => exploreDirection(x)}>
-                  {x}
+                  {listingPageCopy(appLang).categoryLabel(x)}
                   <ArrowRight />
                 </button>
               ))}
@@ -5798,7 +5806,7 @@ export default function QoldanClient({
                 <span>
                   <Construction />
                 </span>
-                <b>Стройка и материалы</b>
+                <b>{homeCopy.dirBuild}</b>
               </div>
               {[
                 'Стройматериалы',
@@ -5809,7 +5817,7 @@ export default function QoldanClient({
                 'Доставка',
               ].map((x) => (
                 <button key={x} onClick={() => exploreDirection(x)}>
-                  {x}
+                  {listingPageCopy(appLang).categoryLabel(x)}
                   <ArrowRight />
                 </button>
               ))}
@@ -5819,7 +5827,7 @@ export default function QoldanClient({
                 <span>
                   <Wrench />
                 </span>
-                <b>Аренда вещей</b>
+                <b>{homeCopy.dirRent}</b>
               </div>
               {[
                 'Инструменты',
@@ -5830,7 +5838,7 @@ export default function QoldanClient({
                 'Генераторы',
               ].map((x) => (
                 <button key={x} onClick={() => exploreDirection(x)}>
-                  {x}
+                  {listingPageCopy(appLang).categoryLabel(x)}
                   <ArrowRight />
                 </button>
               ))}
@@ -6172,7 +6180,7 @@ export default function QoldanClient({
                   <button
                     className="listing-open"
                     onClick={() => openListing(item)}
-                    aria-label={`Открыть объявление: ${item.title}`}
+                    aria-label={`${homeCopy.openListing}${item.title}`}
                   />
                   <div className="listing-image">
                     <img
@@ -6185,16 +6193,16 @@ export default function QoldanClient({
                     <span
                       className={`type ${item.type === 'Продам' ? 'sale' : item.type === 'Сдам' ? 'rent' : 'service'}`}
                     >
-                      {item.type}
+                      {localizedListingType(item.type)}
                     </span>
                     {isDemoListing(item.id) && (
-                      <span className="source-chip demo">ДЕМО · ПРИМЕР</span>
+                      <span className="source-chip demo">{homeCopy.demoChip}</span>
                     )}
                     {item.sellerType && (
-                      <span className="seller-type">{item.sellerType}</span>
+                      <span className="seller-type">{listingPageCopy(appLang).sellerLabel(item.sellerType)}</span>
                     )}
                     {item.mine && item.status === 'paused' && (
-                      <span className="status-chip paused">На паузе</span>
+                      <span className="status-chip paused">{homeCopy.paused}</span>
                     )}
                     <button
                       className={
@@ -6208,8 +6216,8 @@ export default function QoldanClient({
                       }}
                       aria-label={
                         favorites.includes(String(item.id))
-                          ? 'Удалить из избранного'
-                          : 'Добавить в избранное'
+                          ? homeCopy.favRemove
+                          : homeCopy.favAdd
                       }
                     >
                       <Heart
@@ -6236,17 +6244,17 @@ export default function QoldanClient({
                     </button>
                   </div>
                   <div className="listing-body">
-                    <small>{item.category}</small>
+                    <small>{localizedCategory(item.category)}</small>
                     <h3>{item.title}</h3>
                     {item.livestockQuantity && item.livestockType && (
                       <div className="livestock-tag">
                         <Beef />
                         {livestockQuantityLabel(item.livestockQuantity)} ·{' '}
-                        {item.livestockType}
+                        {localizedLivestockType(item.livestockType)}
                       </div>
                     )}
                     <div className="price">
-                      {formatPriceText(item.price)} <span>{item.unit}</span>
+                      {formatPriceText(item.price)} <span>{listingPageCopy(appLang).unitLabel(item.unit ?? '')}</span>
                     </div>
                     {item.auction && item.auction.phase !== 'cancelled' && (
                       <span className="auction-badge">
@@ -6271,12 +6279,12 @@ export default function QoldanClient({
                     </div>
                     {item.delivery && (
                       <div className="delivery-tag">
-                        <Construction /> Есть доставка
+                        <Construction /> {homeCopy.delivery}
                       </div>
                     )}
                     {item.verified && !isDemoListing(item.id) && (
                       <div className="verified">
-                        <ShieldCheck size={14} /> Бизнес подтверждён Qoldan
+                        <ShieldCheck size={14} /> {homeCopy.verifiedBiz}
                       </div>
                     )}
                   </div>
@@ -6467,7 +6475,8 @@ export default function QoldanClient({
               onSelect={place=>{setSettlementFilter(place.name);setSettlementAliases(place.aliases);setSettlementCenter({latitude:place.latitude,longitude:place.longitude});}} />}
             {settlementFilter && <button type="button" onClick={()=>{setSettlementFilter('');setSettlementCenter(null);}}>{appLang === 'kk' ? 'Барлық елді мекендер' : appLang === 'en' ? 'All settlements' : 'Все населённые пункты'}</button>}
           </div>
-          {visibleRequests.map((r) => {
+          {visibleRequests.map((request) => {
+            const r = localizeDemoRequest(request, appLang);
             const Icon =
               r.kind === 'agro'
                 ? Tractor
@@ -6492,13 +6501,13 @@ export default function QoldanClient({
                     {r.selection && r.selection.status !== 'cancelled' ? (
                       <em className="inline-status selected-work">
                         {r.selection.status === 'completed'
-                          ? 'Работа выполнена'
+                          ? homeCopy.workDone
                           : r.selection.mineAsProvider
-                            ? 'Вы выбраны'
-                            : 'Исполнитель выбран'}
+                            ? homeCopy.youChosen
+                            : homeCopy.workerChosen}
                       </em>
                     ) : r.mine && r.status === 'closed' ? (
-                      <em className="inline-status">Закрыта</em>
+                      <em className="inline-status">{homeCopy.closed}</em>
                     ) : null}
                   </span>
                   <h4>{r.title}</h4>
@@ -6616,7 +6625,7 @@ export default function QoldanClient({
                 <small>{homeCopy.offers}</small>
                 <b>6</b>
               </div>
-              <button onClick={() => openRequest(initialRequests[3])}>
+              <button onClick={() => openRequest(localizeDemoRequest(initialRequests[3], appLang))}>
                 {homeCopy.placeBid} <ArrowRight />
               </button>
             </div>
@@ -6785,7 +6794,7 @@ export default function QoldanClient({
                   ?.scrollIntoView({ behavior: 'smooth' });
               }}
             >
-              Алматы
+              {regionLabel(appLang, 'Алматы')}
             </button>
             <button
               onClick={() => {
@@ -6797,7 +6806,7 @@ export default function QoldanClient({
                   ?.scrollIntoView({ behavior: 'smooth' });
               }}
             >
-              Астана
+              {regionLabel(appLang, 'Астана')}
             </button>
             <button onClick={() => setModal('regions')}>
               {tr.allRegionsShort}
@@ -7881,7 +7890,7 @@ export default function QoldanClient({
                   <div className="detail-heading-row">
                     <small className="kicker">
                       {localizedCategory(selectedListing.category)} ·{' '}
-                      {selectedListing.region}
+                      {regionLabel(appLang, selectedListing.region ?? '')}
                     </small>
                     {!isDemoListing(selectedListing.id) && (
                       <button
@@ -8733,13 +8742,13 @@ export default function QoldanClient({
                         setSelectedRegion(r);
                         setModal(null);
                         setMaxDistance(100);
-                        notify(`Выбран регион: ${r}`);
+                        notify(`${homeCopy.regionChosen}${regionLabel(appLang, r)}`);
                       }}
                     >
                       <span>
                         {code}
                       </span>
-                      {r}
+                      {regionLabel(appLang, r)}
                       {selectedRegion === r && <CheckCircle2 />}
                     </button>
                   ))}
