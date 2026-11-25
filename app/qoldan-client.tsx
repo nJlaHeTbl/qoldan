@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { type DateRange } from 'react-day-picker';
 import RevealPhone from '@/components/RevealPhone';
+import { LegalLinks } from '@/components/LegalFooter';
 import AuctionFields from '@/components/AuctionFields';
 import CategoryFields, { readCategoryFields } from '@/components/CategoryFields';
 import { describeAttributes, type ListingAttributes } from '@/lib/listing-attributes';
@@ -912,6 +913,12 @@ const recyclePrices = [
   { name: 'Чёрный металл', price: '115 ₸/кг', trend: '−2%', icon: '🔩' },
   { name: 'Европаллет', price: '1 700 ₸/шт.', trend: '+3%', icon: '🪵' },
 ];
+const recycleNames = {
+  kk: { 'Картон': 'Картон', 'PET-пластик': 'PET-пластик', 'Чёрный металл': 'Қара металл', 'Европаллет': 'Еуропаллет' },
+  en: { 'Картон': 'Cardboard', 'PET-пластик': 'PET plastic', 'Чёрный металл': 'Ferrous metal', 'Европаллет': 'Euro pallet' },
+} as const;
+const recycleUnit = (value: string, lang: 'ru' | 'kk' | 'en') =>
+  lang === 'en' ? value.replace('/кг', '/kg').replace('/шт.', '/pc') : lang === 'kk' ? value.replace('/шт.', '/дана') : value;
 const aboutContent = {
   ru: {
     eyebrow: 'О ПРИЛОЖЕНИИ',
@@ -3122,13 +3129,14 @@ export default function QoldanClient({
     userCoords
       ? calculateDistanceKm(userCoords, resolveCoordinates(listing))
       : null;
+  const homeCopy = copyFor(appLang).shell;
   const listingDistanceLabel = (listing: Listing) => {
     const distance = distanceFromUser(listing);
     if (distance !== null) {
       return `${hasExactCoordinates(listing) ? '' : '≈ '}${formatDistanceKm(distance)}`;
     }
     if (listing.distance !== 'Рядом') return listing.distance;
-    return hasExactCoordinates(listing) ? 'точка указана' : 'место указано';
+    return hasExactCoordinates(listing) ? homeCopy.pointSet : homeCopy.placeSet;
   };
   // «перфоратор в аренду в Талдыкоргане до 5000» → words + deal type + place + price limit.
   const smartQuery = useMemo(() => parseSmartQuery(query), [query]);
@@ -5984,8 +5992,8 @@ export default function QoldanClient({
                 >
                   <Bookmark />
                   {submitting === 'saved-search-create'
-                    ? 'Сохраняем…'
-                    : 'Сохранить поиск'}
+                    ? homeCopy.saving
+                    : homeCopy.saveSearch}
                 </button>
               )}
               <button
@@ -6409,11 +6417,11 @@ export default function QoldanClient({
               <div>
                 <CheckCircle2 />
                 <span>
-                  <b>Источник заявки виден сразу</b>
-                  Демо-примеры не принадлежат реальным заказчикам.
+                  <b>{homeCopy.requestSource}</b>
+                  {homeCopy.requestSourceNote}
                 </span>
               </div>
-              <div className="data-source-switch" aria-label="Источник заявок">
+              <div className="data-source-switch" aria-label={homeCopy.requestSourceLabel}>
                 {(
                   [
                     ['all', `${tr.all} · ${allRequests.length}`],
@@ -6433,7 +6441,7 @@ export default function QoldanClient({
               </div>
             </div>
           )}
-          <div className="request-filters" aria-label="Фильтр заявок">
+          <div className="request-filters" aria-label={homeCopy.requestFilters}>
             {(
               [
                 ['all', tr.all],
@@ -6574,9 +6582,9 @@ export default function QoldanClient({
               <article key={x.name}>
                 <span>{x.icon}</span>
                 <div>
-                  <small>ПРИМЕР ОТОБРАЖЕНИЯ ЦЕНЫ</small>
-                  <h3>{x.name}</h3>
-                  <b>{x.price}</b>
+                  <small>{homeCopy.priceExample}</small>
+                  <h3>{appLang === 'ru' ? x.name : (recycleNames[appLang] as Record<string, string>)[x.name] ?? x.name}</h3>
+                  <b>{recycleUnit(x.price, appLang)}</b>
                 </div>
                 <em className={x.trend.startsWith('−') ? 'down' : ''}>
                   {x.trend}
@@ -6595,21 +6603,21 @@ export default function QoldanClient({
           </div>
           <div className="auction-card">
             <div className="auction-main">
-              <span>ДЕМО АУКЦИОНА</span>
-              <h3>600 кг картона · Алматы</h3>
-              <p>Самовывоз из Алатауского района до 4 сентября</p>
+              <span>{homeCopy.auctionDemo}</span>
+              <h3>{homeCopy.auctionTitle}</h3>
+              <p>{homeCopy.auctionNote}</p>
             </div>
             <div className="auction-bids">
               <div>
-                <small>Лучшая ставка</small>
-                <b>63 ₸/кг</b>
+                <small>{homeCopy.bestBid}</small>
+                <b>{recycleUnit('63 ₸/кг', appLang)}</b>
               </div>
               <div>
-                <small>Предложений</small>
+                <small>{homeCopy.offers}</small>
                 <b>6</b>
               </div>
               <button onClick={() => openRequest(initialRequests[3])}>
-                Сделать ставку <ArrowRight />
+                {homeCopy.placeBid} <ArrowRight />
               </button>
             </div>
           </div>
@@ -6677,7 +6685,6 @@ export default function QoldanClient({
                     return <Icon />;
                   })()}
                 </span>
-                <span>0{aboutTopic + 1}</span>
               </div>
               <h3>{about.items[aboutTopic].title}</h3>
               <p className="about-main-text">{about.items[aboutTopic].text}</p>
@@ -6764,7 +6771,7 @@ export default function QoldanClient({
             <a href="#recycle">{tr.recycleExchange}</a>
             <a href="/housing">{appLang === 'kk' ? 'Тұрғын үй' : appLang === 'en' ? 'Stays' : 'Жильё на сутки'}</a>
             <a href="#about">{tr.navAbout}</a>
-            <a href="/map-editor">Исправить карту и населённые пункты</a>
+            <a href="/map-editor">{homeCopy.fixMap}</a>
           </div>
           <div>
             <b>{tr.kazakhstan}</b>
@@ -6808,6 +6815,9 @@ export default function QoldanClient({
               {tr.safety}
             </button>
           </div>
+        </div>
+        <div className="wrap footer-legal">
+          <LegalLinks />
         </div>
         <div className="wrap foot-bottom">
           <span>© 2026 Qoldan. {tr.madeIn}</span>

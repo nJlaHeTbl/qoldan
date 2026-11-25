@@ -39,4 +39,9 @@ for (const [key, value] of Object.entries({ ...housingCopy('en'), ...locationCop
   if (typeof value === 'string') assert.ok(!cyrillic.test(value), `English text ${key} has Cyrillic`);
 }
 assert.equal(housingCopy('en').roomsGuests(1, 2), '1 room · up to 2 guests');
+// Home-page shell strings: same keys in every language, no Cyrillic in English.
+import { copyFor } from '../lib/ui-copy.ts';
+const shellKeys = Object.keys(copyFor('ru').shell).sort();
+for (const lang of ['kk', 'en']) assert.deepEqual(Object.keys(copyFor(lang).shell).sort(), shellKeys, `shell keys ${lang}`);
+for (const [key, value] of Object.entries(copyFor('en').shell)) assert.ok(!cyrillic.test(value), `English shell ${key} has Cyrillic`);
 console.log('page copy tests passed');
