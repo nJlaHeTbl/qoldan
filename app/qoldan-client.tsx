@@ -960,7 +960,7 @@ const aboutContent = {
         example:
           'Покупатель экономит относительно магазина, а владелец освобождает место и возвращает часть денег.',
         benefit:
-          'Позже подключим магазины и склады с остатками партий и товарами со скидкой.',
+          'Остатки можно выставить на продажу или найти рядом с собой — без посредников и комиссии.',
       },
     ],
   },
@@ -996,7 +996,7 @@ const aboutContent = {
         example:
           'Сатып алушы дүкеннен арзанырақ алады, ал сатушы орнын босатып, қаражатының бір бөлігін қайтарады.',
         benefit:
-          'Кейін жеңілдік тауарлары мен партия қалдықтары бар дүкендер мен қоймаларды қосамыз.',
+          'Қалдықтарды сатуға қоюға немесе жақыннан табуға болады — делдалсыз және комиссиясыз.',
       },
     ],
   },
@@ -1033,7 +1033,7 @@ const aboutContent = {
         example:
           'Buyers save compared with stores while sellers clear space and recover part of their costs.',
         benefit:
-          'Later, stores and warehouses can offer surplus batches and discounted stock.',
+          'You can list surplus for sale or find it nearby — no middlemen and no commission.',
       },
     ],
   },
