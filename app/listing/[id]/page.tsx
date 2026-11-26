@@ -1,6 +1,7 @@
 /* oxlint-disable next/no-img-element -- listing photos can be remote or user-uploaded */
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { cache } from 'react';
 import {
   ArrowLeft,
@@ -166,20 +167,7 @@ export default async function ListingPage({ params }: ListingPageProps) {
   const lang = await requestLang();
   const t = listingPageCopy(lang);
 
-  if (!listing) {
-    return (
-      <main id="main-content" tabIndex={-1} lang={lang} className="listing-page listing-page-missing">
-        <section>
-          <span>Q</span>
-          <h1>{t.missingTitle}</h1>
-          <p>{t.missingText}</p>
-          <Link href="/#catalog">
-            <ArrowLeft /> {t.backCatalog}
-          </Link>
-        </section>
-      </main>
-    );
-  }
+  if (!listing) notFound();
 
   const similar = await getSimilar(listing.id, listing.category, listing.region);
   const image = absoluteListingImage(listing.image_url);

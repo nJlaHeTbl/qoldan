@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { cache } from 'react';
 import {
   ArrowLeft,
@@ -116,20 +117,7 @@ export default async function RequestPage({ params }: RequestPageProps) {
   const lang = await requestLang();
   const t = requestPageCopy(lang);
 
-  if (!item) {
-    return (
-      <main id="main-content" tabIndex={-1} lang={lang} className="listing-page listing-page-missing">
-        <section>
-          <span>Q</span>
-          <h1>{t.missingTitle}</h1>
-          <p>{t.missingText}</p>
-          <Link href="/#requests">
-            <ArrowLeft /> {t.missingLink}
-          </Link>
-        </section>
-      </main>
-    );
-  }
+  if (!item) notFound();
 
   const kind = Object.hasOwn(requestIcons, item.kind) ? item.kind : 'agro';
   const DirectionIcon = requestIcons[kind];
