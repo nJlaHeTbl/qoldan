@@ -81,6 +81,14 @@ try {
     assert.match(await response.text(), /не найдена/);
   });
 
+  await check('missing listing and request answer 404, not 200', async () => {
+    for (const path of ['/listing/no-such-listing-e2e', '/request/no-such-request-e2e']) {
+      const response = await get(path);
+      assert.equal(response.status, 404, path);
+      assert.match(await response.text(), /Q/);
+    }
+  });
+
   await check('health check reports ok without data', async () => {
     const response = await get('/api/health');
     assert.equal(response.status, 200);

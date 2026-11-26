@@ -10,6 +10,7 @@ function compile(path,require) {
   const exports={};new Function('require','exports',output)(require,exports);return exports;
 }
 const guards=compile('lib/server/marketplace-db.ts',name=>{
+  if(name==='@/lib/server/auth')return {authMode:()=>'platform',sessionUser:async()=>null};
   assert.equal(name,'cloudflare:workers');return {env:{QOLDAN_ADMIN_USER_IDS:'real-admin',DB:{prepare(){throw new Error('Unauthorized database access');}}}};
 });
 const route=compile('app/api/settlement-edits/route.ts',name=>name==='zod'?nodeRequire('zod'):name.includes('marketplace-db')?guards:name.includes('settlement-regions')?JSON.parse(fs.readFileSync('lib/server/settlement-regions.json')):{KAZAKHSTAN_REGIONS});

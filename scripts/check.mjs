@@ -24,6 +24,8 @@ const TESTS = [
   'test-listing-edit',
   'test-page-copy',
   'test-request-guard',
+  'test-settlement-guards',
+  'test-csp',
 ];
 
 const node = process.execPath;
@@ -63,6 +65,11 @@ if (!lintOk) {
 
 if (!process.argv.includes('--no-build')) {
   report(run('build', ['node_modules/vinext/dist/cli.js', 'build'], { capture: true }));
+}
+
+// Opt-in: starts a real local server and walks the main flows (slow, writes synthetic rows to the LOCAL database only).
+if (process.argv.includes('--e2e')) {
+  report(run('e2e-smoke', ['scripts/e2e-smoke.mjs'], { capture: true }));
 }
 
 if (failures.length) {
