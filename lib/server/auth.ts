@@ -1,6 +1,8 @@
 // Own sign-in with one-time codes (phone or e-mail), for self-hosting. Off by default: on the ChatGPT platform
 // the platform signs users in. Enabled with QOLDAN_AUTH_MODE=own. Only hashes of codes and tokens are stored.
 
+import { createCodeSender, type DeliveryEnv } from '@/lib/server/auth-delivery';
+
 export type AuthChannel = 'phone' | 'email';
 
 export const AUTH = {
@@ -12,7 +14,7 @@ export const AUTH = {
   cookie: 'qoldan_session',
 } as const;
 
-type AuthEnv = {
+type AuthEnv = DeliveryEnv & {
   QOLDAN_AUTH_MODE?: string;
   QOLDAN_AUTH_SECRET?: string;
   QOLDAN_AUTH_CHANNELS?: string;
@@ -68,14 +70,9 @@ function sameText(a: string, b: string) {
 
 export type CodeSender = (channel: AuthChannel, destination: string, code: string) => Promise<void>;
 
-/** The configured delivery. Real SMS / e-mail providers are plugged in here when the owner picks one. */
+/** The configured delivery: the console (development) or the providers chosen by environment variables. */
 export function getCodeSender(env: AuthEnv): CodeSender | null {
-  if (env.QOLDAN_AUTH_SENDER === 'console') {
-    return async (channel, destination, code) => {
-      console.log(JSON.stringify({ event: 'auth_code_dev', channel, destination, code }));
-    };
-  }
-  return null;
+  return createCodeSender(env);
 }
 
 type Outcome<T> = { ok: true; value: T } | { ok: false; status: number; error: string };
