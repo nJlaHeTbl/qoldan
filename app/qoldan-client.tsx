@@ -7239,7 +7239,7 @@ export default function QoldanClient({
                       inputMode="tel"
                       minLength={10}
                       maxLength={32}
-                      pattern="[+0-9() -]{10,32}"
+                      pattern="[+0-9() \-]{10,32}"
                       required
                       defaultValue={listingDraft?.fields.phone || ''}
                       placeholder="+7 700 123 45 67"
@@ -8612,7 +8612,7 @@ export default function QoldanClient({
                       inputMode="tel"
                       minLength={10}
                       maxLength={32}
-                      pattern="[+0-9() -]{10,32}"
+                      pattern="[+0-9() \-]{10,32}"
                       required
                       placeholder="+7 700 123 45 67"
                     />
@@ -9539,7 +9539,7 @@ export default function QoldanClient({
                       inputMode="tel"
                       minLength={10}
                       maxLength={32}
-                      pattern="[+0-9() -]{10,32}"
+                      pattern="[+0-9() \-]{10,32}"
                       required
                       defaultValue={businessVerification?.phone || ''}
                       placeholder="+7 700 000 00 00"
