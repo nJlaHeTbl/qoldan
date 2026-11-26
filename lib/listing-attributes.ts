@@ -1,5 +1,9 @@
 import { z } from 'zod';
 
+// zod probes whether eval is allowed by calling Function(''); under a strict Content-Security-Policy that probe is
+// reported as a violation. Turning the JIT off skips the probe (the Workers runtime has no eval anyway).
+z.config({ jitless: true });
+
 // Category-specific characteristics. Stored as validated JSON in listings.attributes; the server keeps
 // only the fields of the listing's own group, so a client cannot attach arbitrary data.
 
