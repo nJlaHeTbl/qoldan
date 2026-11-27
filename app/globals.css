@@ -7744,3 +7744,10 @@ a:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible,te
 .footer-languages button { min-width: 24px; justify-content: center; }
 .legal-links nav a { padding-block: 5px; }
 .cookie-notice a { display: inline-flex; align-items: center; min-height: 24px; }
+
+/* 320 px: the requests grid tracks may not grow with their widest child (a row of filter chips pushed the page 32 px wider). */
+@media (max-width: 900px) {
+  .requests { grid-template-columns: minmax(0, 1fr); }
+  .requests > * { min-width: 0; }
+  .request-list-head, .data-source-bar, .request-filters { min-width: 0; max-width: 100%; }
+}
