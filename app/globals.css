@@ -7751,3 +7751,42 @@ a:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible,te
   .requests > * { min-width: 0; }
   .request-list-head, .data-source-bar, .request-filters { min-width: 0; max-width: 100%; }
 }
+
+/* Own confirmation window: the platform frame blocks window.confirm and window.prompt. */
+.confirm-backdrop { align-items: center; }
+.confirm-dialog {
+  position: static;
+  max-width: 420px;
+  width: calc(100% - 32px);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 22px;
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 24px 60px #17231b26;
+}
+.confirm-dialog h3 { margin: 0 0 8px; font-size: 18px; }
+.confirm-dialog p { margin: 0 0 14px; font-size: 14px; line-height: 1.5; color: var(--muted); }
+.confirm-dialog label { display: grid; gap: 6px; font-size: 13px; margin-bottom: 14px; }
+.confirm-dialog input {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font: inherit;
+}
+.confirm-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+.confirm-actions button {
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+.confirm-actions .confirm-yes { background: var(--green); border-color: var(--green); color: #fff; font-weight: 600; }
+.auction-cancel-ask { display: grid; gap: 8px; }
+.auction-cancel-ask p { margin: 0; font-size: 13px; line-height: 1.5; }
+.auction-cancel-ask > div { display: flex; gap: 8px; flex-wrap: wrap; }
+.auction-cancel-ask button { min-height: 36px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--line); background: #fff; font: inherit; cursor: pointer; }
+.auction-cancel-ask .confirm-yes { background: var(--green); border-color: var(--green); color: #fff; font-weight: 600; }
