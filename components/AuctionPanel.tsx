@@ -40,12 +40,15 @@ export default function AuctionPanel({
   lang?: Lang;
 }) {
   const c = copyFor(lang).auction;
+  const shell = copyFor(lang).shell;
   const [data, setData] = useState<Payload | null>(null);
   const [offset, setOffset] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const [amount, setAmount] = useState('');
   const [rules, setRules] = useState(false);
   const [busy, setBusy] = useState(false);
+  // window.confirm is silently answered "no" inside the hosting platform frame, so the panel asks inline instead.
+  const [askCancel, setAskCancel] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   const [showAll, setShowAll] = useState(false);
   const typedAmount = useRef(false);
@@ -141,7 +144,7 @@ export default function AuctionPanel({
   };
 
   const cancelAuction = async () => {
-    if (!window.confirm(c.cancelConfirm)) return;
+    setAskCancel(false);
     setBusy(true);
     try {
       const response = await fetch('/api/auctions/cancel', {
@@ -213,11 +216,24 @@ export default function AuctionPanel({
       {running && viewer?.isSeller && (
         <div className="auction-seller">
           <p>{c.yourAuction}</p>
-          {auction.bidCount === 0 && (
-            <button type="button" onClick={() => void cancelAuction()} disabled={busy}>
-              {c.cancel}
-            </button>
-          )}
+          {auction.bidCount === 0 &&
+            (askCancel ? (
+              <div className="auction-cancel-ask">
+                <p>{c.cancelConfirm}</p>
+                <div>
+                  <button type="button" onClick={() => setAskCancel(false)} disabled={busy}>
+                    {shell.confirmNo}
+                  </button>
+                  <button type="button" className="confirm-yes" onClick={() => void cancelAuction()} disabled={busy}>
+                    {shell.confirmYes}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setAskCancel(true)} disabled={busy}>
+                {c.cancel}
+              </button>
+            ))}
         </div>
       )}
 

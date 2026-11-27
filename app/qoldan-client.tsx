@@ -3358,6 +3358,22 @@ export default function QoldanClient({
     setToast(m);
     setTimeout(() => setToast(''), 2600);
   };
+
+  // Own confirmation window: window.confirm and window.prompt are blocked inside the hosting platform frame,
+  // and without them account deletion and other confirmations silently did nothing.
+  const [confirmAsk, setConfirmAsk] = useState<{
+    text: string;
+    word?: string;
+    resolve: (ok: boolean) => void;
+  } | null>(null);
+  const askConfirm = (text: string, word?: string) =>
+    new Promise<boolean>((resolve) => setConfirmAsk({ text, word, resolve }));
+  const closeConfirm = (ok: boolean) => {
+    setConfirmAsk((current) => {
+      current?.resolve(ok);
+      return null;
+    });
+  };
   const rememberRecentView = (
     kind: RecentView['kind'],
     id: string | number,
@@ -4754,12 +4770,7 @@ export default function QoldanClient({
   };
   const deleteMyAccount = async () => {
     const pd = copyFor(appLang).profileData;
-    const typed = window.prompt(pd.confirm);
-    if (typed === null) return;
-    if (typed.trim() !== 'УДАЛИТЬ') {
-      notify(pd.notConfirmed);
-      return;
-    }
+    if (!(await askConfirm(pd.confirm, 'УДАЛИТЬ'))) return;
     setSubmitting('account-delete');
     try {
       const response = await fetch('/api/account', {
@@ -4778,7 +4789,7 @@ export default function QoldanClient({
   };
   const withdrawResponse = async (responseId: string) => {
     if (!selectedRequest) return;
-    if (!window.confirm(copyFor(appLang).response.confirm)) return;
+    if (!(await askConfirm(copyFor(appLang).response.confirm))) return;
     setSubmitting('response-withdraw');
     try {
       const response = await fetch(
@@ -11273,6 +11284,47 @@ export default function QoldanClient({
                 )}
               </>
             )}
+          </dialog>
+        </div>
+      )}
+      {confirmAsk && (
+        <div className="modal-backdrop confirm-backdrop">
+          <dialog
+            open
+            className="confirm-dialog"
+            aria-labelledby="confirm-title"
+            onKeyDown={(event) => { if (event.key === 'Escape') closeConfirm(false); }}
+          >
+            <h3 id="confirm-title">{homeCopy.confirmTitle}</h3>
+            <p>{confirmAsk.text}</p>
+            <form
+              method="dialog"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const field = new FormData(event.currentTarget).get('word');
+                const typed = typeof field === 'string' ? field : '';
+                if (confirmAsk.word && typed.trim() !== confirmAsk.word) {
+                  notify(copyFor(appLang).profileData.notConfirmed);
+                  return;
+                }
+                closeConfirm(true);
+              }}
+            >
+              {confirmAsk.word && (
+                <label>
+                  {homeCopy.confirmTypeLabel(confirmAsk.word)}
+                  <input name="word" autoFocus required maxLength={32} autoComplete="off" />
+                </label>
+              )}
+              <div className="confirm-actions">
+                <button type="button" className="secondary" onClick={() => closeConfirm(false)}>
+                  {homeCopy.confirmNo}
+                </button>
+                <button type="submit" className="confirm-yes">
+                  {homeCopy.confirmYes}
+                </button>
+              </div>
+            </form>
           </dialog>
         </div>
       )}

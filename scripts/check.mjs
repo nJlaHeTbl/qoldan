@@ -27,6 +27,7 @@ const TESTS = [
   'test-settlement-guards',
   'test-csp',
   'test-auth-delivery',
+  'test-no-native-dialogs',
 ];
 
 const node = process.execPath;
